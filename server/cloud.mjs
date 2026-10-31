@@ -9,6 +9,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { timingSafeEqual } from 'node:crypto';
 import { DATA, DECKS, OUT, UserError, createDeck, deckId, getDeck, hasDeck, listDecks, putDeck } from './cloud-core.mjs';
 import { makeMcp } from './mcp.mjs';
+import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -41,6 +42,14 @@ function authWeb(req) {
     return i>0 && secureEq(plain.slice(0,i),WEB_USER) && secureEq(plain.slice(i+1),WEB_PASS);
   } catch { return false; }
 }
+const oauth=createOAuth({
+  publicUrl:ORIGIN || 'http://localhost:'+PORT,
+  clientId:process.env.OAUTH_CLIENT_ID,
+  clientSecret:process.env.OAUTH_CLIENT_SECRET,
+  dataDir:DATA,
+  authWeb,
+  redirectUris:process.env.OAUTH_REDIRECT_URIS
+});
 function send(res,status,body,contentType='application/json; charset=utf-8',head={}) {
   const buf=Buffer.isBuffer(body)?body:Buffer.from(typeof body==='string'?body:JSON.stringify(body));
   res.writeHead(status,{'Content-Type':contentType,'Content-Length':buf.length,'Cache-Control':'no-store',...head});
@@ -248,8 +257,11 @@ const server=http.createServer(async(req,res)=>{
     const url=new URL(req.url||'/', 'http://localhost');
     const p=url.pathname;
     if(p==='/health' && req.method==='GET')return json(res,200,{status:'ok',service:'pressbuilder-cloud'});
+    if(oauth.enabled && oauth.canHandle(p))return await oauth.handle(req,res,url);
     if(p==='/mcp'){
-      if(!authMcp(req))return send(res,401,{error:'Unauthorized'},'application/json; charset=utf-8',{'WWW-Authenticate':'Bearer realm="PressBuilder MCP"'});
+      const bearer=String(req.headers.authorization||'').startsWith('Bearer ') ? String(req.headers.authorization).slice(7) : '';
+      if(!authMcp(req) && !oauth.verifyToken(bearer))return send(res,401,{error:'Unauthorized'},'application/json; charset=utf-8',
+        {'WWW-Authenticate':oauth.enabled?oauth.challenge:'Bearer realm="PressBuilder MCP"'});
       if(req.method!=='POST')return json(res,405,{error:'Streamable HTTP supports POST' });
       const msg=await readJson(req);
       const reply=await mcp(msg);
