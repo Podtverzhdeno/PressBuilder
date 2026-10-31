@@ -1,0 +1,10 @@
+.git
+node_modules
+build
+out
+.trash
+.cloud-data
+.env
+.env.*
+*.log
+presbuilder.config.json
