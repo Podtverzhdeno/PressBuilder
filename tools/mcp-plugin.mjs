@@ -43,7 +43,7 @@ const skill=[
  '---',
  '',
  'Use the PressBuilder MCP tools. For a new video, collect or draft a narration script, then create_deck with a unique slug, title, preferred style, and optional slide count. The system splits the text into slides and cues.',
- 'Before changes, call get_deck to inspect the actual IDs. Edit only existing IDs with update_cue, update_slide, update_object, and reorder_slides. Do not invent object IDs; objects must exist in deployed TypeScript scene code. A new deck uses placeholder visuals, not custom motion graphics.',
+ 'Before changes call get_deck to inspect actual slide/cue IDs. Use set_slide_visuals to create safe animated infographic elements (text, rectangles, circles, lines, bars); attach them to cue IDs and choose fade/rise/slide/pop effects. After creating shapes, update_object can refine their positions or text. More complex custom TypeScript scenes require a rebuild. Use update_cue, update_slide, update_object, and reorder_slides only with actual IDs.',
  'For video output call render_video then get_render_status until completed or failed. On completion provide download_url; the URL requires the editor Basic authentication. Never claim a render is complete before status completed.',
  'The web editor uses a separate Basic username/password from the MCP API key. Audio is uploaded in the web editor. Avoid concurrent edits in web and chat (last save wins). Never ask for API secrets in conversation.',
  ''
