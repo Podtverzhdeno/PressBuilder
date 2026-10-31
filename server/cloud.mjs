@@ -232,7 +232,7 @@ function startRender(id){
   void (async()=>{
     try {
       j.status='running';
-      await renderWithChrome({id,port:PORT,username:WEB_USER,password:WEB_PASS,timeoutMs:900000});
+      await renderWithChrome({id,port:PORT,username:WEB_USER,password:WEB_PASS,timeoutMs:900000,onProgress:(p)=>{j.progress=Math.round(p*100)}});
       const file=path.join(OUT,id+'.mp4');
       if(!fs.existsSync(file))throw new Error('Video was not produced');
       j.status='completed';
