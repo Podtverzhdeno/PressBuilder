@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends chromium ffmpeg
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev --no-audit --no-fund
 COPY . .
-RUN npm run build
+RUN npm run build && npm run test:cloud
 RUN mkdir -p /data/decks /data/out
 EXPOSE 3000
 CMD ["node","server/cloud.mjs"]
