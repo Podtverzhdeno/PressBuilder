@@ -1,7 +1,7 @@
 /**
  * Build a private ChatGPT Plugin package for a deployed PressBuilder MCP server.
  * Usage: node tools/mcp-plugin.mjs https://your-domain.up.railway.app
- * Produces out/pressbuilder-mcp-plugin.tar.gz. API keys are never packaged.
+ * Produces out/pressbuilder-mcp-plugin.tar.gz. OAuth secrets are never packaged.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,7 +33,7 @@ const mcp={
   '$schema':'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
   mcpServers:{pressbuilder:{
     type:'streamable-http',url:base+'/mcp',
-    extensions:{'com.openai':{auth:{type:'api_key',headerScheme:'bearer'}}}
+    extensions:{'com.openai':{auth:{type:'oauth',client:{mode:'provided',clientId:'pressbuilder-chatgpt',tokenEndpointAuthMethod:'client_secret_basic'},baseScopes:['mcp:tools'],defaultScopes:['mcp:tools']}}}
   }}
 };
 const skill=[
@@ -45,7 +45,7 @@ const skill=[
  'Use the PressBuilder MCP tools. For a new video, collect or draft a narration script, then create_deck with a unique slug, title, preferred style, and optional slide count. The system splits the text into slides and cues.',
  'Before changes call get_deck to inspect actual slide/cue IDs. Use set_slide_visuals to create safe animated infographic elements (text, rectangles, circles, lines, bars); attach them to cue IDs and choose fade/rise/slide/pop effects. After creating shapes, update_object can refine their positions or text. More complex custom TypeScript scenes require a rebuild. Use update_cue, update_slide, update_object, and reorder_slides only with actual IDs.',
  'For video output call render_video then get_render_status until completed or failed. On completion provide download_url; the URL requires the editor Basic authentication. Never claim a render is complete before status completed.',
- 'The web editor uses a separate Basic username/password from the MCP API key. Audio is uploaded in the web editor. Avoid concurrent edits in web and chat (last save wins). Never ask for API secrets in conversation.',
+ 'The web editor uses separate Basic credentials. ChatGPT uses OAuth authorization-code with PKCE; approve access in the browser when prompted. Audio is uploaded in the web editor. Avoid concurrent edits in web and chat (last save wins). Never ask for API secrets in conversation.',
  ''
 ].join('\n');
 const files={
@@ -73,4 +73,4 @@ const archive=gzipSync(Buffer.concat(parts),{level:9});
 const dest=path.join(process.cwd(),'out','pressbuilder-mcp-plugin.tar.gz');
 fs.mkdirSync(path.dirname(dest),{recursive:true});
 fs.writeFileSync(dest,archive);
-console.log('Plugin package: '+dest+' ('+archive.length+' bytes). Configure the Bearer API key in ChatGPT.');
+console.log('Plugin package: '+dest+' ('+archive.length+' bytes). Configure OAuth client secret securely when connecting.');
