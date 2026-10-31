@@ -129,7 +129,12 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
     if(!authWeb(req)){
       res.writeHead(401,{'WWW-Authenticate':'Basic realm="PressBuilder OAuth login"'});res.end();return;
     }
-    if(req.headers.origin && req.headers.origin!==issuer)return fail(res,403,'access_denied','Invalid request origin');
+    // The OAuth consent UI may be opened in an isolated/sandboxed browser context
+    // that sends Origin: null or a ChatGPT origin on form submission. Origin is not
+    // an authentication signal here. The one-time, high-entropy consent nonce
+    // (issued only after editor Basic auth), its 10-minute TTL, and the second
+    // Basic-auth check bind approval to this user's original request.
+    // Never enable CORS for OAuth authorization or return consent nonces to APIs.
     let form;try{form=await formBody(req)}catch(e){return fail(res,400,'invalid_request',e.message)}
     const nonce=form.get('csrf')||'';
     const a=pending.get(nonce);
