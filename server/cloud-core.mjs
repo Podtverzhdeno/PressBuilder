@@ -175,3 +175,48 @@ export function reorderSlides(id, slide_ids) {
   putDeck(id,d);
   return { ok: true, slide_ids };
 }
+
+
+const VISUAL_TYPES = new Set(['text','rect','circle','line','bar']);
+const VISUAL_COLORS = new Set(['h1','accent','text','pos','panel','bg']);
+const VISUAL_EFFECTS = new Set(['fade','rise','slide','pop']);
+const VISUAL_FONTS = new Set(['display','sans','mono']);
+const VISUAL_WEIGHTS = new Set(['regular','bold']);
+const visualFields = new Set(['id','kind','x','y','w','h','radius','size','line_width','text','color','font','weight','cue_id','effect','duration']);
+export function setVisuals(id, slide_id, elements) {
+  const d = getDeck(id);
+  const s = slide(d,slide_id);
+  if (!Array.isArray(elements) || elements.length > 30) throw new UserError('Maximum 30 elements per slide');
+  const allowedCues = new Set(s.cues.map((c) => c.id));
+  const seen = new Set();
+  const normalized = elements.map((el) => {
+    if (!el || typeof el !== 'object' || Array.isArray(el)) throw new UserError('Invalid visual element');
+    for(const key of Object.keys(el))if(!visualFields.has(key))throw new UserError('Unknown visual field: '+key);
+    if(typeof el.id !== 'string' || !/^[a-zA-Z0-9:_-]{1,100}$/.test(el.id) || seen.has(el.id))throw new UserError('Invalid or duplicate visual id');
+    seen.add(el.id);
+    if(!VISUAL_TYPES.has(el.kind))throw new UserError('Invalid visual kind');
+    const out={id:el.id,kind:el.kind,x:optionalNum(el.x,-2000,2000,'visual x'),y:optionalNum(el.y,-2000,2000,'visual y')};
+    for(const [key,min,max] of [['w',1,3840],['h',-1080,2160],['radius',1,1000],['size',16,240],['line_width',1,120],['duration',0.1,20]]) {
+      if(el[key]!==undefined)out[key]=optionalNum(el[key],min,max,key);
+    }
+    if(el.text!==undefined){
+      if(typeof el.text!=='string'||el.text.length>250)throw new UserError('Visual text must be at most 250 characters');
+      out.text=el.text;
+    }
+    if(el.kind==='text'&&!el.text)throw new UserError('Text visual requires a text value');
+    for(const [key,choices] of [['color',VISUAL_COLORS],['effect',VISUAL_EFFECTS],['font',VISUAL_FONTS],['weight',VISUAL_WEIGHTS]]) {
+      if(el[key]!==undefined) {
+        if(!choices.has(el[key]))throw new UserError('Invalid '+key);
+        out[key]=el[key];
+      }
+    }
+    if(el.cue_id!==undefined){
+      if(!allowedCues.has(el.cue_id))throw new UserError('Unknown cue_id: '+el.cue_id);
+      out.cue_id=el.cue_id;
+    }
+    return out;
+  });
+  s.visuals=normalized;
+  putDeck(id,d);
+  return {ok:true,id,slide_id,elements:s.visuals.length};
+}
