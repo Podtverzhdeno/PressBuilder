@@ -12,14 +12,17 @@ Create video projects from scripts in chat, edit individual cues/slides, and req
 
 1. Build from the repository Dockerfile, expose service port 3000, and attach a persistent volume at `/data`.
 2. Required service variables:
-   - `MCP_API_KEY`: random 32-byte+ bearer token (do not put in Git).
+   - `MCP_API_KEY`: optional legacy 32-byte+ bearer token for administrative clients; never put it in Git.
+   - `OAUTH_CLIENT_ID`: pre-registered client ID, e.g. `pressbuilder-chatgpt`.
+   - `OAUTH_CLIENT_SECRET`: random confidential OAuth client secret (32+ chars).
+   - `OAUTH_REDIRECT_URIS`: comma-separated **exact** permitted callback URLs; default is the stable ChatGPT callback. Never allow arbitrary redirects.
    - `PB_WEB_USER`: browser login name.
    - `PB_WEB_PASSWORD`: strong independent password (16+ chars).
    - `PB_DATA_DIR=/data`
    - `PUBLIC_URL=https://<your-railway-domain>`
-3. Test public `GET /health` → JSON status ok. No other public route is unauthenticated.
+3. Test public `GET /health` → JSON status ok; OAuth discovery metadata URLs are also public as required by MCP.
 4. Open the HTTPS domain in a browser using HTTP Basic authentication for the editor.
-5. Add a private MCP plugin in ChatGPT with transport Streamable HTTP, URL `https://<your-domain>/mcp`, API key auth in Bearer header, and enter `MCP_API_KEY` securely in the app's connection UI. Don't paste tokens into a conversation.
+5. Add a private MCP plugin in ChatGPT with transport Streamable HTTP, URL `https://<your-domain>/mcp`, authentication **OAuth**, client ID from `OAUTH_CLIENT_ID`, client secret from `OAUTH_CLIENT_SECRET`, and token endpoint auth method `client_secret_basic` (HTTP Basic). When ChatGPT asks to connect, authenticate using the editor's HTTP Basic login in the browser and press *Разрешить доступ* on the consent screen.
 
 ## API guarantees
 - MCP and web UI use different credentials, and neither accepts unrestricted shell commands or arbitrary paths.
@@ -42,6 +45,24 @@ node tools/mcp-plugin.mjs https://your-domain.up.railway.app
 tar -tzf out/pressbuilder-mcp-plugin.tar.gz
 ```
 
-The archive contains `plugin.json`, `mcp.json`, and an editing skill. Install it as a private plugin in ChatGPT; connect using your `MCP_API_KEY` as a Bearer API key in the secure plugin connection UI. The plugin is **not usable before the remote server is deployed**.
+The archive contains `plugin.json`, `mcp.json` (OAuth configuration, without the secret), and an editing skill. Install it as a private plugin in ChatGPT, supply `OAUTH_CLIENT_SECRET` through the secure ChatGPT connection UI, and approve browser consent. The plugin requires the remote server to be deployed.
 
 Do not expose credentials in GitHub issues, repository files, or chat. The published web editor has separate HTTP Basic credentials.
+
+## OAuth 2.0 / MCP configuration
+
+- MCP URL: `https://pressbuilder-production.up.railway.app/mcp`
+- Authorization endpoint: `https://pressbuilder-production.up.railway.app/oauth/authorize`
+- Token endpoint: `https://pressbuilder-production.up.railway.app/oauth/token`
+- Protected resource metadata: `/.well-known/oauth-protected-resource/mcp`
+- Authorization-server metadata: `/.well-known/oauth-authorization-server`
+- Token authentication method: **client_secret_basic**.
+- Grant: `authorization_code` with PKCE `S256`, followed by rotating `refresh_token` grants.
+- Scope: `mcp:tools` (all tools read/write); access tokens valid 1 hour, refresh tokens 30 days.
+- Redirect URI: `https://chatgpt.com/connector_platform_oauth_redirect`; if ChatGPT explicitly shows a different redirect in the connection settings, **copy that exact URL into** `OAUTH_REDIRECT_URIS`, separated by commas. Do not use wildcard callbacks.
+- OAuth code/token **hashes** and the OAuth scope/audience/expiry records persist in `/data/oauth-state.json`; authorization codes are short-lived and single use.
+- The OAuth consent page requires the existing *editor* Basic username/password and explicit approval. Tokens do not grant access to the password-protected editor or MP4 downloads; they authorize only the MCP endpoint.
+- The legacy `MCP_API_KEY` is temporarily accepted by the MCP endpoint. Revoke it when all clients have migrated to OAuth if desired.
+- One private user and one pre-registered confidential OAuth client; not a public multi-tenant identity service. For multi-user use, replace this with an established identity provider and per-user scopes.
+
+**Do not** use an OAuth access token, refresh token or `MCP_API_KEY` as the OAuth client secret. Never paste OAuth secrets into GitHub.
