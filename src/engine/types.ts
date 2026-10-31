@@ -35,6 +35,26 @@ export interface ObjOverride {
   hidden?: boolean;
 }
 
+/** Safe, JSON-authored motion graphics editable by ChatGPT via MCP. */
+export interface VisualElement {
+  id: string;
+  kind: 'text' | 'rect' | 'circle' | 'line' | 'bar';
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  radius?: number;
+  size?: number;
+  line_width?: number;
+  text?: string;
+  color?: 'h1' | 'accent' | 'text' | 'pos' | 'panel' | 'bg';
+  font?: 'display' | 'sans' | 'mono';
+  weight?: 'regular' | 'bold';
+  cue_id?: string;
+  effect?: 'fade' | 'rise' | 'slide' | 'pop';
+  duration?: number;
+}
+
 export interface SlideData {
   /** Стабильный id: по нему слайд связывается с кодом сцены. */
   id: string;
@@ -46,6 +66,8 @@ export interface SlideData {
   tail?: number;
   /** Правки объектов: id объекта → положение, масштаб, текст. */
   objects?: Record<string, ObjOverride>;
+  /** Data-driven shapes and animation, available without TypeScript scenes. */
+  visuals?: VisualElement[];
 }
 
 export interface DeckFormat {
