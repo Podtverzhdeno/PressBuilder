@@ -18,7 +18,7 @@ export const TOOLS = [
  { name:'render_video', description:'Start a server-side Chromium + WebCodecs + FFmpeg render job for a video. Poll get_render_status. Server rendering uses deterministic Chromium Canvas frames encoded with FFmpeg.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
-];
+].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
 export function makeMcp({ startRender, getRender, baseUrl }) {
   async function call(name, args) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) throw new UserError('Arguments must be an object');
