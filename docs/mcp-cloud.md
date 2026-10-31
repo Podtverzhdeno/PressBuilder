@@ -31,3 +31,17 @@ Create video projects from scripts in chat, edit individual cues/slides, and req
 - Server job state is held in process memory and disappears on restart; completed video files persist.
 - Do not expose the original Vite development server publicly.
 - Limit access to trusted users; browser and MCP writes share projects and last write wins.
+
+
+## Private ChatGPT plugin
+
+After the server has a real HTTPS domain, generate the plugin archive from the current repository:
+
+```bash
+node tools/mcp-plugin.mjs https://your-domain.up.railway.app
+tar -tzf out/pressbuilder-mcp-plugin.tar.gz
+```
+
+The archive contains `plugin.json`, `mcp.json`, and an editing skill. Install it as a private plugin in ChatGPT; connect using your `MCP_API_KEY` as a Bearer API key in the secure plugin connection UI. The plugin is **not usable before the remote server is deployed**.
+
+Do not expose credentials in GitHub issues, repository files, or chat. The published web editor has separate HTTP Basic credentials.
