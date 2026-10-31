@@ -20,6 +20,13 @@ const unwrap=(r)=>JSON.parse(r.content[0].text);
 await rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'render-smoke',version:'0.1.0'}});
 unwrap(await rpc('tools/call',{name:'create_deck',arguments:{id,title:'Render smoke',text:'Привет! Это тест.',style:'paper',slide_count:1,target:1}}));
 unwrap(await rpc('tools/call',{name:'update_deck',arguments:{id,fps:24,height:720}}));
+const actualDeck=unwrap(await rpc('tools/call',{name:'get_deck',arguments:{id}}));
+const firstSlide=actualDeck.slides[0].id;
+const firstCue=actualDeck.slides[0].cues[0].id;
+unwrap(await rpc('tools/call',{name:'set_slide_visuals',arguments:{id,slide_id:firstSlide,elements:[
+  {id:'banner',kind:'rect',x:150,y:180,w:1600,h:480,color:'panel',radius:36,effect:'pop',duration:0.3},
+  {id:'headline',kind:'text',x:250,y:280,w:1500,text:'MCP VIDEO TEST',size:90,color:'h1',effect:'rise',cue_id:firstCue,duration:0.3}
+]}}));
 const started=unwrap(await rpc('tools/call',{name:'render_video',arguments:{id}}));
 if(!['queued','running'].includes(started.status))throw new Error('Render did not queue');
 let status=null;
