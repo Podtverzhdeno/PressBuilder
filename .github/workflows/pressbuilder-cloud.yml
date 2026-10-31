@@ -20,3 +20,30 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run test:cloud
+
+  render-smoke:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production container
+        run: docker build -t pressbuilder-cloud:ci .
+      - name: Start isolated test service
+        run: |
+          docker run -d --name pb-cloud -p 3987:3000 \
+            -e MCP_API_KEY=smoke-only-not-a-real-secret-0000000000000000 \
+            -e PB_WEB_USER=smoke \
+            -e PB_WEB_PASSWORD=smokePassword123456789 \
+            pressbuilder-cloud:ci
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:3987/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs pb-cloud
+          exit 1
+      - name: Render short video and download real MP4
+        run: node tests/render-smoke.mjs
+      - name: Diagnostics
+        if: always()
+        run: docker logs pb-cloud || true
