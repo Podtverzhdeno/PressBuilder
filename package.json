@@ -17,7 +17,7 @@
     "check": "node tools/check.mjs",
     "timing": "node tools/timing.mjs",
     "start:cloud": "node server/cloud.mjs",
-    "test:cloud": "node --test tests/cloud-core.test.mjs"
+    "test:cloud": "node --test tests/cloud-*.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
