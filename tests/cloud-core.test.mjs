@@ -55,3 +55,20 @@ test('MCP initialize, list and tool responses',async()=>{
   const error=await handler({jsonrpc:'2.0',id:4,method:'tools/call',params:{name:'get_deck',arguments:{id:'../'}}});
   assert.equal(error.result.isError,true);
 });
+
+
+test('MCP-authored motion graphics persist and reject unsafe shapes',()=>{
+  const d=core.getDeck('my-test-video');
+  const s=d.slides[0];
+  const cue=s.cues[0];
+  const v=[
+    {id:'headline',kind:'text',x:160,y:220,text:'Агентный монтаж',size:85,color:'h1',effect:'rise',cue_id:cue.id},
+    {id:'underline',kind:'bar',x:170,y:360,w:1000,h:18,color:'accent',effect:'fade',duration:0.6}
+  ];
+  assert.equal(core.setVisuals(d.id,s.id,v).elements,2);
+  const saved=core.getDeck(d.id).slides.find(x=>x.id===s.id);
+  assert.equal(saved.visuals[0].text,'Агентный монтаж');
+  assert.throws(()=>core.setVisuals(d.id,s.id,[{id:'headline',kind:'script',x:0,y:0}]),/Invalid visual kind/);
+  assert.throws(()=>core.setVisuals(d.id,s.id,[{id:'head',kind:'text',x:0,y:0,text:'x',evil:true}]),/Unknown visual field/);
+  assert.throws(()=>core.setVisuals(d.id,s.id,[{id:'head',kind:'text',x:0,y:0,text:'x',cue_id:'unknown'}]),/Unknown cue_id/);
+});
