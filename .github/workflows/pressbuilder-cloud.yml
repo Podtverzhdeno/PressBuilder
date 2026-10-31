@@ -20,6 +20,10 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run test:cloud
+      - name: Verify private MCP plugin package
+        run: |
+          node tools/mcp-plugin.mjs https://example.org
+          tar -tzf out/pressbuilder-mcp-plugin.tar.gz
 
   render-smoke:
     if: github.event_name == 'pull_request'
