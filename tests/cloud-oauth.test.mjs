@@ -49,7 +49,7 @@ test('OAuth discovery, consent, confidential client S256 PKCE, audience, refresh
     assert.equal((await fetch(base+'/oauth/authorize?'+bad,{headers:{Authorization:userBasic}})).status,400);
     const badRes=new URLSearchParams(params);badRes.set('resource','https://untrusted.example/mcp');
     assert.equal((await fetch(base+'/oauth/authorize?'+badRes,{headers:{Authorization:userBasic}})).status,400);
-    async function grant(){
+    async function grant(origin='https://chatgpt.com'){
       const consent=await fetch(base+'/oauth/authorize?'+params,{headers:{Authorization:userBasic}});
       assert.equal(consent.status,200);
       const page=await consent.text();assert.match(page,/Разрешить доступ/);
@@ -57,7 +57,10 @@ test('OAuth discovery, consent, confidential client S256 PKCE, audience, refresh
       const noAuth=await fetch(base+'/oauth/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
         body:new URLSearchParams({csrf,decision:'approve'}),redirect:'manual'});
       assert.equal(noAuth.status,401);
-      const approved=await fetch(base+'/oauth/authorize',{method:'POST',headers:{Authorization:userBasic,Origin:base,'Content-Type':'application/x-www-form-urlencoded'},
+      const denied=await fetch(base+'/oauth/authorize',{method:'POST',headers:{Authorization:userBasic,Origin:'https://chatgpt.com','Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({csrf:'invalid-csrf-token',decision:'approve'}),redirect:'manual'});
+      assert.equal(denied.status,400,'Cross-site POST without a valid consent nonce must fail');
+      const approved=await fetch(base+'/oauth/authorize',{method:'POST',headers:{Authorization:userBasic,Origin:origin,'Content-Type':'application/x-www-form-urlencoded'},
         body:new URLSearchParams({csrf,decision:'approve'}),redirect:'manual'});
       assert.equal(approved.status,303);
       const callback=new URL(approved.headers.get('location'));
@@ -67,7 +70,7 @@ test('OAuth discovery, consent, confidential client S256 PKCE, audience, refresh
       assert.ok(callback.searchParams.get('code'));
       return callback.searchParams.get('code');
     }
-    const code1=await grant();
+    const code1=await grant('https://chatgpt.com');
     const wrongClient=await token({grant_type:'authorization_code',code:code1,redirect_uri:redirectUri,code_verifier:verifier,resource},
       'Basic '+Buffer.from(clientId+':wrong-client-secret').toString('base64'));
     assert.equal(wrongClient.status,401);
@@ -79,7 +82,7 @@ test('OAuth discovery, consent, confidential client S256 PKCE, audience, refresh
     const grant1=await got.json();assert.ok(grant1.access_token);assert.ok(grant1.refresh_token);
     assert.equal((await rpc(grant1.access_token)).status,200);
     assert.equal((await token({grant_type:'authorization_code',code:code1,redirect_uri:redirectUri,code_verifier:verifier,resource})).status,400);
-    const code2=await grant();
+    const code2=await grant('null');
     const wrongPkce=await token({grant_type:'authorization_code',code:code2,redirect_uri:redirectUri,code_verifier:randomBytes(32).toString('base64url'),resource});
     assert.equal(wrongPkce.status,400);
     assert.equal((await token({grant_type:'authorization_code',code:code2,redirect_uri:redirectUri,code_verifier:verifier,resource})).status,400);
