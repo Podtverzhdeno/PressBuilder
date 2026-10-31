@@ -249,7 +249,7 @@ const server=http.createServer(async(req,res)=>{
     const p=url.pathname;
     if(p==='/health' && req.method==='GET')return json(res,200,{status:'ok',service:'pressbuilder-cloud'});
     if(p==='/mcp'){
-      if(!authMcp(req))return json(res,401,{error:'Unauthorized'},{},{'WWW-Authenticate':'Bearer realm="PressBuilder MCP"'});
+      if(!authMcp(req))return send(res,401,{error:'Unauthorized'},'application/json; charset=utf-8',{'WWW-Authenticate':'Bearer realm="PressBuilder MCP"'});
       if(req.method!=='POST')return json(res,405,{error:'Streamable HTTP supports POST' });
       const msg=await readJson(req);
       const reply=await mcp(msg);
@@ -257,7 +257,16 @@ const server=http.createServer(async(req,res)=>{
       return json(res,200,reply);
     }
     if(!authWeb(req))return send(res,401,'Authentication required','text/plain; charset=utf-8',{'WWW-Authenticate':'Basic realm="PressBuilder"'});
-    if(p.startsWith('/api/'))return await api(req,res,url);
+    if(p.startsWith('/api/')){
+      if(req.method!=='GET' && req.method!=='HEAD'){
+        if(req.headers['sec-fetch-site']==='cross-site')throw new UserError('Cross-site write blocked',403);
+        if(req.headers.origin){
+          let origin;try{origin=new URL(req.headers.origin)}catch{throw new UserError('Bad Origin',403)}
+          if(origin.host!==req.headers.host)throw new UserError('Cross-origin write blocked',403);
+        }
+      }
+      return await api(req,res,url);
+    }
     if(p.startsWith('/out/')){
       const name=escaped(p.slice('/out/'.length));
       if(!/^[a-z0-9][a-z0-9_-]{0,40}\.mp4$/.test(name))throw new UserError('Invalid filename');
