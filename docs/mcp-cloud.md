@@ -2,7 +2,7 @@
 
 ## Functionality
 This fork exposes a secured Streamable HTTP MCP endpoint at \`POST /mcp\` and a password-protected web editor.
-Tools: list_decks, get_deck, create_deck, update_deck, update_cue, update_slide, update_object, reorder_slides, render_video, get_render_status, get_editor_link.
+Tools: list_decks, get_deck, create_deck, update_deck, update_cue, update_slide, update_object, set_slide_visuals, reorder_slides, render_video, get_render_status, get_editor_link.
 
 Create video projects from scripts in chat, edit individual cues/slides, and request asynchronous MP4 export. Video rendering captures deterministic browser Canvas frames through Chromium DevTools and encodes them with FFmpeg/libx264; sufficient CPU/RAM are required. Always inspect get_render_status and review the video.
 
