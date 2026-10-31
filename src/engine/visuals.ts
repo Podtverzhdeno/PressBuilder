@@ -3,7 +3,7 @@
  * The server validates all shapes before persisting them to deck.json.
  */
 import { seg, lerp } from './anim.ts';
-import { C, FONT, TYPE } from './theme.ts';
+import { C, FONT } from './theme.ts';
 import { rrPath } from './draw.ts';
 import type { Frame, SceneDef, VisualElement } from './types.ts';
 
