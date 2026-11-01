@@ -160,3 +160,22 @@ test('schema fields and status are proposed contracts, not actor authentication'
  assert.equal(p.persisted,false);
  assert.equal(p.cuts[0].confidence,'source_marker_unverified');
 });
+
+test('upper-bound word/beat fixture stays deterministic and bounded',()=>{
+ // This guards algorithmic complexity: max arrays must not introduce
+ // unbounded nested scans per beat. Synthetic timestamps, no real audio.
+ const words=Array.from({length:2500},(_,i)=>({
+    id:'w'+i,cue_id:'c'+i,start_us:i*1_000_000,end_us:i*1_000_000+500_000
+ }));
+ const beats=Array.from({length:5000},(_,i)=>({frame:i*12+6}));
+ const manifest=example({duration_us:3_000_000_000,words,pauses:[],beats,
+   policy:{min_shot_frames:12,max_cuts_per_10s:5,max_cuts:100}});
+ const start=performance.now();
+ const result=proposeRhythmCuts(manifest);
+ const elapsed=performance.now()-start;
+ assert.equal(result.approved,false);
+ assert.equal(result.status,'READY_FOR_REVIEW');
+ assert.ok(result.cuts.length<=100);
+ assert.ok(elapsed<5000,'bounded input scan exceeded 5 seconds: '+elapsed.toFixed(0)+'ms');
+ assert.deepEqual(proposeRhythmCuts(manifest),result);
+});
