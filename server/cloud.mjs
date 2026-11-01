@@ -20,6 +20,7 @@ import { sceneTaskStore } from './scene-tasks.mjs';
 import {directorStore} from './director.mjs';
 import {directorDispatchStore} from './director-dispatch.mjs';
 import {typedSceneBriefService} from './typed-scene-brief.mjs';
+import {mediaCatalogStore} from './media-catalog.mjs';
 import { sceneSyncStore } from './scene-sync.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
@@ -88,6 +89,7 @@ const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scen
     deck.slides[index]=slide;
     putDeck(id,deck);
   }});
+const mediaCatalog=mediaCatalogStore({root:DECKS,getDeck,versions,enabled:process.env.PB_MEDIA_CATALOG==='1'});
 const continuity=continuityBoundaryService({versions,enabled:process.env.PB_CONTINUITY_REVIEW==='1'});
 const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
 const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,
@@ -433,6 +435,19 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const mediaMatch=/^\/api\/decks\/([^/]+)\/media-catalog(?:\/([a-z0-9_-]+)(?:\/(attest|revoke|verify))?)?$/.exec(p);
+  if(mediaMatch){
+    const id=deckId(escaped(mediaMatch[1])),assetId=mediaMatch[2],operation=mediaMatch[3];
+    if(!assetId&&method==='GET')return json(res,200,mediaCatalog.read(id));
+    if(!assetId&&method==='POST')return json(res,200,mediaCatalog.propose(id,director,await readJson(req)));
+    if(assetId&&operation==='verify'&&method==='GET')
+      return json(res,200,mediaCatalog.verify(id,assetId,url.searchParams.get('scene'),url.searchParams.get('use')));
+    if(assetId&&operation==='attest'&&method==='POST')
+      return json(res,200,mediaCatalog.attest(id,assetId,director,await readJson(req)));
+    if(assetId&&operation==='revoke'&&method==='POST')
+      return json(res,200,mediaCatalog.revoke(id,assetId,director,await readJson(req)));
+    throw new UserError('Method not allowed',405);
+  }
   const typedBriefMatch=/^\/api\/decks\/([^/]+)\/director\/brief\/([^/]+)$/.exec(p);
   if(typedBriefMatch){
     if(method!=='GET')throw new UserError('Method not allowed',405);
@@ -650,7 +665,7 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
   benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
-  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs});
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
