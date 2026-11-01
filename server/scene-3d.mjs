@@ -73,7 +73,7 @@ export function scene3dStore({root,seedRoot,getDeck}){
     const src=fs.existsSync(file)?file:(seedFile&&fs.existsSync(seedFile)?seedFile:null);
     if(!src)return {id,scene_id:slideId,revision:0,spec:null,updated_at:null};
     const data=JSON.parse(fs.readFileSync(src,'utf8'));
-    const spec=validate(data.spec?.camera,data.spec?.objects);
+    const spec=data.spec===null?null:validate(data.spec?.camera,data.spec?.objects);
     return {id,scene_id:slideId,revision:data.revision,spec,updated_at:data.updated_at};
   }
   function list(id){
@@ -95,5 +95,20 @@ export function scene3dStore({root,seedRoot,getDeck}){
     try{fs.renameSync(tmp,file)}finally{fs.rmSync(tmp,{force:true})}
     return next;
   }
-  return {read,list,put};
+  // Internal director-only recovery path: validates the same data schema as regular MCP writes.
+  // A null snapshot clears this scene's declarative overlay without touching another scene.
+  function restore(id,slideId,spec,expected_revision){
+    const {file}=locate(id,slideId);
+    const old=read(id,slideId);
+    if(!Number.isSafeInteger(expected_revision)||expected_revision!==old.revision)
+      throw error('Scene 3D changed; reload before source restoration',409);
+    const checked=spec===null?null:validate(spec?.camera,spec?.objects);
+    const next={id,scene_id:slideId,revision:old.revision+1,spec:checked,updated_at:new Date().toISOString()};
+    fs.mkdirSync(path.dirname(file),{recursive:true});
+    const tmp=file+'.'+process.pid+'.'+Math.random().toString(36).slice(2)+'.tmp';
+    fs.writeFileSync(tmp,JSON.stringify(next,null,2)+'\n',{mode:0o600});
+    try{fs.renameSync(tmp,file)}finally{fs.rmSync(tmp,{force:true})}
+    return next;
+  }
+  return {read,list,put,restore};
 }
