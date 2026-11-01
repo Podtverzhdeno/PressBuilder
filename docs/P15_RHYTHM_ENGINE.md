@@ -56,7 +56,7 @@ If beats are provided, an additional music manifest with `source_sha256`, `licen
 |---|---|---|
 | P15-C01 | Schema, bounded typed input, rights and threat notes; tests exercise required fields | Independent architecture/security review of contract and migration |
 | P15-C02 | Pure rational-frame algorithm and negative unit tests | Independent code review, fixture and performance evidence, approval of quality policies |
-| P15-C03 | Not started | Live REST/MCP, distinct principals, scene fences, CAS, Studio preview |
+| P15-C03 | Read-only cloud/local REST + director-only MCP + Studio preview implemented and cloud-tested | Persisted CAS draft/approval, real verified word alignment and music rights, independent review and production E2E remain open |
 | P15-C04 | Not started | Formal adversarial/security matrix and live isolation tests |
 | P15-C05 | Not started | Actual six-scene Chromium + FFmpeg quality E2E with aligned voice and music |
 | P15-C06 | Not started | SHA-matched Railway staging canary and tested rollback |
@@ -74,3 +74,12 @@ npx --yes @fission-ai/openspec@1.14.3 validate professional-montage-p15-p24 --st
 ```
 
 Docker `render-smoke` checks P01–P14 regression; **until P15-C05 exists it does not demonstrate any P15 real-audio performance or artistic benefit**.
+
+## P15-C03 staged integration (not approval)
+
+- `server/rhythm-preview.mjs`: server-hashed local voice bytes; revision bound to word content, cue timing and format; cue IDs require `scene_id` when repeated; stale SHA/clock are rejected.
+- `server/cloud.mjs` and `server/mcp.mjs`: Basic-auth REST and director-only MCP, disabled unless `PB_RHYTHM_PREVIEW=1`.
+- `server/plugin.ts`: bounded local Vite development route. `src/editor/RhythmPreviewPanel.tsx` lets the editor paste word/pause JSON and seek to cut candidates without changing the deck.
+- `tests/cloud-rhythm-preview.test.mjs` and `tests/cloud-rhythm-wire.test.mjs`: local voice verification, stale cue/source, repeated cue ID and role-denial integration.
+- Cloud CI run `41340395952` on commit `91faef4e5375c3e730566540b428a1dc23ba19ec`: TypeScript build + 117 tests, 103 pass, 14 skipped, 0 failures. Not proof of any P15 audio analysis, deployment or artistic quality.
+- Remaining: authenticated alignment, rights checks, durable CAS review/approval, scene-fenced proposal writes, actual six-scene P15 media/audio E2E and staging canary.
