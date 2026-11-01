@@ -9,6 +9,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { timingSafeEqual } from 'node:crypto';
 import { DATA, DECKS, OUT, UserError, createDeck, deckId, getDeck, hasDeck, listDecks, putDeck } from './cloud-core.mjs';
 import { makeMcp } from './mcp.mjs';
+import { projectReadmeStore } from './project-readme.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
@@ -26,6 +27,7 @@ if (!MCP_SECRET || MCP_SECRET.length < 24 || !WEB_USER || !WEB_PASS || WEB_PASS.
 fs.mkdirSync(DECKS, {recursive:true});
 fs.mkdirSync(OUT, {recursive:true});
 const sceneTasks=sceneTaskStore({root:DECKS,getDeck});
+const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
@@ -140,6 +142,7 @@ async function api(req,res,url) {
       // Build from the canonical parser, then retain the editor's own slide layout.
       createDeck({id:d.id,title:d.title,text:d.text,style:d.style,slide_count:d.slides.length,target:d.target??null});
       putDeck(d.id,d);
+      projectReadmes.ensure(d.id);
       return json(res,200,{ok:true});
     }
     throw new UserError('Method not allowed',405);
@@ -162,6 +165,16 @@ async function api(req,res,url) {
     return json(res,200,{file:f,size:b.length});
   }
   // Per-scene assignments live apart from deck.json to support parallel agents.
+  const readmeMatch=/^\/api\/decks\/([^/]+)\/readme$/.exec(p);
+  if(readmeMatch) {
+    const id=deckId(escaped(readmeMatch[1]));
+    if(method==='GET')return json(res,200,projectReadmes.read(id));
+    if(method==='PUT') {
+      const body=await readJson(req);
+      return json(res,200,projectReadmes.write(id,body?.content,body?.expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const taskMatch=/^\/api\/decks\/([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(p);
   if(taskMatch){
     const id=deckId(escaped(taskMatch[1]));
