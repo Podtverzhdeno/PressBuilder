@@ -8,7 +8,8 @@ import {spawnSync} from 'node:child_process';
 import {continuityBoundaryService} from '../server/continuity-boundary.mjs';
 const hash=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 const bad=(code,fn)=>assert.throws(fn,e=>e?.code===code,code);
-test('P17 real FFmpeg boundary frames: proof, CAS, no unauthenticated media paths or publication',{timeout:45000},()=>{
+const hasMediaTools=spawnSync('ffmpeg',['-version']).status===0&&spawnSync('ffprobe',['-version']).status===0;
+test('P17 real FFmpeg boundary frames: proof, CAS, no unauthenticated media paths or publication',{timeout:45000,skip:!hasMediaTools?'FFmpeg/ffprobe unavailable on host; Docker runs required media test':false},()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pb-p17-'));
  try{
   const files=[];
