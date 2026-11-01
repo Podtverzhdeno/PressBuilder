@@ -10,6 +10,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { DATA, DECKS, OUT, UserError, createDeck, deckId, getDeck, hasDeck, listDecks, putDeck } from './cloud-core.mjs';
 import { makeMcp } from './mcp.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
+import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
@@ -28,6 +29,7 @@ fs.mkdirSync(DECKS, {recursive:true});
 fs.mkdirSync(OUT, {recursive:true});
 const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
+const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
@@ -172,6 +174,21 @@ async function api(req,res,url) {
     if(method==='PUT') {
       const body=await readJson(req);
       return json(res,200,projectReadmes.write(id,body?.content,body?.expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const scene3dMatch=/^\/api\/decks\/([^/]+)\/scene3d(?:\/([^/]+))?$/.exec(p);
+  if(scene3dMatch){
+    const id=deckId(escaped(scene3dMatch[1]));
+    const slideId=scene3dMatch[2]&&escaped(scene3dMatch[2]);
+    if(!slideId){
+      if(method!=='GET')throw new UserError('Method not allowed',405);
+      return json(res,200,scene3d.list(id));
+    }
+    if(method==='GET')return json(res,200,scene3d.read(id,slideId));
+    if(method==='PUT'){
+      const payload=await readJson(req);
+      return json(res,200,scene3d.put(id,slideId,payload?.spec,payload?.expected_revision));
     }
     throw new UserError('Method not allowed',405);
   }
