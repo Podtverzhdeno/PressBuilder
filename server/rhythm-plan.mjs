@@ -123,29 +123,54 @@ function validate(input) {
   boundedInt(policy.min_shot_frames, 1, 6000, 'INVALID_POLICY');
   boundedInt(policy.max_cuts_per_10s, 1, 30, 'INVALID_POLICY');
   boundedInt(policy.max_cuts, 1, 100, 'INVALID_POLICY');
-  return {p, fps, endFrame, words, pauses, protectedSpans, beats, manual, policy};
+  const wordFrames = words.map(w => ({
+    start:frameAt(w.start_us,fps.num,fps.den),
+    end:frameAt(w.end_us,fps.num,fps.den),
+    cue_id:w.cue_id, protected:!!w.protected
+  }));
+  const allProtected = [
+    ...protectedSpans.map(w=>({start:frameAt(w.start_us,fps.num,fps.den),
+                               end:frameAt(w.end_us,fps.num,fps.den)})),
+    ...wordFrames.filter(w=>w.protected)
+  ].sort((a,b)=>a.start-b.start || a.end-b.end);
+  const protectedFrames=[];
+  for (const interval of allProtected) {
+    const prev=protectedFrames[protectedFrames.length-1];
+    if (prev && interval.start<=prev.end) prev.end=Math.max(prev.end,interval.end);
+    else protectedFrames.push({start:interval.start,end:interval.end});
+  }
+  return {p, fps, endFrame, words, wordFrames, protectedFrames, pauses, beats, manual, policy};
 }
 function identSafeLicense(s) {
   return typeof s === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}$/.test(s)
     && !s.includes('..') && !s.includes('://');
 }
-function cutoffReason(frame, {words, protectedSpans, fps, endFrame, policy}) {
+/** Last interval starting at or before frame, in O(log n) time. */
+function lastStartingBefore(intervals, frame) {
+  let lo=0,hi=intervals.length;
+  while(lo<hi) {
+    const mid=(lo+hi)>>>1;
+    if (intervals[mid].start<=frame) lo=mid+1;
+    else hi=mid;
+  }
+  return lo?intervals[lo-1]:null;
+}
+function cutoffReason(frame, {wordFrames, protectedFrames, endFrame, policy}) {
   if (frame < policy.min_shot_frames || frame > endFrame - policy.min_shot_frames) return 'BOUNDARY_MIN_SHOT';
-  if (words.some(w => frame > frameAt(w.start_us, fps.num, fps.den) &&
-                      frame < frameAt(w.end_us, fps.num, fps.den))) return 'CUT_THROUGH_WORD';
-  if ([...protectedSpans, ...words.filter(w => w.protected)].some(s =>
-    frame >= frameAt(s.start_us, fps.num, fps.den) &&
-    frame <= frameAt(s.end_us, fps.num, fps.den))) return 'PROTECTED_NARRATION';
+  const word=lastStartingBefore(wordFrames,frame);
+  if (word && frame>word.start && frame<word.end) return 'CUT_THROUGH_WORD';
+  const protectedCut=lastStartingBefore(protectedFrames,frame);
+  if (protectedCut && frame<=protectedCut.end) return 'PROTECTED_NARRATION';
   return null;
 }
-function anchorCue(frame, words, fps) {
-  const position = Number(frame);
-  let prior;
-  for (const word of words) {
-    if (frameAt(word.end_us, fps.num, fps.den) <= position) prior = word;
-    else break;
+function anchorCue(frame, wordFrames) {
+  let lo=0,hi=wordFrames.length;
+  while(lo<hi) {
+    const mid=(lo+hi)>>>1;
+    if (wordFrames[mid].end<=frame) lo=mid+1;
+    else hi=mid;
   }
-  return prior?.cue_id ?? words[0]?.cue_id ?? null;
+  return (lo?wordFrames[lo-1]:wordFrames[0])?.cue_id ?? null;
 }
 function review(p, code, endFrame) {
   return { schema_version: 1, project_id:p.project_id, status:'REVIEW',
@@ -177,20 +202,20 @@ export function proposeRhythmCuts(input) {
     }
     throw err;
   }
-  const {p, fps, endFrame, words, pauses, beats, manual, policy} = state;
+  const {p, fps, endFrame, words, wordFrames, pauses, beats, manual, policy} = state;
   if (p.expected_alignment_revision !== p.alignment_revision ||
       p.expected_timebase_revision !== p.timebase_revision) return review(p, 'STALE_REVISION', endFrame);
   if (!words.length) return review(p, 'MISSING_ALIGNMENT', endFrame);
   if (!pauses.length && !beats.length && !manual.length) return review(p, 'NO_RHYTHM_EVIDENCE', endFrame);
   const contenders = [];
   for (const frame of manual) contenders.push({frame, reason:'manual', rank:0,
-    cue_id:anchorCue(frame,words,fps)});
+    cue_id:anchorCue(frame,wordFrames)});
   for (const pause of pauses) {
     const frame = frameAt(Math.floor((pause.start_us+pause.end_us)/2),fps.num,fps.den);
     contenders.push({frame, reason:'pause', rank:1, cue_id:pause.cue_id});
   }
   for (const frame of beats) contenders.push({frame, reason:'licensed_beat', rank:2,
-    cue_id:anchorCue(frame,words,fps)});
+    cue_id:anchorCue(frame,wordFrames)});
   // Manual cuts consume slots first; auto suggestions never displace them.
   contenders.sort((a,b)=>a.rank-b.rank || a.frame-b.frame || a.reason.localeCompare(b.reason));
   const cuts=[], discarded=[];
