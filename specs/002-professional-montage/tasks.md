@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). 55 other checkpoints TODO. Synthetic audio != actual human speech alignment or artistic release.
+Progress: P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
 
 ## Evidence and progression rules
 
@@ -103,12 +103,12 @@ Expected behavior: two alternate hook→payoff stories anchored to actual text w
 Negative tests: fake factual claims, stale actor/signature, unrelated scene rewrite.
 Real media scenario: 6-scene alternative storyboard, rejected scene and isolated retry, signed storyboard audit.
 User value: two meaningful narratives without changing original script.
-Proposed code/test (not yet present): server/director-plan.mjs and tests/cloud-director-professional.test.mjs.
+Implemented preview code/tests: server/creative-storyboard.mjs, schemas/montage/creative-storyboard-request-v1.schema.json, tests/cloud-creative-storyboard.test.mjs, src/editor/CreativeStoryPanel.tsx, tests/cloud-director.test.mjs. Human P16 approval and real scene replan are not implemented.
 OpenSpec: openspec/changes/professional-montage-p15-p24/specs/creative-director/spec.md.
 
 #### P16-C01 — Contract and threat model
 
-- [ ] P16-C01 — TODO. Deliverable: montage/creative-director-v1.json and JSON Schema.
+- [ ] P16-C01 — TESTED (strict source-pinned storyboard request schema, P10 human-approved fingerprint and negative cases; independent review pending). Deliverable: schemas/montage/creative-storyboard-request-v1.schema.json.
 - Actions: Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json. Define approved script and P10 scene briefs; reject fake factual claims, stale actor/signature, unrelated scene rewrite.
 - Dependencies: Existing P06/P08/P09 and current OpenSpec.
 - Acceptance: Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.
@@ -120,7 +120,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/creative-director/
 
 #### P16-C02 — Bounded functional vertical slice
 
-- [ ] P16-C02 — TODO. Deliverable: server/director-plan.mjs.
+- [ ] P16-C02 — TESTED (deterministic 2 alternative narrative arcs with exact source cue hashes, 6-scene coverage, zero synthetic claims). Deliverable: server/creative-storyboard.mjs.
 - Actions: Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback. Implement: two alternate hook→payoff stories anchored to actual text with explicit human storyboard approval.
 - Dependencies: P16-C01, P15-C01.
 - Acceptance: Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.
@@ -132,7 +132,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/creative-director/
 
 #### P16-C03 — MCP + REST + Studio preview
 
-- [ ] P16-C03 — TODO. Deliverable: MCP/REST route and Studio scene editor.
+- [ ] P16-C03 — IN_PROGRESS (read-only director-scoped MCP/REST and two-column Studio wired; signed human approval, durable story revision and safe P10 replan still missing). Deliverable: server/cloud.mjs, server/mcp.mjs, src/editor/CreativeStoryPanel.tsx.
 - Actions: Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor. Expose revisioned preview for two meaningful narratives without changing original script; leave published release unchanged.
 - Dependencies: P16-C02.
 - Acceptance: Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.
@@ -144,7 +144,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/creative-director/
 
 #### P16-C04 — Negative and regression suite
 
-- [ ] P16-C04 — TODO. Deliverable: tests/cloud-director-professional.test.mjs.
+- [ ] P16-C04 — IN_PROGRESS (negative source/revision/authorization/CSRF tests run in cloud; full adversarial rights/lease and approved replan tests still pending). Deliverable: tests/cloud-creative-storyboard.test.mjs and tests/cloud-director.test.mjs.
 - Actions: Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation. Exercise deliberately broken cases: fake factual claims, stale actor/signature, unrelated scene rewrite.
 - Dependencies: P16-C03.
 - Acceptance: All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.
