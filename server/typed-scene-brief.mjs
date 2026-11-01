@@ -64,6 +64,7 @@ export function typedSceneBriefService({getDeck,directorPlan,sceneTasks,styles=n
     // Style contract is director-owned; do not silently accept a drifted style.
     if(styles&&styles.read(id).revision!==plan.style_contract_revision)
       bad('TYPED_BRIEF_STYLE_DRIFT');
+    const goals={project_goal:plan.goal,scene_goal:task.title,user_authored_direction:task.brief};
     const source={
       project_id:id,scene_id,
       approved_plan_id:plan.plan_id,
@@ -82,9 +83,13 @@ export function typedSceneBriefService({getDeck,directorPlan,sceneTasks,styles=n
     if(next.plan_id!==plan.plan_id||next.revision!==plan.revision||
        !['approved','released'].includes(next.status)||
        next.script_fingerprint!==plan.script_fingerprint||
-       taskNow.revision!==task.revision||fingerprint(getDeck(id))!==plan.script_fingerprint)
+       taskNow.revision!==task.revision||
+       digest({goal:next.goal,scenes:next.scenes})!==digest({goal:plan.goal,scenes:plan.scenes})||
+       digest(taskNow)!==digest(task)||
+       (styles&&styles.read(id).revision!==plan.style_contract_revision)||
+       fingerprint(getDeck(id))!==plan.script_fingerprint)
       bad('TYPED_BRIEF_SOURCE_CHANGED_DURING_READ');
-    const sha=digest(source);
+    const sha=digest({source,goals});
     if(JSON.stringify(source).length>52000)bad('TYPED_BRIEF_SIZE_LIMIT',413);
     return {
       schema_version:2,kind:'P10_SCENE_EXECUTION_BRIEF',status:'READ_ONLY',
@@ -97,11 +102,7 @@ export function typedSceneBriefService({getDeck,directorPlan,sceneTasks,styles=n
         allowed_tools:'CHECK_PER_TOOL_SERVER_PERMISSIONS',
         may_change_other_scenes:false
       },
-      goals:{
-        project_goal:plan.goal,
-        scene_goal:planned.task?.title??task.title,
-        user_authored_direction:planned.task?.brief??task.brief
-      },
+      goals,
       factual_integrity:{
         mandatory_source_cue_ids:cues.map(c=>c.cue_id),
         claims_evidence_status:'UNVERIFIED',
