@@ -54,3 +54,7 @@
 `npm run build`, `npm run test:cloud`; тесты `tests/cloud-scene-sync.test.mjs` проверяют тайминги при смене 24→60 FPS, изменение voice файла, изоляцию сцен, отсутствие marker ID и проверку per-agent lease через реальный MCP HTTP.
 
 **Не реализовано:** генерация/загрузка лицензионной музыки, настоящий SFX/music mixer, loudness/ducking, автоматические переходы по паузам, визуальное сравнение PNG-кадров, атомарность multi-instance FS и архив исходных TS-сборок. Нельзя помечать P09 и P08 fully production-ready только на основании metadata+FFmpeg smoke.
+
+## CI acceptance
+
+Проверка `render-smoke` дополнена ожидаемым отрицательным сценарием: попытка принять сцену с OPEN review-item **должна** завершиться ошибкой `Unresolved review issues prevent approval`. После `FIXED` и `VERIFIED` директор повторно вызывает approve и проверяет, что архивный MP4 читается. Ошибка с ожидаемым статусом не должна аварийно обрывать скрипт smoke.
