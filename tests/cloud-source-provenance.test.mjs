@@ -77,9 +77,10 @@ test('P08 director restores only one scene source and the declarative 3D overlay
     const store3d=scene3dStore({root:f.root,getDeck});
     const spec={version:1,camera:{yaw_speed:0},objects:[{id:'cube',mesh:'cube',color:'#AABBCC'}]};
     const old3d=store3d.put('demo','s01',spec,0);
+    const style={revision:0,contract:{enforce:false}};
     const v=sceneVersionStore({root:f.root,out:f.out,staticRoot:f.staticRoot,
       getDeck,getScene3D:(id,scene)=>store3d.read(id,scene),
-      getStyle:()=>({revision:0,contract:{enforce:false}}),
+      getStyle:()=>style,
       restoreScene3D:(id,scene,source,rev)=>store3d.restore(id,scene,source,rev),
       restoreSlide:(id,scene,slide)=>{
         const index=f.deck.slides.findIndex(s=>s.id===scene);
@@ -106,6 +107,17 @@ test('P08 director restores only one scene source and the declarative 3D overlay
     assert.equal(store3d.read('demo','s01').spec.objects[0].id,'cube');
     assert.equal(store3d.read('demo','s02').spec,null);
     assert.ok(fs.existsSync(path.join(f.root,'demo','.scene-versions','s01','source-restores.jsonl')));
+    // A scene-only restore cannot roll back data rendered under an older
+    // shared visual contract, even when the caller presents the latest CAS.
+    f.deck.slides[0].label='After style change';
+    style.revision=1;
+    style.contract={enforce:true};
+    const styleDrift=v.source('demo','s01');
+    assert.throws(()=>v.restoreSource('demo','s01',vid,styleDrift.fingerprint,
+      styleDrift.scene3d_revision,director),e=>e.status===409&&/visual policy/.test(e.message));
+    assert.equal(f.deck.slides[0].label,'After style change','Refusal must be side-effect free');
+    assert.equal(store3d.read('demo','s01').spec.objects[0].id,'cube');
+    style.revision=0;style.contract={enforce:false};
     f.deck.slides[0].label='Changed again';
     const conflict=v.source('demo','s01');
     fs.writeFileSync(path.join(f.staticRoot,'app.js'),'console.log("new deployed client")');

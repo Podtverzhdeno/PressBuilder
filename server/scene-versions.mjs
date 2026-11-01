@@ -120,8 +120,9 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreS
     // narration, or deployed JS/CSS while restoring a single scene.
     if(JSON.stringify(targetSettings)!==JSON.stringify(live)||
       JSON.stringify(targetAssets)!==JSON.stringify(liveAssets)||
-      JSON.stringify(saved.timeline_context)!==JSON.stringify(before.snapshot.timeline_context))
-      bad('Shared settings, narration or deployed application assets differ; isolated source restoration refused',409);
+      JSON.stringify(saved.timeline_context)!==JSON.stringify(before.snapshot.timeline_context)||
+      JSON.stringify(saved.style_contract)!==JSON.stringify(before.snapshot.style_contract))
+      bad('Shared settings, visual policy, narration or deployed application assets differ; isolated source restoration refused',409);
     if(!saved.slide||saved.slide.id!==scene||!saved.scene3d||
       typeof saved.scene3d.revision!=='number')bad('Invalid archived source snapshot',409);
     const savedMarkers=Array.isArray(saved.sync_markers)?structuredClone(saved.sync_markers):[];
