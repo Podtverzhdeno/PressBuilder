@@ -83,10 +83,13 @@ function rms(samples,t,window=0.085){
 }
 function checkVideoPackets(file){
   const p=spawnSync('ffprobe',['-v','error','-select_streams','v:0',
-    '-show_entries','frame=best_effort_timestamp_time',
-    '-of','csv=p=0',file],{encoding:'utf8',timeout:15000,maxBuffer:250000});
+    '-show_frames','-show_entries','frame=best_effort_timestamp_time',
+    '-of','json',file],{encoding:'utf8',timeout:15000,maxBuffer:250000});
   assert.equal(p.status,0,p.stderr);
-  const times=p.stdout.trim().split(/\s+/).map(Number);
+  const parsed=JSON.parse(p.stdout);
+  assert.ok(Array.isArray(parsed.frames),'ffprobe did not return frames');
+  const times=parsed.frames.map(frame=>Number(frame.best_effort_timestamp_time));
+  assert.ok(times.every(Number.isFinite),'Frame PTS missing or invalid');
   assert.ok(times.length>=105&&times.length<=110,'Unexpected frame count');
   for(let i=1;i<times.length;i++){
     const gap=times[i]-times[i-1];
