@@ -12,6 +12,7 @@ import { makeMcp } from './mcp.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
+import { directorStore } from './director.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 import { inspectMp4 } from './video-qa.mjs';
@@ -31,6 +32,7 @@ fs.mkdirSync(OUT, {recursive:true});
 const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
+const director=directorStore({root:DECKS,getDeck,sceneTasks:sceneTasks,projectReadmes:projectReadmes});
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
@@ -191,6 +193,17 @@ async function api(req,res,url) {
       const payload=await readJson(req);
       return json(res,200,scene3d.put(id,slideId,payload?.spec,payload?.expected_revision));
     }
+    throw new UserError('Method not allowed',405);
+  }
+  // P10: a draft is safe to create through MCP, but approval requires the
+  // separately web-authenticated HTTP route (not a tool an agent can call).
+  const directorMatch=/^\/api\/decks\/([^/]+)\/director\/(plan|approve)$/.exec(p);
+  if(directorMatch){
+    const id=deckId(escaped(directorMatch[1]));
+    const action=directorMatch[2];
+    if(action==='plan'&&method==='GET')return json(res,200,director.read(id));
+    if(action==='plan'&&method==='POST')return json(res,200,director.propose(id,await readJson(req)));
+    if(action==='approve'&&method==='POST')return json(res,200,director.approve(id,await readJson(req)));
     throw new UserError('Method not allowed',405);
   }
   const taskMatch=/^\/api\/decks\/([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(p);
