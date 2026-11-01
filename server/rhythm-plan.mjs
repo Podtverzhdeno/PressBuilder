@@ -64,7 +64,13 @@ const frameAt = (timeUs, num, den) => {
   const denominator = MICROS * BigInt(den);
   return Number((numerator * 2n + denominator) / (2n * denominator));
 };
-const fingerprint = (v) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+const canonical = (value) => Array.isArray(value)
+  ? value.map(canonical)
+  : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])]))
+    : value;
+const fingerprint = (v) => createHash('sha256')
+  .update(JSON.stringify(canonical(v))).digest('hex');
 
 function validate(input) {
   const p = obj(input, 'INVALID_MANIFEST');
@@ -241,7 +247,9 @@ export function proposeRhythmCuts(input) {
     frame_rate:{num:fps.num,den:fps.den}, duration_frames:endFrame, policy:{...policy},
     cuts:cuts.map(({frame,reason,cue_id})=>({frame,reason,cue_id,
       confidence:'source_marker_unverified', source_sha256:p.voice_source_sha256}))};
-  const planSha=fingerprint(planBase);
+  // Include *all* approved input markers, even those rejected as cuts.
+  // Otherwise a shifted beat or protected span could reuse stale approval.
+  const planSha=fingerprint({input:p, output:planBase});
   return {...planBase, status:'READY_FOR_REVIEW',
     plan_sha256:planSha, cuts:planBase.cuts.map((cut,index)=>({
       id:'cut_'+String(index+1).padStart(3,'0')+'_'+String(cut.frame),...cut
