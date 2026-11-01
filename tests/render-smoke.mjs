@@ -74,3 +74,8 @@ if(!clip.ok)throw new Error('Scene MP4 download failed: '+clip.status);
 const clipBytes=new Uint8Array(await clip.arrayBuffer());
 if(clipBytes.length<1000)throw new Error('Scene MP4 suspiciously small');
 console.log('PASS P02 independent scene MP4 '+clipBytes.length+' bytes');
+const qa=unwrap(await rpc('tools/call',{name:'get_scene_qa_report',arguments:{id,slide_id:firstSlide}}));
+if(qa?.report?.verdict!=='PASS')throw new Error('P03 scene technical QA failed '+JSON.stringify(qa));
+const qaFull=unwrap(await rpc('tools/call',{name:'get_video_qa_report',arguments:{id}}));
+if(qaFull?.report?.verdict!=='PASS')throw new Error('P03 full video technical QA failed '+JSON.stringify(qaFull));
+console.log('PASS P03 ffprobe quality gates for scene and full video');
