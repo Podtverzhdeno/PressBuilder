@@ -27,6 +27,18 @@ unwrap(await rpc('tools/call',{name:'set_slide_visuals',arguments:{id,slide_id:f
   {id:'banner',kind:'rect',x:150,y:180,w:1600,h:480,color:'panel',radius:36,effect:'pop',duration:0.3},
   {id:'headline',kind:'text',x:250,y:280,w:1500,text:'MCP VIDEO TEST',size:90,color:'h1',effect:'rise',cue_id:firstCue,duration:0.3}
 ]}}));
+// P09: bind actual 3D animation to a narration cue before rendering MP4.
+const syncInitial=unwrap(await rpc('tools/call',{name:'get_scene_sync',arguments:{id,slide_id:firstSlide}}));
+if(syncInitial.revision!==0||!syncInitial.timeline.cues.some(c=>c.id===firstCue))
+  throw new Error('P09 narrator timeline unavailable');
+const syncSaved=unwrap(await rpc('tools/call',{name:'set_scene_sync',arguments:{
+  id,slide_id:firstSlide,expected_revision:0,markers:[
+    {id:'core-rise',kind:'animation',anchor:{type:'cue_start',cue_id:firstCue,offset:0},emphasis:0.8},
+    {id:'camera-hit',kind:'camera',anchor:{type:'scene',offset:0.25}}
+  ]
+}}));
+if(syncSaved.revision!==1||!syncSaved.timeline.events.some(e=>e.id==='core-rise'&&!e.out_of_range))
+  throw new Error('P09 authored marker missing or out of range');
 // P01: exercise the actual rendered 3D Scene SDK path, not just persistence.
 const authored=unwrap(await rpc('tools/call',{name:'set_scene_3d',arguments:{
   id,slide_id:firstSlide,expected_revision:0,spec:{
@@ -34,7 +46,7 @@ const authored=unwrap(await rpc('tools/call',{name:'set_scene_3d',arguments:{
     camera:{cx:1070,cy:480,size:230,dist:9,yaw:-.4,pitch:.28,yaw_speed:.7,pitch_speed:.05,zoom_speed:.02},
     objects:[
       {id:'core',mesh:'icosa',pos:[0,0,0],scale:1.7,rotation:[0,0,0],
-       spin:[.25,.9,.13],color:'#40cbff',edge_color:'#b9eeff',wire:true,start:0,fade:.15},
+       spin:[.25,.9,.13],color:'#40cbff',edge_color:'#b9eeff',wire:true,start:0,start_marker:'core-rise',fade:.15},
       {id:'orbit',mesh:'octa',pos:[2,.4,-.5],scale:.6,rotation:[0,0,0],
        spin:[0,-1,0],color:'#ffbc64',edge_color:null,wire:false,start:.2,fade:.15},
     ]
@@ -84,6 +96,10 @@ const versions=unwrap(await rpc('tools/call',{name:'list_scene_versions',argumen
 if(versions.versions.length!==1)throw new Error('P08 immutable render version not recorded');
 const version=versions.versions[0];
 if(version.qa.verdict!=='PASS'||!/^[0-9a-f]{16}$/.test(version.version_id))throw new Error('P08 immutable metadata is invalid');
+if(version.source?.snapshot?.sync_markers?.length!==2 ||
+   version.source?.snapshot?.scene3d?.spec?.objects?.[0]?.start_marker!=='core-rise')
+  throw new Error('P08 immutable provenance lost P09 audio/motion markers');
+console.log('PASS P09 cue-linked 3D object rendered with immutable source provenance');
 const immutable=await fetch(BASE+'/'+version.file,{headers:{Authorization:basic}});
 if(!immutable.ok || (await immutable.arrayBuffer()).byteLength<1000)throw new Error('P08 immutable MP4 not downloadable');
 // Evidence from an actual Docker-rendered H.264 frame, not a synthetic JPEG.
