@@ -56,6 +56,13 @@ test('P03 audits editor overrides and ignores hidden source captions',()=>{
   assert.equal(report.tested_texts,1,'hidden text must not be audited');
   assert.ok(report.issues.some(x=>x.id==='TEXT_OUTSIDE_FRAME'&&x.object_id==='moved'));
 });
+test('P03 stage projection prevents false frame-clipping errors for repositioned captions',()=>{
+  const d=project([txt('near','Hi',{x:1500,w:400})]);
+  d.slides[0].objects={near:{x:1830,y:250,scale:1}};
+  const result=auditDataText(d,canvasContext(),'s01');
+  assert.equal(result.verdict,'PASS',JSON.stringify(result.issues));
+  assert.equal(result.issues.filter(i=>i.id==='TEXT_OUTSIDE_FRAME').length,0);
+});
 test('P03 frame detector finds all-black video, but not a single legitimate dark cut',()=>{
   const pixels=new Uint8ClampedArray(64*36*4);
   for(let i=3;i<pixels.length;i+=4)pixels[i]=255;
