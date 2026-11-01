@@ -141,7 +141,12 @@ test('P14 A/B: after scene change, fast hard cuts retain source picture, time an
       'One changed segment encode plus one mux FFmpeg child');
     assert.ok(baseline.ffmpeg_benchmark.cpu_user_ms>=0);
     assert.ok(incremental.ffmpeg_benchmark.cpu_user_ms>=0);
-    assert.ok(incremental.ffmpeg_benchmark.peak_single_process_rss_kib>0);
+    assert.ok(incremental.ffmpeg_benchmark.peak_single_process_rss_kib===null||
+      incremental.ffmpeg_benchmark.peak_single_process_rss_kib>0,
+      'Unavailable child RSS must remain null, not fabricated zero');
+    console.log('P14_FFMPEG_CHILD_BENCHMARK '+JSON.stringify({
+      classic:baseline.ffmpeg_benchmark,incremental:incremental.ffmpeg_benchmark
+    }));
     const classicFile=classic.service.download('demo',baseline.result.release_id),
       fastFile=fast.service.download('demo',incremental.result.release_id);
     const [v1,v2]=[rgbFrames(classicFile),rgbFrames(fastFile)];
