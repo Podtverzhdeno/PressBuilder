@@ -107,11 +107,21 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
       (releaseId===undefined||validRelease)?
       path.join(out,expectedFile.slice(4)):null;
     const stat=releaseFile&&fs.existsSync(releaseFile)?fs.statSync(releaseFile):null;
-    const releaseStatus=plan.status==='released'?
+    let releaseStatus=plan.status==='released'?
       (!out?'signed_off_unverified':(!stat||!stat.isFile()?'artifact_missing':
         (stat.size===receipt.size&&hashFile(releaseFile)===receipt.sha256?
           'signed_off':'artifact_changed'))):
       'manual_review_required';
+    if(releaseStatus==='signed_off'&&validRelease){
+      // Signing off version A must not make a subsequently published version B
+      // appear human-approved in Director's project status.
+      try{
+        const service=getAssembly?.();
+        if(typeof service?.current==='function'&&
+           service.current(id)?.release_id!==releaseId)
+          releaseStatus='release_superseded';
+      }catch{releaseStatus='release_superseded'}
+    }
     const taskById=new Map(tasks.map(t=>[t.scene_id,t]));
     const plannedById=new Map((plan.scenes||[]).map(s=>[s.scene_id,s]));
     const statuses=tasks.map(t=>{
