@@ -34,9 +34,3 @@ The system SHALL provide per-scene motion budgets and an accessible low-motion f
 #### Scenario: Rejected or degraded performance and accessibility
 - **WHEN** a worker attempts to disable the project motion cap or overwrite an approved version
 - **THEN** permission enforcement denies the change and retains the accepted release
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P18.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P18, checkpoints P18-C01…P18-C06 and release gate in `specs/002-professional-montage/tasks.md`.
