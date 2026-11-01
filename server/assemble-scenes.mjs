@@ -27,12 +27,21 @@ async function ffmpegRun(argv,{timeout=600000}={}){
       if(code===0)resolve();else reject(new Error('Assembly FFmpeg failed: '+output));});
   });
 }
-export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,baseUrl}){
+export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
+  reviewUnresolved=()=>false,baseUrl}){
   const jobs=new Map();
+  function withReviewState(result){
+    if(result.status!=='completed'||!result.manifest?.scenes)return result;
+    const unresolved_scenes=result.manifest.scenes
+      .filter(s=>s.approved_version_id&&reviewUnresolved(idFromResult(result),s.id,s.approved_version_id))
+      .map(s=>s.id);
+    return {...result,review_valid:unresolved_scenes.length===0,unresolved_scenes};
+  }
+  function idFromResult(result){return result.id}
   function get(id){
     if(!valid.test(id))bad('Invalid project ID');
     const active=jobs.get(id);
-    if(active)return active;
+    if(active)return withReviewState(active);
     const manifestFile=path.join(out,id+'_final.manifest.json');
     const video=path.join(out,id+'_final.mp4');
     if(fs.existsSync(manifestFile)&&fs.existsSync(video)){
@@ -45,7 +54,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
             result:{download_url:baseUrl()+'/out/'+id+'_final.mp4',size:manifest.output.size},
             recovered:true};
           jobs.set(id,recovered); // Avoid re-hashing on subsequent status polls.
-          return recovered;
+          return withReviewState(recovered);
         }
       }catch{/* A partial or corrupt published manifest must never look completed. */}
     }
@@ -67,6 +76,8 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       if(getTask(id,scene).status!=='done')bad('Scene not approved: '+scene,409);
       const approved=getApproved?.(id,scene);
       if(getApproved&&!approved?.artifact)bad('Scene has no approved immutable version: '+scene,409);
+      if(approved?.artifact&&reviewUnresolved(id,scene,approved.artifact.version_id))
+        bad('Scene has unresolved review issues: '+scene,409);
       const job=approved?.artifact?{status:'completed',job_id:approved.artifact.job_id,
         qa_report:approved.artifact.qa}:getRender(id,scene);
       if(job.status!=='completed'||job.qa_report?.verdict!=='PASS')bad('Scene has no passed render: '+scene,409);
@@ -109,6 +120,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
         // If source MP4 changed during encoding, abort rather than publishing a mixed revision.
         if(items.some(x=>!fs.existsSync(x.file)||digest(x.file)!==x.sha256||
            getTask(id,x.scene).status!=='done'||
+           (x.approved_version_id&&reviewUnresolved(id,x.scene,x.approved_version_id))||
            (getApproved
              ? getApproved(id,x.scene)?.artifact?.version_id!==x.approved_version_id
              : getRender(id,x.scene).status!=='completed'||getRender(id,x.scene).job_id!==x.render_job_id)))
