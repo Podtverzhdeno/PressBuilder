@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {sceneVersionStore} from '../server/scene-versions.mjs';
 import {sourceManifest} from '../server/source-provenance.mjs';
+import {scene3dStore} from '../server/scene-3d.mjs';
 
 function fixture(){
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-source-'));
@@ -65,5 +66,52 @@ test('P08 immutable scene snapshots survive new edits, are not in public manifes
     corrupt.slide.label='Modified by an attacker';
     fs.writeFileSync(sourceFile,JSON.stringify(corrupt));
     assert.throws(()=>f.store.readSource('demo','s01',item.version_id),e=>e.status===409);
+  }finally{f.cleanup()}
+});
+
+test('P08 director restores only one scene source and the declarative 3D overlay; refuses stale/global conflicts',{timeout:10000},()=>{
+  const f=fixture();
+  try{
+    f.deck.slides.push({id:'s02',label:'Untouched neighbour',cues:[{id:'c02',say:'World'}]});
+    const getDeck=()=>f.deck;
+    const store3d=scene3dStore({root:f.root,getDeck});
+    const spec={version:1,camera:{yaw_speed:0},objects:[{id:'cube',mesh:'cube',color:'#AABBCC'}]};
+    const old3d=store3d.put('demo','s01',spec,0);
+    const v=sceneVersionStore({root:f.root,out:f.out,staticRoot:f.staticRoot,
+      getDeck,getScene3D:(id,scene)=>store3d.read(id,scene),
+      getStyle:()=>({revision:0,contract:{enforce:false}}),
+      restoreScene3D:(id,scene,source,rev)=>store3d.restore(id,scene,source,rev),
+      restoreSlide:(id,scene,slide)=>{
+        const index=f.deck.slides.findIndex(s=>s.id===scene);
+        assert.ok(index>=0);f.deck.slides[index]=slide;
+      }});
+    const baseline=v.source('demo','s01'),job='state-job',vid=v.versionId(job);
+    const output=path.join(f.out,'demo_s01_v'+vid+'.mp4');
+    fs.writeFileSync(output,Buffer.alloc(1200,65));
+    v.capture({id:'demo',scene:'s01',jobId:job,file:output,expectedSource:baseline,
+      rendered:{fps:24,height:720,duration:2},qa:{verdict:'PASS'}});
+    f.deck.slides[0].label='Modified';
+    store3d.restore('demo','s01',null,old3d.revision);
+    const current=v.source('demo','s01');
+    assert.notEqual(current.fingerprint,baseline.fingerprint);
+    const director={id:'director',role:'director'};
+    assert.throws(()=>v.restoreSource('demo','s01',vid,baseline.fingerprint,current.scene3d_revision,director),
+      e=>e.status===409);
+    assert.throws(()=>v.restoreSource('demo','s01',vid,current.fingerprint,current.scene3d_revision,
+      {id:'viewer',role:'viewer'}),e=>e.status===403);
+    const result=v.restoreSource('demo','s01',vid,current.fingerprint,current.scene3d_revision,director);
+    assert.equal(result.ok,true);
+    assert.equal(f.deck.slides[0].label,'First');
+    assert.equal(f.deck.slides[1].label,'Untouched neighbour');
+    assert.equal(store3d.read('demo','s01').spec.objects[0].id,'cube');
+    assert.equal(store3d.read('demo','s02').spec,null);
+    assert.ok(fs.existsSync(path.join(f.root,'demo','.scene-versions','s01','source-restores.jsonl')));
+    f.deck.slides[0].label='Changed again';
+    const conflict=v.source('demo','s01');
+    fs.writeFileSync(path.join(f.staticRoot,'app.js'),'console.log("new deployed client")');
+    const changed=v.source('demo','s01');
+    assert.throws(()=>v.restoreSource('demo','s01',vid,changed.fingerprint,
+      changed.scene3d_revision,director),e=>e.status===409);
+    assert.equal(f.deck.slides[0].label,'Changed again');
   }finally{f.cleanup()}
 });
