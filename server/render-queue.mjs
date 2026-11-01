@@ -92,8 +92,8 @@ export function makeRenderQueue({
     validate(id,slide_id);
     const k=key(id,slide_id);
     const old=latest.get(k);
-    if(old&&active.has(old.status))return clone(old);
     if(expected_job_id!==null&&old?.job_id!==expected_job_id)throw err('Job changed; refresh and retry',409);
+    if(old&&active.has(old.status))return clone(old);
     if(pending.length>=maxPending)throw err('Render queue is full',429);
     const token=randomBytes(6).toString('hex');
     const job_id=token; // ≤40 characters; never uses user-supplied filenames
