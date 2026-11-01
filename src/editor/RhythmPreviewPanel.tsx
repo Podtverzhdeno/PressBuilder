@@ -1,6 +1,6 @@
 /** P15: director Studio draft preview and CAS sidecar. Never publishes or approves cuts. */
 import {useEffect,useState} from 'preact/hooks';
-import {api,type RhythmContext,type RhythmPreview,type RhythmDraftRecord} from './api.ts';
+import {api,type RhythmContext,type RhythmPreview,type RhythmDraftRecord,type RhythmSilenceEvidence} from './api.ts';
 import {seek} from './store.ts';
 
 const fmtTime=(frame:number,fps:{num:number;den:number})=>
@@ -28,13 +28,14 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
   const [draft,setDraft]=useState('');
   const [result,setResult]=useState<RhythmPreview|null>(null);
   const [saved,setSaved]=useState<RhythmDraftRecord|null>(null);
+  const [silence,setSilence]=useState<RhythmSilenceEvidence|null>(null);
   const [note,setNote]=useState('');
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const [modified,setModified]=useState(false);
   useEffect(()=>{
     let alive=true;
-    setCtx(null);setDraft('');setResult(null);setError('');setModified(false);
+    setCtx(null);setDraft('');setResult(null);setSilence(null);setError('');setModified(false);
     void Promise.all([api.getRhythmContext(projectId),api.getRhythmDraft(projectId)]).then(([c,r])=>{
       if(!alive)return;
       setCtx(c);setDraft(template(c));setSaved(r);
@@ -63,6 +64,15 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
         throw new Error('Корневой элемент разметки должен быть объектом JSON');
       const next=await api.previewRhythm(projectId,parsed as Record<string,unknown>);
       setResult(next);
+    }catch(e){setError(e instanceof Error?e.message:String(e))}
+    finally{setBusy(false)}
+  }
+  async function analyzeSilence(){
+    if(busy)return;
+    setBusy(true);setError('');setSilence(null);
+    try{
+      const result=await api.measureRhythmSilence(projectId);
+      setSilence(result);
     }catch(e){setError(e instanceof Error?e.message:String(e))}
     finally{setBusy(false)}
   }
@@ -116,6 +126,23 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
             Вставьте подтверждённые тайминги слов и пауз с <code>scene_id</code>, <code>cue_id</code>
             (в микросекундах). Реплики могут повторять ID между сценами.
           </p>
+          <div class="task-readme-help">
+            <button type="button" class="btn" disabled={busy}
+              onClick={()=>void analyzeSilence()}>
+              Измерить паузы в WAV
+            </button>
+            <span> Читает реальные PCM16 WAV-сэмплы. MP3/другие форматы пока не поддерживаются.</span>
+          </div>
+          {silence&&<div role="status" class="task-readme-help">
+            <b>Измерено: {silence.silences.length} интервалов тишины.</b>
+            <p>Только время относительно начала аудиофайла, не распознанные слова.
+              Автоматически в монтажный план ничего не добавляется.</p>
+            {silence.silences.slice(0,30).map((p,i)=><div key={i}>
+              {(p.start_us/1e6).toFixed(3)}–{(p.end_us/1e6).toFixed(3)} с
+              · {p.scene_id&&p.cue_id?p.scene_id+'/'+p.cue_id:'вне однозначной реплики'}
+            </div>)}
+            {silence.silences.length>30&&<p>Показаны первые 30 интервалов.</p>}
+          </div>}
           <details>
             <summary>Действительные ID и интервалы реплик</summary>
             <div style={{maxHeight:'140px',overflow:'auto'}}>
