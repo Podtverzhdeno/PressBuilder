@@ -78,8 +78,14 @@ export function mediaCatalogStore({root,getDeck,versions,enabled=false,now=()=>D
       !VERSION.test(a?.source_version_id??'')||!SHA.test(a?.source_sha256??'')||
       !Number.isSafeInteger(a?.source_approval_revision)||
       !['PENDING_ATTESTATION','ATTESTED','REVOKED'].includes(a?.status)||
-      !Number.isSafeInteger(a?.revision)||a.revision<1)
+      !Number.isSafeInteger(a?.revision)||a.revision<1||
+      !str(a?.label,140)||!str(a?.rights_holder,140)||
+      !REF.test(a?.license_ref??'')||!REF.test(a?.evidence_ref??'')||
+      !str(a?.attribution,400)||!seq(a?.allowed_uses,4,x=>USES.has(x))||
+      !seq(a?.allowed_scenes,12,x=>ID.test(x))||
+      typeof a?.proposed_by!=='string'||!str(a.proposed_by,80))
      BAD('MEDIA_CORRUPT_CATALOG',500);
+   try{clock(a.expires_at)}catch{BAD('MEDIA_CORRUPT_CATALOG',500)}
   }
   return data;
  }
@@ -103,7 +109,17 @@ export function mediaCatalogStore({root,getDeck,versions,enabled=false,now=()=>D
   // Auditable journal, append-only best effort. No approval authority comes from the log.
   const event={at:timestamp(),kind,asset_id:assetId,actor_id:actor.id,catalog_revision:catalog.revision,
     manifest_sha256:hash(catalog)};
-  fs.appendFileSync(path.join(path.dirname(file),'events.jsonl'),JSON.stringify(event)+'\n',{mode:0o600});
+  const log=path.join(path.dirname(file),'events.jsonl');
+  const existing=fs.lstatSync(log,{throwIfNoEntry:false});
+  if(existing&&(!existing.isFile()||existing.isSymbolicLink()||existing.nlink!==1))
+    BAD('MEDIA_UNSAFE_AUDIT_LOG',403);
+  const fd=fs.openSync(log,fs.constants.O_CREAT|fs.constants.O_APPEND|fs.constants.O_WRONLY|
+    (fs.constants.O_NOFOLLOW??0),0o600);
+  try{
+    const st=fs.fstatSync(fd);
+    if(!st.isFile()||st.nlink!==1)BAD('MEDIA_UNSAFE_AUDIT_LOG',403);
+    fs.writeSync(fd,JSON.stringify(event)+'\n');
+  }finally{fs.closeSync(fd)}
  }
  function propose(id,actor,args){
   active();
