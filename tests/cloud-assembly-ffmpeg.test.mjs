@@ -266,7 +266,8 @@ test('P05 cache: identical inputs reuse QA-verified MP4 without FFmpeg; changed 
     assert.equal(second.status,'completed');
     assert.equal(second.cache_hit,true);
     assert.equal(second.timings_ms.encode,0);
-    assert.notEqual(second.job_id,first.job_id);
+    assert.equal(second.job_id,first.job_id,'Director signoff must match the immutable manifest');
+    assert.notEqual(second.request_id,first.job_id,'Cache request has a separate ID');
     assert.equal(second.result.release_id,release);
     assert.equal(fs.readdirSync(path.join(out,'releases','demo')).filter(
       x=>/^[0-9a-f-]{36}$/.test(x)).length,1);
