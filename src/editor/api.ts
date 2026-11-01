@@ -3,6 +3,7 @@
 import type { DeckData } from '../engine/types.ts';
 import type { SceneTask, SceneCheckpoint } from '../../server/scene-tasks.mjs';
 import type { ProjectReadme } from '../../server/project-readme.mjs';
+import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
@@ -40,6 +41,11 @@ const body = (data: unknown): RequestInit => ({
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
   getDeck: (id: string) => call<DeckData>(`/api/decks/${id}`),
+  getScene3D: (id: string, slideId: string) => call<Scene3DRecord>(`/api/decks/${id}/scene3d/${slideId}`),
+  saveScene3D: (id: string, slideId: string, spec: Scene3DSpec, expected_revision: number) =>
+    call<Scene3DRecord>(`/api/decks/${id}/scene3d/${slideId}`,{
+      method:'PUT',...body({spec,expected_revision})
+    }),
   getProjectReadme: (id: string) => call<ProjectReadme>(`/api/decks/${id}/readme`),
   saveProjectReadme: (id: string, content: string, expected_revision: string) =>
     call<ProjectReadme>(`/api/decks/${id}/readme`,{
