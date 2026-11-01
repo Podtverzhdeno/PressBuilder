@@ -84,6 +84,9 @@ export function sceneReviewStore({root,getDeck,now=()=>new Date().toISOString()}
     if(render && (render.status!=='completed'||render.job_id!==revision))
       throw error('Review must target the current completed render job',409);
     const fps=integer(payload.fps,'fps',1,120);
+    const actualFps=render?.qa_report?.metadata?.fps;
+    if(Number.isFinite(actualFps)&&actualFps>0&&Math.abs(actualFps-fps)>0.5)
+      throw error('Frame rate does not match completed render metadata',409);
     const t=number(payload.t,'timestamp',0,36000);
     const frame=integer(payload.frame,'frame',0,4320000);
     if(Math.abs(frame-Math.round(t*fps))>1)throw error('Frame/time mismatch');
