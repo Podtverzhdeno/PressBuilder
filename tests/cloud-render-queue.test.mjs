@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {makeRenderQueue} from '../server/render-queue.mjs';
+import {createHash} from 'node:crypto';
 
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const until=async(fn,timeout=6000)=>{
@@ -155,5 +156,83 @@ test('P02 refuses stale source and rejects invalid scenes and unsafe filenames',
     assert.throws(()=>q.enqueue('film','../../escape'),e=>e.status===400);
     assert.throws(()=>q.enqueue('film','s03'),e=>e.status===404);
     assert.throws(()=>q.retry('film','s01','stale'),e=>e.status===409);
+  }finally{f.cleanup()}
+});
+
+
+test('P02 migrates a legacy PASS journal without losing its previously approved MP4',{timeout:12000},()=>{
+  const f=fixture();
+  try{
+    fs.mkdirSync(f.root,{recursive:true});
+    const legacyName='film_s01.mp4';
+    fs.writeFileSync(path.join(f.outputDir,legacyName),Buffer.from('OLD_APPROVED_VIDEO'));
+    // This is the previous server/cloud.mjs journal key, not the new queue key.
+    const oldHash=createHash('sha256').update('film'+'\\0'+'s01').digest('hex');
+    const oldFile=path.join(f.root,oldHash+'.json');
+    fs.writeFileSync(oldFile,JSON.stringify({
+      id:'film',slide_id:'s01',job_id:'film:s01-1730000000000',status:'completed',
+      result:{file:'out/'+legacyName,size:18,download_url:'https://example.test/out/'+legacyName},
+      qa_report:{verdict:'PASS',issues:[]}
+    }));
+    const queue=create(f);
+    const recovered=queue.get('film','s01');
+    assert.equal(recovered.status,'completed');
+    assert.match(recovered.job_id,/^[0-9a-f]{32}$/);
+    assert.equal(recovered.result.legacy_file,'out/film_s01.mp4');
+    assert.ok(fs.existsSync(path.join(f.outputDir,recovered.output_name+'.mp4')));
+    assert.equal(fs.readFileSync(path.join(f.outputDir,'film_s01.mp4'),'utf8'),'OLD_APPROVED_VIDEO');
+    assert.ok(!fs.existsSync(oldFile));
+    assert.equal(create(f).get('film','s01').status,'completed');
+  }finally{f.cleanup()}
+});
+
+test('P02 legacy in-flight jobs fail explicitly instead of replaying unpinned sources',{timeout:12000},()=>{
+  const f=fixture();
+  try{
+    fs.mkdirSync(f.root,{recursive:true});
+    const oldHash=createHash('sha256').update('film'+'\\0'+'s02').digest('hex');
+    fs.writeFileSync(path.join(f.root,oldHash+'.json'),JSON.stringify({
+      id:'film',slide_id:'s02',job_id:'film:s02-1730000000000',status:'running'
+    }));
+    const queue=create(f);
+    const job=queue.get('film','s02');
+    assert.equal(job.status,'failed');
+    assert.match(job.error,/Legacy queued render/);
+    assert.equal(queue.snapshot().queued,0);
+    assert.equal(create(f).get('film','s02').status,'failed');
+  }finally{f.cleanup()}
+});
+
+test('P03 malformed/null inspector results fail closed and keep the approved MP4',{timeout:12000},async()=>{
+  const f=fixture();
+  try{
+    let verdict={verdict:'PASS',issues:[]};
+    const queue=create(f,{inspect:()=>verdict});
+    queue.start();
+    const first=queue.enqueue('film','s01');
+    await until(()=>queue.get('film','s01').status==='completed');
+    const previouslyAccepted=fs.readFileSync(path.join(f.outputDir,'film_s01.mp4'));
+    verdict=null;
+    queue.retry('film','s01',first.job_id);
+    await until(()=>queue.get('film','s01').status==='failed');
+    assert.match(queue.get('film','s01').error,/Invalid QA response/);
+    assert.deepEqual(fs.readFileSync(path.join(f.outputDir,'film_s01.mp4')),previouslyAccepted);
+  }finally{f.cleanup()}
+});
+
+test('P02 stalled worker fails after hard render deadline, not labelled cancelled',{timeout:12000},async()=>{
+  const f=fixture();
+  try{
+    const queue=create(f,{jobTimeoutMs:1000,render:async({signal})=>new Promise((resolve,reject)=>{
+      const rejectOnAbort=()=>reject(signal.reason);
+      if(signal.aborted)return rejectOnAbort();
+      signal.addEventListener('abort',rejectOnAbort,{once:true});
+    })});
+    queue.start();
+    queue.enqueue('film','s01');
+    await until(()=>queue.get('film','s01').status==='failed',5000);
+    assert.match(queue.get('film','s01').error,/timed out/i);
+    assert.equal(queue.get('film','s01').status,'failed');
+    assert.ok(!fs.existsSync(path.join(f.outputDir,'film_s01.mp4')));
   }finally{f.cleanup()}
 });
