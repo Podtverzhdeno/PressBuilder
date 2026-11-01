@@ -413,7 +413,6 @@ const getRender=(id,slideId=null)=>renderJobs.get(id,slideId);
 const startRender=(id,slideId=null)=>renderJobs.enqueue(id,slideId);
 const cancelRender=(id,slideId,jobId)=>renderJobs.cancel(id,slideId,jobId);
 const retryRender=(id,slideId,jobId)=>renderJobs.retry(id,slideId,jobId);
-const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),baseUrl});
 const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),
   getApproved:(id,scene)=>versions.approved(id,scene),baseUrl});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,assembly,versions,reviews});
