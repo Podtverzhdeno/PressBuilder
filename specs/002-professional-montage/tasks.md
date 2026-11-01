@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-All entries are PLANNED, all checkboxes unchecked. Creating OpenSpec/SDD artifacts is not delivery of editor features.
+Progress: P15-C01 and P15-C02 are TESTED by cloud CI (105 total, 91 pass, 14 skipped; run 41338415912), but remain unchecked pending independent reviewer acceptance. Other 58 checkpoints are TODO. Features are not in production.
 
 ## Evidence and progression rules
 
@@ -24,7 +24,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C01 — Contract and threat model
 
-- [ ] P15-C01 — TODO. Deliverable: montage/rhythm-engine-v1.json and JSON Schema.
+- [ ] P15-C01 — TESTED (CI green; separate code/security reviewer signoff required). Deliverable: montage/rhythm-engine-v1.json and JSON Schema.
 - Actions: Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json. Define P09 cue/word alignment + owned music beats; reject missing words, nonfinite BPM, stale source, cuts through protected narration.
 - Dependencies: Existing P06/P08/P09 and current OpenSpec.
 - Acceptance: Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.
@@ -36,7 +36,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C02 — Bounded functional vertical slice
 
-- [ ] P15-C02 — TODO. Deliverable: server/rhythm-plan.mjs.
+- [ ] P15-C02 — TESTED (CI green; separate code/security reviewer signoff required). Deliverable: server/rhythm-plan.mjs.
 - Actions: Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback. Implement: rational-frame cut candidate generation, protected phrases, pacing constraints.
 - Dependencies: P15-C01.
 - Acceptance: Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.
