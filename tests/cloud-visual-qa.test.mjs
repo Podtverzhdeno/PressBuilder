@@ -37,11 +37,13 @@ test('P03 rejects text that cannot fit at minimum font size',()=>{
   assert.ok(v.issues.some(x=>x.id==='TEXT_UNFIT'&&x.object_id==='bad'));
 });
 test('P03 detects off-screen captions and flags important overlaps for review',()=>{
-  const v=auditDataText(project([
-    txt('off','HELLO',{x:1870,w:500}),
+  const d=project([
+    txt('off','HELLO',{x:220,w:500}),
     txt('first','TWO',{x:250,y:380}),
     txt('second','THREE',{x:275,y:405}),
-  ]),canvasContext(),'s01');
+  ]);
+  d.slides[0].objects={off:{x:2050,y:250,scale:1}};
+  const v=auditDataText(d,canvasContext(),'s01');
   assert.equal(v.verdict,'FAIL');
   assert.ok(v.issues.some(x=>x.id==='TEXT_OUTSIDE_FRAME'));
   assert.ok(v.issues.some(x=>x.id==='TEXT_POTENTIAL_OVERLAP'&&x.severity==='REVIEW'));
