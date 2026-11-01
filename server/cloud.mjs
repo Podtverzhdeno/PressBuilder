@@ -43,7 +43,13 @@ const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
 const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scene)=>scene3d.read(id,scene),
-  getStyle:id=>styles.read(id)});
+  getStyle:id=>styles.read(id),restoreScene3D:(id,scene,spec,rev)=>scene3d.restore(id,scene,spec,rev),
+  restoreSlide:(id,scene,slide)=>{
+    const deck=getDeck(id),index=deck.slides.findIndex(s=>s.id===scene);
+    if(index<0||slide.id!==scene)throw new UserError('Scene source restore mismatch',409);
+    deck.slides[index]=slide;
+    putDeck(id,deck);
+  }});
 const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
 
 function secureEq(a,b) {
@@ -221,6 +227,17 @@ async function api(req,res,url) {
     if(method==='POST'){
       const body=await readJson(req);
       return json(res,202,assembly.start(id,body?.scene_ids));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const sourceMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)\/([a-f0-9]{16})\/source$/.exec(p);
+  if(sourceMatch){
+    const id=deckId(escaped(sourceMatch[1])),scene=deckId(escaped(sourceMatch[2])),version=sourceMatch[3];
+    if(method==='GET')return json(res,200,versions.readSource(id,scene,version));
+    if(method==='POST'){
+      const body=await readJson(req);
+      return json(res,200,versions.restoreSource(id,scene,version,
+        body?.expected_fingerprint,body?.expected_scene3d_revision,director));
     }
     throw new UserError('Method not allowed',405);
   }
