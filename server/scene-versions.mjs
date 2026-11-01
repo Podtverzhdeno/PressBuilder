@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash,randomUUID,constants} from 'node:crypto';
+import {buildSchedule} from '../src/engine/schedule.ts';
 
 const SLUG=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const VERSION=/^[0-9a-f]{16}$/;
@@ -19,7 +20,7 @@ function atomic(file,obj){
   fs.writeFileSync(temp,JSON.stringify(obj,null,2)+'\n',{mode:0o600});
   try{fs.renameSync(temp,file)}finally{fs.rmSync(temp,{force:true})}
 }
-export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>new Date().toISOString()}){
+export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,getSceneSync=()=>({markers:[]}),now=()=>new Date().toISOString()}){
   function locate(id,scene){
     if(typeof id!=='string'||!SLUG.test(id)||typeof scene!=='string'||!SLUG.test(scene))bad('Invalid project/scene ID');
     const deck=getDeck(id);
@@ -30,10 +31,31 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
   }
   function source(id,scene){
     const {deck,slide}=locate(id,scene);
+    const sc=buildSchedule(deck).slides.find(s=>s.slide.id===scene);
+    const sync=getSceneSync(id,scene)||{markers:[]};
+    if(sync.validation_error)bad('Repair invalid scene audio/motion markers: '+sync.validation_error,409);
+    const usable=new Set((sync.timeline?.events||[]).filter(e=>!e.out_of_range).map(e=>e.id));
+    for(const object of getScene3D(id,scene)?.spec?.objects||[]){
+      if(object.start_marker&&!usable.has(object.start_marker))
+        bad('3D object '+object.id+' references missing/out-of-range marker '+object.start_marker,409);
+    }
+    let audioHash=null;
+    if(deck.audio?.file){
+      if(!/^voice\\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/.test(deck.audio.file))
+        bad('Unsafe voice file reference',400);
+      const file=path.join(root,id,deck.audio.file);
+      if(!fs.existsSync(file))bad('Narration file is missing',409);
+      audioHash=fileHash(file);
+    }
     const snapshot={slide,style:deck.style,format:deck.format,audio:deck.audio??null,
-      scene3d:getScene3D(id,scene),styleContract:getStyle(id)};
+      audio_sha256:audioHash,
+      clip_start:sc?.start??null,clip_duration:sc?.dur??null,project_target:deck.target??null,
+      project_lead:deck.lead??null,project_tail:deck.tail??null,
+      scene3d:getScene3D(id,scene),styleContract:getStyle(id),
+      sync_markers:sync.markers||[],
+      source_commit:process.env.RAILWAY_GIT_COMMIT_SHA||process.env.GITHUB_SHA||null};
     return {fingerprint:createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'),
-      scene3d_revision:snapshot.scene3d?.revision??0,style_revision:snapshot.styleContract?.revision??0};
+      snapshot,scene3d_revision:snapshot.scene3d?.revision??0,style_revision:snapshot.styleContract?.revision??0};
   }
   const versionId=jobId=>createHash('sha256').update(jobId).digest('hex').slice(0,16);
   function read(id,scene,version){
