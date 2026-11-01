@@ -96,7 +96,16 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
     if(plan.status==='none')return plan;
     const tasks=sceneTasks.list(id);
     const receipt=plan.release_receipt;
-    const releaseFile=out&&receipt?path.join(out,id+'_final.mp4'):null;
+    // Immutable P05 releases live under a generated release UUID, not the
+    // mutable legacy <project>_final.mp4 alias. Validate before joining paths.
+    const releaseId=receipt?.release_id;
+    const validRelease=typeof releaseId==='string'&&/^[0-9a-f-]{36}$/.test(releaseId);
+    const expectedFile=validRelease?'out/releases/'+id+'/'+releaseId+'/final.mp4':
+      'out/'+id+'_final.mp4';
+    const receiptFileValid=!receipt||receipt.file===expectedFile;
+    const releaseFile=out&&receipt&&receiptFileValid&&
+      (releaseId===undefined||validRelease)?
+      path.join(out,expectedFile.slice(4)):null;
     const stat=releaseFile&&fs.existsSync(releaseFile)?fs.statSync(releaseFile):null;
     const releaseStatus=plan.status==='released'?
       (!out?'signed_off_unverified':(!stat||!stat.isFile()?'artifact_missing':
@@ -365,11 +374,40 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
       manifest.project!==id||manifest.output?.qa?.verdict!=='PASS'||
       JSON.stringify(manifest.scenes?.map(x=>x.id))!==JSON.stringify(expected))
       fail('No matching completed six-scene assembly with passing QA',409);
-    const file=path.join(out,id+'_final.mp4');
+    // P05 immutable crossfade releases use an active release pointer and
+    // output.bytes. Preserve legacy support only for an older assembly service
+    // that has neither current() nor download().
+    const immutable=typeof svc.current==='function'||typeof svc.download==='function';
+    if(immutable&&!(typeof svc.current==='function'&&typeof svc.download==='function'))
+      fail('Assembly release interface is incomplete',501);
+    let releaseId=null,file,verifiedManifest=manifest;
+    if(immutable){
+      const active=svc.current(id);
+      releaseId=active?.release_id;
+      if(!releaseId||!(/^[a-f0-9-]{36}$/.test(releaseId))||
+         active?.manifest?.job_id!==args.assembly_job_id||
+         active?.manifest?.project!==id||
+         active?.manifest?.output?.qa?.verdict!=='PASS'||
+         job.result?.release_id!==releaseId)
+        fail('No matching active immutable assembly release',409);
+      verifiedManifest=active.manifest;
+      if(manifest.output?.sha256!==verifiedManifest.output?.sha256||
+         manifest.output?.bytes!==verifiedManifest.output?.bytes||
+         JSON.stringify(manifest.scenes)!==JSON.stringify(verifiedManifest.scenes))
+        fail('Active assembly manifest differs from the completed job',409);
+      try{file=svc.download(id,releaseId)}
+      catch{fail('Immutable assembly release is missing or corrupted',409)}
+      const expectedPath=path.join(out,'releases',id,releaseId,'final.mp4');
+      if(path.resolve(file)!==path.resolve(expectedPath))
+        fail('Assembly release path does not match the active pointer',409);
+    }else{
+      file=path.join(out,id+'_final.mp4');
+    }
     if(!fs.existsSync(file)||!fs.statSync(file).isFile())
       fail('Final MP4 is missing',409);
     const st=fs.statSync(file);
-    if(!Number.isSafeInteger(st.size)||st.size<=0||st.size!==manifest.output.size)
+    const expectedSize=immutable?verifiedManifest.output.bytes:manifest.output.size;
+    if(!Number.isSafeInteger(st.size)||st.size<=0||st.size!==expectedSize)
       fail('Final MP4 size does not match manifest',409);
     const sha256=hashFile(file);
     for(const scene of manifest.scenes){
@@ -380,11 +418,15 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
       if(!fs.existsSync(inputFile)||hashFile(inputFile)!==scene.sha256)
         fail('Assembled input scene artifact was removed or changed: '+scene.id,409);
     }
-    if(sha256!==manifest.output.sha256)fail('Final MP4 checksum does not match manifest',409);
+    if(sha256!==verifiedManifest.output.sha256)
+      fail('Final MP4 checksum does not match manifest',409);
     const released_at=new Date().toISOString();
     save(planFile(id),{...plan,status:'released',revision:plan.revision+1,
-      release_receipt:{file:'out/'+id+'_final.mp4',size:st.size,mtime_ms:st.mtimeMs,
-        sha256,assembly_job_id:job.job_id,plan_id:plan.plan_id,released_at}});
+      release_receipt:{file:immutable?'out/releases/'+id+'/'+releaseId+'/final.mp4':
+        'out/'+id+'_final.mp4',
+        ...(releaseId?{release_id:releaseId}:{}),
+        size:st.size,mtime_ms:st.mtimeMs,sha256,assembly_job_id:job.job_id,
+        plan_id:plan.plan_id,released_at}});
     return read(id);
   }
   // Run recovery before the server accepts any scene-task requests. Without
