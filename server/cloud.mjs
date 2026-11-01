@@ -9,6 +9,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { timingSafeEqual } from 'node:crypto';
 import { DATA, DECKS, OUT, UserError, createDeck, deckId, getDeck, hasDeck, listDecks, putDeck } from './cloud-core.mjs';
 import { makeMcp } from './mcp.mjs';
+import { sceneTaskStore } from './scene-tasks.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 
@@ -24,6 +25,7 @@ if (!MCP_SECRET || MCP_SECRET.length < 24 || !WEB_USER || !WEB_PASS || WEB_PASS.
 }
 fs.mkdirSync(DECKS, {recursive:true});
 fs.mkdirSync(OUT, {recursive:true});
+const sceneTasks=sceneTaskStore({root:DECKS,getDeck});
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
@@ -56,7 +58,7 @@ function send(res,status,body,contentType='application/json; charset=utf-8',head
   res.end(buf);
 }
 const json=(res,status,payload)=>send(res,status,payload);
-const error=(res,e)=>json(res,e instanceof UserError?e.status:500,{error:e instanceof Error?e.message:'Internal error'});
+const error=(res,e)=>json(res,e?.status>=400&&e?.status<=599?e.status:500,{error:e instanceof Error?e.message:'Internal error'});
 function readBody(req, max=1024*1024) {
   return new Promise((resolve,reject)=>{
     const chunks=[]; let len=0;
@@ -158,6 +160,28 @@ async function api(req,res,url) {
     const f='voice.'+ext;
     fs.writeFileSync(path.join(dir,f),b);
     return json(res,200,{file:f,size:b.length});
+  }
+  // Per-scene assignments live apart from deck.json to support parallel agents.
+  const taskMatch=/^\/api\/decks\/([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(p);
+  if(taskMatch){
+    const id=deckId(escaped(taskMatch[1]));
+    const scene=taskMatch[2]&&escaped(taskMatch[2]);
+    const cp=taskMatch[3]&&escaped(taskMatch[3]);
+    if(!scene){
+      if(method!=='GET')throw new UserError('Method not allowed',405);
+      return json(res,200,sceneTasks.list(id));
+    }
+    if(cp){
+      if(method!=='PATCH')throw new UserError('Method not allowed',405);
+      return json(res,200,sceneTasks.checkpoint(id,scene,cp,await readJson(req)));
+    }
+    if(method==='GET')return json(res,200,sceneTasks.read(id,scene));
+    if(method==='PUT'){
+      const body=await readJson(req);
+      const {expected_revision,...patch}=body||{};
+      return json(res,200,sceneTasks.put(id,scene,patch,expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
   }
   const deckMatch=/^\/api\/decks\/([^/]+)$/.exec(p);
   if(deckMatch){
