@@ -15,6 +15,7 @@ import { SceneReviewPanel } from './SceneReviewPanel.tsx';
 import { RhythmPreviewPanel } from './RhythmPreviewPanel.tsx';
 import { CreativeStoryPanel } from './CreativeStoryPanel.tsx';
 import { ContinuityBoundaryPanel } from './ContinuityBoundaryPanel.tsx';
+import { TypedSceneBriefPanel } from './TypedSceneBriefPanel.tsx';
 import { StyleDialog } from './StyleDialog.tsx';
 import { StyleContractPanel } from './StyleContractPanel.tsx';
 import { Stage } from './Stage.tsx';
@@ -50,7 +51,7 @@ import { TimelinePanel } from './TimelinePanel.tsx';
 import { Icon, IconBtn, MenuBtn } from './ui.tsx';
 import { clock, isTyping, nSlides } from './util.ts';
 
-type Modal = null | 'new' | 'resplit' | 'style' | 'tasks' | 'readme' | 'scene3d' | 'style-contract' | 'export' | 'export-auto' | 'review' | 'rhythm' | 'creative' | 'continuity';
+type Modal = null | 'new' | 'resplit' | 'style' | 'tasks' | 'readme' | 'scene3d' | 'style-contract' | 'export' | 'export-auto' | 'review' | 'rhythm' | 'creative' | 'continuity' | 'typed-brief';
 
 const SAVE_TEXT = { saved: 'сохранено', dirty: 'изменено', saving: 'сохраняю…', error: 'не сохранилось' };
 
@@ -179,6 +180,9 @@ export function App() {
             <button type="button" class="btn" title="P16: два варианта истории только по утверждённому сценарию" onClick={() => setModal('creative')}>
               <Icon name="film" size={15} /> Режиссёрские истории
             </button>
+            <button type="button" class="btn" title="M40: машинно-проверяемое назначение агента на основе утверждённого режиссёрского плана" onClick={() => setModal('typed-brief')}>
+              <Icon name="text" size={15} /> Контракт агента
+            </button>
             <button type="button" class="btn" title="P17: проверка подлинности последнего/первого кадра утверждённых MP4" onClick={() => setModal('continuity')}>
               <Icon name="film" size={15} /> Стыки сцен
             </button>
@@ -213,6 +217,7 @@ export function App() {
       {modal === 'rhythm' && d && <RhythmPreviewPanel projectId={d.id} onClose={() => setModal(null)} />}
       {modal === 'creative' && d && <CreativeStoryPanel projectId={d.id} onClose={() => setModal(null)} />}
       {modal === 'continuity' && d && <ContinuityBoundaryPanel projectId={d.id} onClose={() => setModal(null)} />}
+      {modal === 'typed-brief' && d && <TypedSceneBriefPanel projectId={d.id} initialScene={curSlide.value?.slide.id} onClose={() => setModal(null)} />}
       {(modal === 'export' || modal === 'export-auto') && (
         <ExportDialog autoStart={modal === 'export-auto'} slides={modal === 'export-auto' ? exportSlides : undefined} onClose={() => setModal(null)} />
       )}

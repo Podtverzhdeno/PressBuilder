@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pressbuilder.local/schemas/montage/typed-scene-brief-v2.schema.json",
+  "title": "M40 approved-director scene execution brief — read-only projection",
+  "description": "Server-owned read-only response. The schema validates a projection; authenticity requires the P10/P06 server checks, not fields in client JSON.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "status",
+    "project_id",
+    "scene_id",
+    "approved_plan_id",
+    "approved_plan_revision",
+    "script_sha256",
+    "task_revision",
+    "source_cues",
+    "approved_task_title",
+    "approved_task_brief_untrusted_text",
+    "assignee",
+    "dependencies",
+    "checkpoints",
+    "style_contract_revision",
+    "brief_sha256",
+    "approval_basis",
+    "authorizations",
+    "goals",
+    "factual_integrity",
+    "acceptance",
+    "next_actions",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "kind": {
+      "const": "P10_SCENE_EXECUTION_BRIEF"
+    },
+    "status": {
+      "const": "READ_ONLY"
+    },
+    "project_id": {
+      "$ref": "#/$defs/slug"
+    },
+    "scene_id": {
+      "$ref": "#/$defs/slug"
+    },
+    "approved_plan_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "approved_plan_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "script_sha256": {
+      "$ref": "#/$defs/sha"
+    },
+    "task_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_cues": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 80,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cue_id",
+          "spoken_text",
+          "visible_text",
+          "source_quote_sha256"
+        ],
+        "properties": {
+          "cue_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "spoken_text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          },
+          "visible_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_quote_sha256": {
+            "$ref": "#/$defs/sha"
+          }
+        }
+      }
+    },
+    "approved_task_title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180
+    },
+    "approved_task_brief_untrusted_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "assignee": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "dependencies": {
+      "type": "array",
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/slug"
+      }
+    },
+    "checkpoints": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 60,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "checkpoint_id",
+          "title",
+          "reported_done",
+          "evidence_note"
+        ],
+        "properties": {
+          "checkpoint_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 260
+          },
+          "reported_done": {
+            "type": "boolean"
+          },
+          "evidence_note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
+      }
+    },
+    "style_contract_revision": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "brief_sha256": {
+      "$ref": "#/$defs/sha"
+    },
+    "approval_basis": {
+      "const": "DIRECTOR_PLAN_APPROVED_ONLY"
+    },
+    "authorizations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_role",
+        "project_scene_scope",
+        "lease_token",
+        "allowed_tools",
+        "may_change_other_scenes"
+      ],
+      "properties": {
+        "actor_role": {
+          "const": "ENFORCED_BY_API_NOT_BY_THIS_DOCUMENT"
+        },
+        "project_scene_scope": {
+          "const": "REQUIRES_P06_PRINCIPAL_CHECK"
+        },
+        "lease_token": {
+          "const": "REQUIRED_FOR_ANY_WRITE"
+        },
+        "allowed_tools": {
+          "const": "CHECK_PER_TOOL_SERVER_PERMISSIONS"
+        },
+        "may_change_other_scenes": {
+          "const": false
+        }
+      }
+    },
+    "goals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_goal",
+        "scene_goal",
+        "user_authored_direction"
+      ],
+      "properties": {
+        "project_goal": {
+          "type": "string"
+        },
+        "scene_goal": {
+          "type": "string"
+        },
+        "user_authored_direction": {
+          "type": "string"
+        }
+      }
+    },
+    "factual_integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mandatory_source_cue_ids",
+        "claims_evidence_status",
+        "must_not_invent_facts"
+      ],
+      "properties": {
+        "mandatory_source_cue_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 80,
+          "items": {
+            "type": "string"
+          }
+        },
+        "claims_evidence_status": {
+          "const": "UNVERIFIED"
+        },
+        "must_not_invent_facts": {
+          "const": true
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoints_are_self_reports",
+        "human_independent_review_required",
+        "approved_mp4_proven",
+        "publication_allowed",
+        "auto_approval_allowed"
+      ],
+      "properties": {
+        "checkpoints_are_self_reports": {
+          "const": true
+        },
+        "human_independent_review_required": {
+          "const": true
+        },
+        "approved_mp4_proven": {
+          "const": false
+        },
+        "publication_allowed": {
+          "const": false
+        },
+        "auto_approval_allowed": {
+          "const": false
+        }
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "maxItems": 8
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "maxItems": 8
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+    },
+    "sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

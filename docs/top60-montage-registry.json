@@ -64,7 +64,32 @@
       "recommended_predecessors": [
         "P06",
         "P10"
-      ]
+      ],
+      "implementation_slice": {
+        "id": "M40-R01",
+        "status": "IN_PROGRESS",
+        "scope": "source-attested read-only brief from existing P10 + P06",
+        "ci": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41357538689",
+        "ci_status": "PRODUCTION_DOCKER_171_OF_171_PASS_NO_SKIPS",
+        "feature_flag": "PB_TYPED_SCENE_BRIEFS",
+        "default_enabled": false,
+        "code": [
+          "server/typed-scene-brief.mjs",
+          "schemas/montage/typed-scene-brief-v2.schema.json",
+          "src/editor/TypedSceneBriefPanel.tsx",
+          "tests/cloud-typed-scene-brief.test.mjs"
+        ],
+        "not_yet_proven": [
+          "typed write and P06 CAS",
+          "six-scene brief-to-real-render E2E",
+          "editor efficiency benchmark",
+          "independent security review",
+          "staging canary",
+          "production enablement"
+        ],
+        "tested_code_sha": "466fee7754f04d06e421c8df54caf9775568c94b",
+        "evidence_note": "Approved-plan six-scene brief HTTP/MCP integration and negative tests pass, plus generic real MP4 renderer smoke. This is NOT a six-scene brief-to-render performance benchmark or independent acceptance."
+      }
     },
     {
       "id": "M50",

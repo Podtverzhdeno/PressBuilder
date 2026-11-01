@@ -23,7 +23,7 @@ function save(file,record){
   fs.writeFileSync(tmp,JSON.stringify(record,null,2)+'\n',{mode:0o600});
   try{fs.renameSync(tmp,file)}finally{fs.rmSync(tmp,{force:true})}
 }
-function fingerprint(deck){
+export function fingerprint(deck){
   // Freeze narration, timing, scene topology and output format. Visual authoring
   // edits (slide.visuals/objects) and separate 3D files must stay editable
   // after approval; otherwise a valid rendered scene could never be released.

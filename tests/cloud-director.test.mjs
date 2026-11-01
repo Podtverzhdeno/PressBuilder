@@ -18,12 +18,18 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pb-director-'));
   const port=await freePort(),base='http://127.0.0.1:'+port;
   const key=randomBytes(32).toString('hex');
+  const workerKey=randomBytes(32).toString('hex');
+  const foreignKey=randomBytes(32).toString('hex');
   const basic='Basic '+Buffer.from('editor:directorSecret123456789').toString('base64');
   const child=spawn(process.execPath,['server/cloud.mjs'],{
     cwd:process.cwd(),stdio:['ignore','pipe','pipe'],
     env:{...process.env,PORT:String(port),PB_DATA_DIR:dir,MCP_API_KEY:key,
       PB_WEB_USER:'editor',PB_WEB_PASSWORD:'directorSecret123456789',
-      PB_CREATIVE_STORY_PREVIEW:'1'}
+      PB_CREATIVE_STORY_PREVIEW:'1',PB_TYPED_SCENE_BRIEFS:'1',
+      PB_AGENT_KEYS_JSON:JSON.stringify([
+        {id:'agent-01',role:'worker',token:workerKey,projects:['six-good'],scenes:['s01']},
+        {id:'agent-06',role:'worker',token:foreignKey,projects:['six-good'],scenes:['s01']}
+      ])}
   });
   let output='';
   child.stdout.on('data',v=>output+=v.toString());
@@ -59,12 +65,20 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
       await sleep(120);
     }
     assert.ok(ready,output);
+    const scopedRpc=async(bearer,name,args={})=>{
+      const response=await fetch(base+'/mcp',{method:'POST',headers:{
+        Authorization:'Bearer '+bearer,'Content-Type':'application/json'},
+        body:JSON.stringify({jsonrpc:'2.0',id:7,method:'tools/call',params:{name,arguments:args}})});
+      assert.equal(response.status,200);
+      return (await response.json()).result;
+    };
     const listed=await fetch(base+'/mcp',{method:'POST',headers:{
       Authorization:'Bearer '+key,'Content-Type':'application/json'},
       body:JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/list',params:{}})});
     const tools=(await listed.json()).result.tools.map(x=>x.name);
     assert.ok(tools.includes('propose_director_plan'));
     assert.ok(tools.includes('get_director_plan'));
+    assert.ok(tools.includes('get_typed_scene_brief'));
     assert.ok(tools.includes('get_creative_story_context'));
     assert.ok(tools.includes('preview_creative_storyboard'));
     assert.ok(!tools.includes('approve_creative_storyboard'));
@@ -80,6 +94,7 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
       scene_directions:[{scene_id:'s02',concept:'Чёткое движение камеры к поставщикам',
         must_show:'Подтверждённые данные запроса',depends_on:['s01']}]});
     assert.equal(proposed.status,'draft');
+    assert.equal((await http('/api/decks/six-good/director/brief/s01')).status,409);
     assert.equal(proposed.scenes.length,6);
     assert.equal(proposed.scenes[1].task.assignee,'Agent-02');
     assert.deepEqual(proposed.scenes[1].depends_on,['s01']);
@@ -98,6 +113,34 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
       {expected_revision:proposed.revision,confirm:'APPROVE'});
     assert.equal(result.status,200,JSON.stringify(result.json));
     assert.equal(result.json.status,'approved');
+    const missingAuth=await http('/api/decks/six-good/director/brief/s01','GET',undefined,false);
+    assert.equal(missingAuth.status,401);
+    const typed=await http('/api/decks/six-good/director/brief/s01');
+    assert.equal(typed.status,200,JSON.stringify(typed.json));
+    assert.equal(typed.json.schema_version,2);
+    assert.equal(typed.json.source_cues.length>0,true);
+    assert.equal(typed.json.acceptance.publication_allowed,false);
+    assert.equal(typed.json.factual_integrity.claims_evidence_status,'UNVERIFIED');
+    assert.equal(typed.json.assignee,'Agent-01');
+    const completeBriefSet=await Promise.all(
+      ['s01','s02','s03','s04','s05','s06'].map(scene=>http('/api/decks/six-good/director/brief/'+scene)));
+    assert.ok(completeBriefSet.every(x=>x.status===200),JSON.stringify(completeBriefSet.map(x=>x.status)));
+    assert.equal(new Set(completeBriefSet.map(x=>x.json.brief_sha256)).size,6);
+    assert.deepEqual(completeBriefSet.map(x=>x.json.assignee),
+      ['Agent-01','Agent-02','Agent-03','Agent-04','Agent-05','Agent-06']);
+    assert.ok(completeBriefSet.every(x=>x.json.acceptance.publication_allowed===false));
+
+    assert.match(typed.json.brief_sha256,/^[a-f0-9]{64}$/);
+    const fromMcp=await good('get_typed_scene_brief',{id:'six-good',slide_id:'s01'});
+    assert.equal(fromMcp.brief_sha256,typed.json.brief_sha256);
+    const worker=await scopedRpc(workerKey,'get_typed_scene_brief',{id:'six-good',slide_id:'s01'});
+    assert.equal(worker.isError,false,JSON.stringify(worker));
+    assert.equal(JSON.parse(worker.content[0].text).brief_sha256,typed.json.brief_sha256);
+    const otherScene=await scopedRpc(workerKey,'get_typed_scene_brief',{id:'six-good',slide_id:'s02'});
+    assert.equal(otherScene.isError,true);
+    const wrongAgent=await scopedRpc(foreignKey,'get_typed_scene_brief',{id:'six-good',slide_id:'s01'});
+    assert.equal(wrongAgent.isError,true);
+    assert.equal((await http('/api/decks/six-good/director/brief/s02','POST',{})).status,405);
     const storyContext=await http('/api/decks/six-good/creative/context');
     assert.equal(storyContext.status,200,JSON.stringify(storyContext.json));
     assert.equal(storyContext.json.plan_revision,2);
