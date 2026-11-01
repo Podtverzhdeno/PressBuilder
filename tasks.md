@@ -25,8 +25,8 @@
 | P05 | Автоматическая сборка/переходы | 9.4 | Высокая | P02 + P04 | BACKLOG |
 | P06 | Scene ownership/leases/ACL | 9.3 | Средняя | MCP identity + хранилище | BACKLOG |
 | P07 | Покадровые комментарии и ревью | 9.1 | Средняя | P02 + P03 | BACKLOG |
-| P08 | Версии сцен, артефактов, rollback | 9.0 | Средняя | P01 + P02 | BACKLOG |
-| P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | BACKLOG |
+| P08 | Версии сцен, артефактов, rollback | 9.0 | Средняя | P01 + P02 | **IN PROGRESS — immutable archive MVP** |
+| P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | **IN PROGRESS — cue sheet MVP** |
 | P10 | Director Agent/оркестрация | 8.8 | Высокая | P01–P09 | BACKLOG |
 
 Оценки — инженерные предположения, а не результаты объективного benchmark. Приоритет менять только по проверенным данным.
@@ -132,21 +132,21 @@
 ## P08 — версии сцен/артефактов и rollback
 
 - [ ] **P08.1** Immutable `scene_revision` c SHA-256 исходников/ассетов/параметров, manifest с provenance.
-- [ ] **P08.2** Хранить принятые версии MP4 и превью, не перезаписывать путь при новом рендере; отделить draft от approved.
-- [ ] **P08.3** MCP `list_scene_versions/restore_scene_version` с audit trail и правами.
+- [ ] **P08.2** Immutable MP4 и approved pointer реализованы; превью/PNG ещё нет. Отдельный файл новой версии не перезаписывается при повторном рендере.
+- [ ] **P08.3** MCP `list_scene_versions`, `save_scene_version`, `approve_scene_version`, `restore_scene_version`, `compare_scene_versions` и audit trail реализованы; настоящий per-agent ACL ещё отсутствует.
 - [ ] **P08.4** Быстрое сравнение V1/V2 (таймкод, текст, 3 контрольных кадра); ретеншн и GC под лимиты storage.
-- [ ] **P08.5** Тест rollback после неудачного рендера и одновременного обновления двух сцен.
+- [x] **P08.5 (модульный MVP)** Тест rollback, stale render, сохранности прежнего MP4 и изоляции двух сцен. Тест двух независимых HTTP writer processes ещё нужен.
 - **DoD:** восстановление принятого ролика без повторного вычисления и без потери истории решений.
 - **Риски:** стоимость и лимиты хранилища; согласовать retention policy.
 - **Оценка:** 9.0/10.
 
 ## P09 — единый audio/motion timeline
 
-- [ ] **P09.1** Источник времени для narration, SFX, музыки, анимации и camera cuts; sampling на одном timebase.
-- [ ] **P09.2** Схема cue points: `cue_id, start, duration, emphasis, silence`, неизменяемые ID.
+- [ ] **P09.1** Общий buildSchedule timebase и привязка narration/beat/camera/SFX/motion реализованы на уровне metadata; фактическая аудиосборка пока не подключена.
+- [x] **P09.2** Cue points и независимые маркеры beat/camera/SFX/animation c устойчивыми id, start/duration, emphasis/silence; schema validation, frame snap и conflict detection.
 - [ ] **P09.3** Автоматическая подстройка переходов по речевым паузам, но без подмены текста озвучки.
 - [ ] **P09.4** Инструменты beat markers и правила loudness/ducking; лицензирование/происхождение музыкальных файлов фиксировать.
-- [ ] **P09.5** Тест: изменение длительности сцены/ставки FPS не вызывает дрейфа аудио/видео >2 кадров.
+- [ ] **P09.5** В модульных тестах проверяется изменение длительности реплики и FPS с ошибкой округления ≤0.5 кадра; проверка фактических encoded AV-потоков и сквозной сборки ещё требуется.
 - **DoD:** аудио синхронизировано в нарезках и финальной сборке, предусмотрен ручной override.
 - **Риски:** голосовой текст не всегда соответствует фактическому аудио; автоматическая корректировка может испортить смысл.
 - **Оценка:** 8.9/10.
@@ -179,4 +179,7 @@
 | 2026-11-01 | P02 | Файловая персистентность job состояния в `/data/render-jobs`, восстановление queued/running после рестарта (макс. 2 попытки). | Код `e6eac70eff`; требуется отдельный restart/crash-test перед отметкой P02.4 как done. | P02 PERSISTENCE IMPLEMENTED / RESTART NOT YET VERIFIED |
 | 2026-11-01 | P03 | `server/video-qa.mjs`, ffprobe отчёты QA и MCP `get_scene_qa_report` / `get_video_qa_report`, синтетические PASS/FAIL тесты. | CI `cloud` SUCCESS на `f683600088`; PR Docker `render-smoke` SUCCESS на `ef1925ed26` (workflow 41264142281): оба H.264 MP4 отрендерены, скачаны и прошли ffprobe QA. | P03 TECHNICAL QA VERIFIED; visual QA backlog |
 
-**Следующая обязательная работа:** отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P10 пока BACKLOG.
+| 2026-11-01 | P08 | Immutable per-scene snapshot и MP4 archive, SHA-256 source/video; compare, explicit approval pointer, guarded rollback, audit, REST/MCP. | `tests/cloud-scene-versions-sync.test.mjs`: rollback/stale render/2 scenes/integrity (CI pending); `docs/scene-versions-sync.md`. | IN PROGRESS — no visual diff/GC/per-agent ACL |
+| 2026-11-01 | P09 | Отдельная `.scene-sync/sNN.json`, cue_start/cue_end/scene anchored events и пересчёт глобальных FPS по buildSchedule; REST/MCP. | Unit tests: narrator duration retiming, 24→60 fps, revision/unknown cue validation (CI pending). | IN PROGRESS — no SFX mixer/ducking/end-to-end AV |
+
+**Следующая обязательная работа:** отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P07 и P10 пока BACKLOG; P08/P09 выполнены частично и требуют production-проверок.
