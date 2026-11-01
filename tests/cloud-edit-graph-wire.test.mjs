@@ -67,12 +67,14 @@ test('M01 live REST/MCP: protected rational graph, worker-scoped scene, source-p
    trims:[{scene_id:'s01',source_in_frame:0,source_out_frame:10}]};
   const denyWorker=await rpc(workerKey,'propose_edit_graph',args);
   assert.equal(denyWorker.isError,true);
-  const proposal=await http('/api/decks/edit-demo/edit-graph','POST',args);
+  // REST project comes from the URL. MCP has a separate explicit id argument.
+  const {id:ignoredProjectId,...restArgs}=args;
+  const proposal=await http('/api/decks/edit-demo/edit-graph','POST',restArgs);
   assert.equal(proposal.status,409,'Missing approved P08 must fail closed: '+JSON.stringify(proposal.body));
-  const csrf=await http('/api/decks/edit-demo/edit-graph','POST',args,true,{Origin:'https://malicious.example'});
+  const csrf=await http('/api/decks/edit-demo/edit-graph','POST',restArgs,true,{Origin:'https://malicious.example'});
   assert.equal(csrf.status,403);
   assert.equal((await http('/api/decks/edit-demo/edit-graph')).body.candidate_revision,0);
-  const unauthorizedPost=await http('/api/decks/edit-demo/edit-graph','POST',args,false);
+  const unauthorizedPost=await http('/api/decks/edit-demo/edit-graph','POST',restArgs,false);
   assert.equal(unauthorizedPost.status,401);
  }finally{
   child.kill('SIGTERM');
