@@ -87,3 +87,12 @@ Each workstream MUST acquire a distinct real task/lease; this table does not cre
 - Creative LLM planning must never be allowed to delete user script or bypass an approval.
 - OTIO interchange is best-effort, versioned and should include loss reports; Pro timeline remains canonical.
 - Avoid naive fixed `Loudness LUFS` defaults for all platforms; define calibrated delivery profiles.
+
+## P15 implementation refinement — measured audio silence vs aligned words
+
+- Stage P15-C03 may offer **opt-in read-only audio-signal evidence** from a SHA-256-pinned, local `voice.wav` before implementing word-level forced alignment. This must never be presented as speech recognition or exact word boundaries.
+- Initial decoder accepts bounded RIFF/WAVE PCM **16-bit mono/stereo**, 8–96 kHz, maximum 32 MiB and 300 seconds. Unsupported MP3/AAC/float/WAVE variants fail closed; a later authorized FFmpeg adapter may add them after isolated worker and resource-limit tests.
+- Compute 20 ms non-overlapping windows using channel-aggregated RMS; label intervals `measured_signal_only`, threshold –36 dBFS and minimum 220 ms of quiet. Results are relative to the **start of the audio file**, not automatically to the canonical deck timebase.
+- Bind evidence to real audio file SHA and project cue-clock SHA before and after measurement. Only attribute a pause to one scene/cue if the deck audio offset is exactly zero and the entire window fits in a single cue; otherwise leave it unassigned.
+- No auto-application to montage cuts, no write to `deck.json`, no word-alignment attestation, no soundtrack license assertion, no P08 release pointer change. Human editor may inspect measured intervals and provide separately verified word timings.
+- Negative tests must cover malformed RIFF chunk sizes, bad PCM specs, oversized files, symlinked sources, stale SHA, nonzero audio offsets, authorization and no unapproved writes. This is a preparatory **partial** C03/C04 slice, not acceptance of either stage.
