@@ -3,7 +3,7 @@
  * mesh / camera primitives used by the Game-Ready 3D character scenes.
  * Every frame is deterministic: no timers, network, WebGL or external assets.
  */
-import { clamp01, easeOutCubic, easeOutQuart, easeInOutCubic, hash11, seg } from '../../engine/anim.ts';
+import { clamp01, easeOutQuart, easeInOutCubic, hash11, seg } from '../../engine/anim.ts';
 import { softLight, shockRing } from '../../engine/draw.ts';
 import { FONT } from '../../engine/theme.ts';
 import { drawGrid, drawSolid, drawWire, MESH, project, type Mesh, type View, type V3 } from '../../engine/wire3d.ts';
@@ -120,7 +120,7 @@ export const heroScene: SceneDef = {
       if(appear<=0)return;
       ctx.save();ctx.globalAlpha*=appear;
       ctx.globalCompositeOperation='screen';
-      drawGrid(ctx,{...cam,cy:787,size:140,yaw:cam.yaw*.6},{half:4.5,halfZ:3.6,step:.5,y:-2.20,color:'rgba(66,161,208,.12)'});
+      drawGrid(ctx,{...cam,cy:787,size:140,yaw:(cam.yaw ?? 0)*.6},{half:4.5,halfZ:3.6,step:.5,y:-2.20,color:'rgba(66,161,208,.12)'});
       ctx.globalCompositeOperation='source-over';
 
       // Three independent rigid-body turns + real perspective.
