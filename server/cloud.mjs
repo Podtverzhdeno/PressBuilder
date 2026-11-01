@@ -220,9 +220,11 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
-  const rhythmMatch=/^\/api\/decks\/([^/]+)\/rhythm\/(context|preview)$/.exec(p);
+  const rhythmMatch=/^\/api\/decks\/([^/]+)\/rhythm\/(context|preview|silence)$/.exec(p);
   if(rhythmMatch){
     const id=deckId(escaped(rhythmMatch[1]));
+    if(rhythmMatch[2]==='silence' && method==='GET')
+      return json(res,200,rhythmPreview.measuredSilence(id));
     if(rhythmMatch[2]==='context' && method==='GET')
       return json(res,200,rhythmPreview.context(id));
     if(rhythmMatch[2]==='preview' && method==='POST'){
