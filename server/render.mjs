@@ -106,8 +106,11 @@ async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProg
       if(typeof png!=='string'||png.length<100)throw new Error('Canvas capture failed at frame '+i);
       const bytes=Buffer.from(png,'base64');
       if(!ff.stdin.write(bytes))await abortable(new Promise((resolve,reject)=>{
-        ff.stdin.once('drain',resolve);
-        ff.stdin.once('error',reject);
+        const cleanup=()=>{ff.stdin.off('drain',onDrain);ff.stdin.off('error',onError)};
+        const onDrain=()=>{cleanup();resolve()};
+        const onError=e=>{cleanup();reject(e)};
+        ff.stdin.once('drain',onDrain);
+        ff.stdin.once('error',onError);
       }),signal);
       if(i%10===0)onProgress?.(i/count);
     }
@@ -127,7 +130,7 @@ async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProg
     fs.rmSync(staging,{force:true});
   }
 }
-export async function renderWithChrome({id,slideId=null,outputName=null,port,username,password,timeoutMs=900000,onProgress,signal}) {
+export async function renderWithChrome({id,slideId=null,outputName=null,outputNameOverride=null,port,username,password,timeoutMs=900000,onProgress,signal}) {
   signal?.throwIfAborted();
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'pb-render-'));
   const exe=process.env.CHROMIUM_PATH||'/usr/bin/chromium';
@@ -187,7 +190,7 @@ export async function renderWithChrome({id,slideId=null,outputName=null,port,use
       const stats=await evalBrowser(client,'window.__PB_CLOUD_FRAME_STATS__?.('+at+')',false,signal);
       if(stats)frameSamples.push(stats);
     }
-    const destination=outputName||(slideId?id+'_'+slideId:id);
+    const destination=outputName||outputNameOverride||(slideId?id+'_'+slideId:id);
     const result=await encode(client,{id,outputName:destination,from:clipStart,
       fps,height,duration:clipDuration,onProgress,signal});
     return {...result,visualAudit,frameSamples};
