@@ -85,7 +85,7 @@ export function rhythmPreviewService({
         scene_id:sc.slide.id,label:sc.slide.label,
         cues:sc.cues.map(c=>({id:c.id,say:c.say,show:c.show,dur:c.dur}))
       })),
-      voice:deck.audio.file,format:deck.format});
+      voice:deck.audio.file,audio:deck.audio,format:deck.format});
     return {project_id:id,voice_source_sha256:sha256,
       timebase_revision,alignment_revision:timebase_revision,
       duration_us,frame_rate:{num:fps,den:1},
@@ -112,28 +112,32 @@ export function rhythmPreviewService({
       byKey.set(cue.scene_id+'/'+cue.cue_id,cue);
       byId.set(cue.cue_id,(byId.get(cue.cue_id)??0)+1);
     }
-    function inspect(source){
+    function inspect(source,isWords){
       if(!Array.isArray(source))deny('INVALID_ALIGNMENT',400);
-      for(const item of source){
+      return source.map(item=>{
         if(!item||typeof item!=='object')deny('INVALID_ALIGNMENT',400);
         if(item.scene_id===undefined && byId.get(item.cue_id)!==1)
           deny('AMBIGUOUS_CUE_ID',409);
-        const cue=byKey.get((item.scene_id ??
-          c.cues.find(x=>x.cue_id===item.cue_id)?.scene_id)+'/'+item.cue_id);
+        const resolvedScene=item.scene_id ??
+          c.cues.find(x=>x.cue_id===item.cue_id)?.scene_id;
+        const cue=byKey.get(resolvedScene+'/'+item.cue_id);
         if(!cue)deny('UNKNOWN_SCENE_CUE',409);
-        // A word OR annotated pause must belong to the correct scene cue;
-        // names alone cannot authorize timestamps in other scenes.
         if(!Number.isSafeInteger(item.start_us)||
            !Number.isSafeInteger(item.end_us)||
            item.end_us<=item.start_us||
            item.start_us<cue.start_us||
            item.end_us>cue.end_us)
-          deny(source===input.words?'WORD_OUTSIDE_CUE':'PAUSE_OUTSIDE_CUE',409);
-      }
+          deny(isWords?'WORD_OUTSIDE_CUE':'PAUSE_OUTSIDE_CUE',409);
+        // Resolve unambiguous shorthand before passing it to the planner;
+        // otherwise /c01 and s01/c01 falsely differ despite being the same cue.
+        return {...item,scene_id:resolvedScene};
+      });
     }
-    inspect(input.words);inspect(input.pauses);
+    const checkedWords=inspect(input.words,true);
+    const checkedPauses=inspect(input.pauses,false);
+    const normalized={...input,words:checkedWords,pauses:checkedPauses};
     let result;
-    try {result=proposeRhythmCuts(input)}
+    try {result=proposeRhythmCuts(normalized)}
     catch(e) {
       if(e instanceof RhythmInputError)deny(e.code,400);
       throw e;
@@ -152,7 +156,7 @@ export function rhythmPreviewService({
         audio_evidence=audioInspector({
           root,project_id:id,filename:getDeck(id).audio.file,
           voice_source_sha256:c.voice_source_sha256,duration_us:c.duration_us,
-          spans:input.pauses
+          spans:checkedPauses
         });
         if(audio_evidence.status!=='PAUSES_SUPPORTED')
           issues.push('PAUSE_AUDIO_NOT_SILENT');
