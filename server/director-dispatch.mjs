@@ -74,10 +74,10 @@ export function directorDispatchStore({
   const sameEpoch=(rec,plan,scene)=>Boolean(rec&&rec.plan_id===plan.plan_id&&rec.replans===epoch(plan,scene).replans);
   function snapshot(id,actor){
     if(!allowedRole(actor))fail('Director or worker role required',403);
-    const plan=director.read(id);
-    if(plan.status==='none')return {id,plan_status:'none',jobs:[]};
     if(actor.role!=='director'&&!actor.projects?.includes(id))
       fail('Project is outside worker scope',403);
+    const plan=director.read(id);
+    if(plan.status==='none')return {id,plan_status:'none',jobs:[]};
     const tasks=sceneTasks.list(id);
     const byId=new Map(tasks.map(t=>[t.scene_id,t]));
     const jobs=plan.scenes.filter(s=>actor.role==='director'||
@@ -113,8 +113,11 @@ export function directorDispatchStore({
     const previous=record(id,scene);
     const same=sameEpoch(previous,plan,scene);
     if(same&&previous?.state==='claimed'&&previous.expires_at>now()){
-      if(previous.actor_id===actor.id&&previous.fence_token===fence_token)
+      if(previous.actor_id===actor.id&&previous.fence_token===fence_token){
+        if(task.status==='todo')sceneTasks.put(id,scene,{status:'in_progress'},task.revision);
+        else if(task.status!=='in_progress')fail('Scene has left its active attempt',409);
         return {idempotent:true,job:previous};
+      }
       fail('Scene is currently claimed by another active attempt',409);
     }
     if(same&&['submitted','failed'].includes(previous?.state))
