@@ -38,7 +38,7 @@ function validate(camera,objects){
   const ids=new Set();
   const out=objects.map((o,i)=>{
     if(!o||typeof o!=='object'||Array.isArray(o))throw error('Invalid object '+i);
-    keys(o,['id','mesh','pos','scale','rotation','spin','color','edge_color','wire','start','fade']);
+    keys(o,['id','mesh','pos','scale','rotation','spin','color','edge_color','wire','start','start_marker','fade']);
     if(typeof o.id!=='string'||!NAMES.test(o.id)||ids.has(o.id))throw error('Invalid or duplicate object id');
     ids.add(o.id);
     if(!MESHES.has(o.mesh))throw error('Unsupported mesh '+o.mesh);
@@ -46,6 +46,7 @@ function validate(camera,objects){
     const edge=o.edge_color===undefined?null:o.edge_color;
     if(edge!==null&&(typeof edge!=='string'||!COLOR.test(edge)))throw error('Invalid edge_color');
     if(o.wire!==undefined&&typeof o.wire!=='boolean')throw error('wire must be boolean');
+    if(o.start_marker!==undefined&&(typeof o.start_marker!=='string'||!/^[a-zA-Z0-9_-]{1,60}$/.test(o.start_marker)))throw error('Invalid start_marker');
     return {
       id:o.id,mesh:o.mesh,
       pos:vec(o.pos??[0,0,0],'pos',-8,8),
@@ -54,6 +55,7 @@ function validate(camera,objects){
       spin:vec(o.spin??[0,0,0],'spin',-4,4),
       color:o.color,edge_color:edge,wire:o.wire===true,
       start:numeric(o.start??0,'start',0,60),
+      ...(o.start_marker!==undefined?{start_marker:o.start_marker}:{}),
       fade:numeric(o.fade??0.45,'fade',0.05,5),
     };
   });
