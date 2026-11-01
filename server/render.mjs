@@ -130,7 +130,8 @@ async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProg
     fs.rmSync(staging,{force:true});
   }
 }
-export async function renderWithChrome({id,slideId=null,outputName=null,outputNameOverride=null,port,username,password,timeoutMs=900000,onProgress,signal}) {
+export async function renderWithChrome({id,slideId=null,outputName=null,outputNameOverride=null,
+  port,username,password,timeoutMs=900000,onProgress,signal,previewOnly=false}) {
   signal?.throwIfAborted();
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'pb-render-'));
   const exe=process.env.CHROMIUM_PATH||'/usr/bin/chromium';
@@ -180,6 +181,27 @@ export async function renderWithChrome({id,slideId=null,outputName=null,outputNa
     const clipDuration=scene?.dur??info.duration;
     if(clipDuration<=0||clipDuration>600)throw new Error('Render clip limited to 10 minutes');
     if(!Number.isFinite(clipStart)||clipStart<0)throw new Error('Invalid scene start time');
+    // Lightweight draft preview: three real Canvas frames, no H.264/AAC,
+    // no P03/P08 capture, no stable aliases and no approval side effects.
+    if(previewOnly){
+      if(!slideId)throw new Error('Draft preview requires a scene ID');
+      const frames=[],previewHeight=Math.min(height,720);
+      const maxTime=Math.max(0,clipDuration-1/fps);
+      for(const [index,fraction] of [0.1,0.5,0.9].entries()){
+        signal?.throwIfAborted();
+        const t=Number((maxTime*fraction).toFixed(6));
+        const png=await evalBrowser(client,
+          'window.__PB_CLOUD_FRAME__('+(clipStart+t)+','+previewHeight+')',false,signal);
+        if(typeof png!=='string'||png.length>8*1024*1024)throw new Error('Invalid preview frame');
+        const bytes=Buffer.from(png,'base64');
+        if(bytes.length<100||bytes.length>4*1024*1024||
+           !bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))
+          throw new Error('Invalid preview PNG');
+        frames.push({index,t,bytes});
+      }
+      return {scope:'DRAFT_FRAMES_ONLY',fps,width:Math.round(previewHeight*16/9),
+        height:previewHeight,frames};
+    }
     // Structural text audit and three representative actual rendered frames.
     // These hooks run trusted application code only, never data-supplied JS.
     const auditExpression='window.__PB_CLOUD_VISUAL_QA__?.('+JSON.stringify(slideId)+')';

@@ -72,6 +72,9 @@ export const TOOLS = [
  { name:'cancel_assembly', description:'Director only: cancel montage while keeping existing release.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_assembly_status', description:'Check status, output URL and integrity manifest of final video.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'render_video', description:'Start a server-side Chromium + WebCodecs + FFmpeg render job for a video. Poll get_render_status. Server rendering uses deterministic Chromium Canvas frames encoded with FFmpeg.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'preview_scene', description:'Render only three lightweight draft PNG stills in Chromium (10/50/90% of scene) without encoding MP4, technical QA, or P08 approval. Requires worker scene lease or director.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id']) },
+ { name:'get_scene_preview', description:'Read draft preview status and three authenticated PNG links. Draft stills are not QA evidence.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
+ { name:'cancel_scene_preview', description:'Cancel pending or running draft preview without touching MP4 or approval state.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id']) },
  { name:'render_scene', description:'Worker with live scene fencing lease or director: queue independent MP4 render; reviewers cannot start expensive jobs.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id']) },
  { name:'cancel_scene_render', description:'Worker with a live fenced lease or director cancels one scene render using its job_id.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Active job ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','job_id']) },
  { name:'retry_scene_render', description:'Worker with a live fenced lease or director retries a terminal scene render only if job_id matches.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Previous job ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','job_id']) },
@@ -83,7 +86,8 @@ export const TOOLS = [
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
 export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly,
-  assemblyPlans,versions,reviews,sceneSync,comparisons=null,directorPlan:providedDirectorPlan=null,
+  assemblyPlans,versions,reviews,sceneSync,comparisons=null,previews=null,
+  directorPlan:providedDirectorPlan=null,
   dispatch:providedDispatch=null }) {
   const directorPlan=providedDirectorPlan||directorStore({root:DECKS,getDeck,
     sceneTasks:taskStore,projectReadmes:readmeStore,styles,getAssembly:()=>assembly,
@@ -210,6 +214,17 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'cancel_assembly': directorOnly(actor);return assembly.cancel(args.id);
       case 'get_assembly_status': return assembly.get(args.id);
       case 'render_video': directorOnly(actor);return startRender(args.id);
+      case 'preview_scene': return write(args.id,args.slide_id,actor,args.fence_token,'preview_scene',()=>{
+        if(!previews)throw new UserError('Draft preview not configured',501);
+        return previews.start(args.id,args.slide_id);
+      });
+      case 'get_scene_preview': scoped(args.id,args.slide_id,actor);
+        if(!previews)throw new UserError('Draft preview not configured',501);
+        return previews.get(args.id,args.slide_id);
+      case 'cancel_scene_preview': return write(args.id,args.slide_id,actor,args.fence_token,'cancel_scene_preview',()=>{
+        if(!previews)throw new UserError('Draft preview not configured',501);
+        return previews.cancel(args.id,args.slide_id);
+      });
       case 'render_scene': return write(args.id,args.slide_id,actor,args.fence_token,'render_scene',()=>startRender(args.id,args.slide_id));
       case 'cancel_scene_render': return write(args.id,args.slide_id,actor,args.fence_token,
         'cancel_render',()=>cancelRender(args.id,args.slide_id,args.job_id));

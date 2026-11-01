@@ -49,6 +49,29 @@ const authored=unwrap(await rpc('tools/call',{name:'set_scene_3d',arguments:{
 if(authored.revision!==1)throw new Error('3D composition was not stored');
 const fetched=unwrap(await rpc('tools/call',{name:'get_scene_3d',arguments:{id,slide_id:firstSlide}}));
 if(fetched.spec.objects.length!==2)throw new Error('3D composition not readable');
+// P12: real Chromium draft frames without MP4 / P08 versions. Reuse the
+// exact source fingerprint; this preview must not alter approval state.
+const draftStarted=unwrap(await rpc('tools/call',{name:'preview_scene',arguments:{id,slide_id:firstSlide}}));
+if(!['queued','running','completed'].includes(draftStarted.status))throw new Error('Draft preview failed to queue');
+let draft=null;
+for(let i=0;i<110;i++){
+  await sleep(650);
+  draft=unwrap(await rpc('tools/call',{name:'get_scene_preview',arguments:{id,slide_id:firstSlide}}));
+  if(draft.status==='completed')break;
+  if(['failed','cancelled','stale'].includes(draft.status))throw new Error('Draft preview failed: '+JSON.stringify(draft));
+}
+if(draft?.status!=='completed'||draft.frames?.length!==3)throw new Error('Chromium draft stills did not complete');
+for(const f of draft.frames){
+  const response=await fetch(BASE+new URL(f.url,BASE).pathname,{headers:{Authorization:basic}});
+  if(!response.ok)throw new Error('Protected draft PNG unavailable: '+response.status);
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  if(bytes.length!==f.size||bytes[0]!==137||bytes[1]!==80)throw new Error('Draft preview PNG corrupted');
+}
+const replay=unwrap(await rpc('tools/call',{name:'preview_scene',arguments:{id,slide_id:firstSlide}}));
+if(replay.status!=='completed'||replay.cache_hit!==true)throw new Error('Identical draft preview did not cache');
+const empty=unwrap(await rpc('tools/call',{name:'list_scene_versions',arguments:{id,slide_id:firstSlide}}));
+if(empty.versions.length)throw new Error('Preview must never capture/approve a P08 version');
+console.log('PASS P12 three real Chromium draft stills without MP4 and cache hit');
 const started=unwrap(await rpc('tools/call',{name:'render_video',arguments:{id}}));
 const sceneJob=unwrap(await rpc('tools/call',{name:'render_scene',arguments:{id,slide_id:firstSlide}}));
 if(!['queued','running'].includes(sceneJob.status))throw new Error('Scene job was not accepted during full-deck render');

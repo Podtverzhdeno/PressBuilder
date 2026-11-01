@@ -30,6 +30,7 @@ import {sceneVersionStore} from './scene-versions.mjs';
 import {sceneReviewStore} from './scene-reviews.mjs';
 import {captureFrameEvidence} from './frame-qa.mjs';
 import {sceneComparisonService} from './scene-comparison.mjs';
+import {scenePreviewService} from './scene-preview.mjs';
 import {randomUUID} from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -269,6 +270,20 @@ async function api(req,res,url) {
   }
   // P11 comparison is read-only from the user's perspective. Its FFmpeg
   // computation is serialized with Chromium and montage by the governor.
+  const previewFileMatch=/^\/api\/decks\/([^/]+)\/preview\/([^/]+)\/([012])\.png$/.exec(p);
+  if(previewFileMatch){
+    if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
+    const id=deckId(escaped(previewFileMatch[1])),scene=deckId(escaped(previewFileMatch[2]));
+    return fileResponse(req,res,previews.frame(id,scene,Number(previewFileMatch[3])));
+  }
+  const previewMatch=/^\/api\/decks\/([^/]+)\/preview\/([^/]+)(\/cancel)?$/.exec(p);
+  if(previewMatch){
+    const id=deckId(escaped(previewMatch[1])),scene=deckId(escaped(previewMatch[2]));
+    if(method==='GET'&&!previewMatch[3])return json(res,200,previews.get(id,scene));
+    if(method==='POST'&&previewMatch[3]==='/cancel')return json(res,200,previews.cancel(id,scene));
+    if(method==='POST'&&!previewMatch[3])return json(res,202,previews.start(id,scene));
+    throw new UserError('Method not allowed',405);
+  }
   const diffMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)\/compare\/([0-9a-f]{16})\/([0-9a-f]{16})(?:\/([012])\.jpg)?$/.exec(p);
   if(diffMatch){
     if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
@@ -506,6 +521,10 @@ function sourceFingerprint(id,slideId){
 const resources=createResourceGovernor({capacity:1,maxWaiting:64});
 const comparisons=sceneComparisonService({versions,out:OUT,baseUrl,
   acquireResource:options=>resources.acquire(options)});
+const previews=scenePreviewService({out:OUT,getDeck,fingerprint:sourceFingerprint,baseUrl,
+  acquireResource:options=>resources.acquire(options),
+  render:args=>renderWithChrome({...args,port:PORT,username:WEB_USER,password:WEB_PASS,
+    timeoutMs:30000,previewOnly:true})});
 const renderJobs=makeRenderQueue({
   root:path.join(DATA,'render-jobs'),outputDir:OUT,
   resolveDeck:getDeck,baseUrl,
@@ -555,7 +574,7 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl,
   getPlan:id=>assemblyPlans.read(id),getStyle:id=>styles.read(id)});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
-  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons});
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
