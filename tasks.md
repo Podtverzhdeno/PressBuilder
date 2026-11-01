@@ -26,7 +26,7 @@
 | P06 | Scene ownership/leases/ACL | 9.3 | Средняя | MCP identity + хранилище | **IN PROGRESS — scoped leases MVP** |
 | P07 | Покадровые комментарии и ревью | 9.1 | Средняя | P02 + P03 | **IN PROGRESS — frame-review MVP** |
 | P08 | Версии сцен, артефактов, rollback | 9.0 | Средняя | P01 + P02 | **IN PROGRESS — immutable MP4 MVP** |
-| P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | BACKLOG |
+| P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | **MVP IN PROGRESS — cue/3D marker** |
 | P10 | Director Agent/оркестрация | 8.8 | Высокая | P01–P09 | BACKLOG |
 
 Оценки — инженерные предположения, а не результаты объективного benchmark. Приоритет менять только по проверенным данным.
@@ -131,7 +131,7 @@
 
 ## P08 — версии сцен/артефактов и rollback
 
-- [ ] **P08.1 (частично: immutable MP4 + SHA-256 + fingerprint deck/3D/style, но полный provenance исходников/ассетов отсутствует)** Immutable `scene_revision` c SHA-256 исходников/ассетов/параметров, manifest с provenance.
+- [ ] **P08.1 (расширен provenance: SHA voice bytes, cue markers, scene timebase, style, 3D и commit; полные исходные TS/ассеты пока не архивируются)** Immutable `scene_revision` c SHA-256 исходников/ассетов/параметров, manifest с provenance.
 - [x] **P08.2 (immutable MP4 и approved pointer; независимые PNG-превью ещё не выделены)** Хранить принятые версии MP4 и превью, не перезаписывать путь при новом рендере; отделить draft от approved.
 - [x] **P08.3 (single-node MVP)** MCP `list_scene_versions/restore_scene_version` с audit trail и правами.
 - [ ] **P08.4** Быстрое сравнение V1/V2 (таймкод, текст, 3 контрольных кадра); ретеншн и GC под лимиты storage.
@@ -142,11 +142,11 @@
 
 ## P09 — единый audio/motion timeline
 
-- [ ] **P09.1** Источник времени для narration, SFX, музыки, анимации и camera cuts; sampling на одном timebase.
-- [ ] **P09.2** Схема cue points: `cue_id, start, duration, emphasis, silence`, неизменяемые ID.
+- [ ] **P09.1** Единый buildSchedule timebase для narrator/beat/camera/3D/SFX markers реализован; пока без реального audio mixer и исполнения camera cuts.
+- [x] **P09.2 (MVP)** Независимые event/cue IDs, duration/emphasis/silence, anchors scene/cue_start/cue_end, optimistic revision, marker-driven 3D entrances.
 - [ ] **P09.3** Автоматическая подстройка переходов по речевым паузам, но без подмены текста озвучки.
 - [ ] **P09.4** Инструменты beat markers и правила loudness/ducking; лицензирование/происхождение музыкальных файлов фиксировать.
-- [ ] **P09.5** Тест: изменение длительности сцены/ставки FPS не вызывает дрейфа аудио/видео >2 кадров.
+- [ ] **P09.5** Unit проверяет привязку при смене 24→60 FPS с погрешностью округления ≤0.5 кадра; E2E drift encoded audio/video и ducking остаются открыты.
 - **DoD:** аудио синхронизировано в нарезках и финальной сборке, предусмотрен ручной override.
 - **Риски:** голосовой текст не всегда соответствует фактическому аудио; автоматическая корректировка может испортить смысл.
 - **Оценка:** 8.9/10.
@@ -180,6 +180,8 @@
 | 2026-11-01 | P03 | `server/video-qa.mjs`, ffprobe отчёты QA и MCP `get_scene_qa_report` / `get_video_qa_report`, синтетические PASS/FAIL тесты. | CI `cloud` SUCCESS на `f683600088`; PR Docker `render-smoke` SUCCESS на `ef1925ed26` (workflow 41264142281): оба H.264 MP4 отрендерены, скачаны и прошли ffprobe QA. | P03 TECHNICAL QA VERIFIED; visual QA backlog |
 
 | 2026-11-01 | P04–P06 | Реализованы валидируемый project style contract, hard-cut FFmpeg assembly из одобренных сцен, scoped bearer tokens, fenced leases и журнал аудита. | `server/style-contract.mjs`, `server/assemble-scenes.mjs`, `server/scene-leases.mjs`, `tests/cloud-production-p04-p06.test.mjs`. GitHub Actions cloud SUCCESS на `28d589a3` (повторные обновления документации/CI проверить). | **MVP IN PROGRESS**; полный DoD ещё не закрыт |
+
+| 2026-11-01 | P08/P09 | Сохранён единый P07/P08 MP4 archive/review gate, расширен fingerprint SHA озвучки и marker sheet; отдельный P09 timeline управляет 3D start_marker и доступен агентам через fenced MCP. | `tests/cloud-scene-sync.test.mjs`, `docs/p08-p09-unified.md`; независимый CI #415 PASS на предыдущем baseline, контроль интеграции с актуальной веткой выполняется. | IN PROGRESS, full audio mixing и source restore не реализованы |
 
 **Следующая обязательная работа:** отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P06 выполняются на уровне MVP, P07–P10 остаются BACKLOG. Для P04 требуется редактор/реальная bbox-проверка и inheritance, для P05 — переходы/immutable artifacts, для P06 — распределённые транзакционные leases и rotation токенов.
 
