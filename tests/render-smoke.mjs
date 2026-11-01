@@ -44,6 +44,9 @@ if(authored.revision!==1)throw new Error('3D composition was not stored');
 const fetched=unwrap(await rpc('tools/call',{name:'get_scene_3d',arguments:{id,slide_id:firstSlide}}));
 if(fetched.spec.objects.length!==2)throw new Error('3D composition not readable');
 const started=unwrap(await rpc('tools/call',{name:'render_video',arguments:{id}}));
+const sceneJob=unwrap(await rpc('tools/call',{name:'render_scene',arguments:{id,slide_id:firstSlide}}));
+if(!['queued','running'].includes(sceneJob.status))throw new Error('Scene job was not accepted during full-deck render');
+if(sceneJob.slide_id!==firstSlide||!sceneJob.job_id)throw new Error('Scene job metadata missing');
 if(!['queued','running'].includes(started.status))throw new Error('Render did not queue');
 let status=null;
 for(let i=0;i<150;i++){
@@ -58,3 +61,16 @@ if(!res.ok)throw new Error('MP4 download failed: '+res.status);
 const bytes=new Uint8Array(await res.arrayBuffer());
 if(bytes.length<1000)throw new Error('MP4 suspiciously small: '+bytes.length);
 console.log('PASS actual MP4 render '+bytes.length+' bytes');
+let clipStatus=null;
+for(let i=0;i<150;i++){
+  await sleep(1000);
+  clipStatus=unwrap(await rpc('tools/call',{name:'get_scene_render_status',arguments:{id,slide_id:firstSlide}}));
+  if(clipStatus.status==='completed')break;
+  if(clipStatus.status==='failed')throw new Error('Scene clip render failed: '+clipStatus.error);
+}
+if(clipStatus?.status!=='completed')throw new Error('Scene MP4 did not finish');
+const clip=await fetch(BASE+'/out/'+id+'_'+firstSlide+'.mp4',{headers:{Authorization:basic}});
+if(!clip.ok)throw new Error('Scene MP4 download failed: '+clip.status);
+const clipBytes=new Uint8Array(await clip.arrayBuffer());
+if(clipBytes.length<1000)throw new Error('Scene MP4 suspiciously small');
+console.log('PASS P02 independent scene MP4 '+clipBytes.length+' bytes');
