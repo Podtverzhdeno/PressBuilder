@@ -261,3 +261,40 @@ test('P02/P08 publishes a draft version without replacing approved stable alias'
     assert.ok(fs.existsSync(path.join(f.outputDir,done.output_name+'.mp4')));
   }finally{f.cleanup()}
 });
+
+
+test('P08 crash between immutable capture and journal completion recovers without re-encoding',{timeout:12000},async()=>{
+  const f=fixture();
+  try{
+    fs.writeFileSync(path.join(f.outputDir,'film_s01.mp4'),'APPROVED_VERSION');
+    const captured=new Map();
+    const options={
+      outputNameForJob:(id,scene,jobId)=>id+'_'+scene+'_v'+jobId,
+      publishScene:({job,file})=>{
+        const value={version_id:'aaaaaaaaaaaaaaaa',
+          result:{file:'out/'+path.basename(file),size:fs.statSync(file).size,
+            download_url:'https://example.test/out/'+path.basename(file)}};
+        captured.set(job.job_id,value);
+        return {version_id:value.version_id};
+      },
+      recoverCompleted:j=>captured.get(j.job_id)||null,
+    };
+    const q=create(f,options);
+    q.start();q.enqueue('film','s01');
+    await until(()=>q.get('film','s01').status==='completed');
+    const completed=q.get('film','s01');
+    const journal=fs.readdirSync(f.root).find(n=>n.endsWith('.json'));
+    const file=path.join(f.root,journal);
+    const persisted=JSON.parse(fs.readFileSync(file,'utf8'));
+    persisted.status='running';persisted.result=null;persisted.version_id=null;
+    fs.writeFileSync(file,JSON.stringify(persisted));
+    const second=create(f,{...options,render:async()=>{throw Error('Should NOT re-encode captured MP4')}});
+    assert.equal(second.get('film','s01').status,'completed');
+    assert.equal(second.get('film','s01').version_id,'aaaaaaaaaaaaaaaa');
+    second.start();
+    assert.equal(second.snapshot().queued,0);
+    assert.deepEqual(second.get('film','s01').result.file,completed.result.file);
+    assert.equal(fs.readFileSync(path.join(f.outputDir,'film_s01.mp4'),'utf8'),'APPROVED_VERSION');
+    assert.ok(fs.existsSync(path.join(f.outputDir,completed.output_name+'.mp4')));
+  }finally{f.cleanup()}
+});
