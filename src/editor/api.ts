@@ -1,6 +1,9 @@
 /** Запросы редактора к дев-серверу (`server/plugin.ts`). */
 
 import type { DeckData } from '../engine/types.ts';
+import type { SceneTask, SceneCheckpoint } from '../../server/scene-tasks.mjs';
+export type { SceneTask, SceneCheckpoint };
+
 
 export interface DeckMeta {
   id: string;
@@ -36,6 +39,16 @@ const body = (data: unknown): RequestInit => ({
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
   getDeck: (id: string) => call<DeckData>(`/api/decks/${id}`),
+  listSceneTasks: (id: string) => call<SceneTask[]>(`/api/decks/${id}/tasks`),
+  getSceneTask: (id: string, slideId: string) => call<SceneTask>(`/api/decks/${id}/tasks/${slideId}`),
+  saveSceneTask: (id: string, slideId: string, task: Partial<SceneTask>, expected_revision: number) =>
+    call<SceneTask>(`/api/decks/${id}/tasks/${slideId}`, {
+      method: 'PUT', ...body({ ...task, expected_revision }),
+    }),
+  patchSceneCheckpoint: (id: string, slideId: string, checkpointId: string, patch: Partial<Pick<SceneCheckpoint, 'done' | 'note'>>) =>
+    call<SceneTask>(`/api/decks/${id}/tasks/${slideId}/checkpoints/${checkpointId}`, {
+      method: 'PATCH', ...body(patch),
+    }),
   createDeck: (deck: DeckData) => call<{ ok: true }>('/api/decks', { method: 'POST', ...body(deck) }),
   saveDeck: (deck: DeckData, keepalive = false) =>
     call<{ ok: true }>(`/api/decks/${deck.id}`, { method: 'PUT', keepalive, ...body(deck) }),
