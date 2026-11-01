@@ -3,10 +3,12 @@ import { createDeck, DECKS, getDeck, listDecks, patchCue, patchDeck, patchObject
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
+import { styleContractStore, enforceScene3D, enforceVisuals } from './style-contract.mjs';
 import path from 'node:path';
 const taskStore=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const readmeStore=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
+const styles=styleContractStore({root:DECKS,getDeck});
 
 const obj = (properties, required=[]) => ({ type:'object', properties, required, additionalProperties:false });
 const str = (description) => ({ type:'string', description });
@@ -37,9 +39,13 @@ export const TOOLS = [
  { name:'get_video_qa_report', description:'Read technical MP4 QA after a full video render. Validates stream metadata, not artistic composition.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_scene_render_status', description:'Check the independent render job status for one scene and get a direct MP4 download URL when complete.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'get_style_contract', description:'Read P04 project style contract, revision, and per-scene inherited rules. Read before authoring visuals or 3D.', inputSchema:obj({id:str('Project slug'),slide_id:str('Optional scene ID for computed policy')},['id']) },
+ { name:'set_style_contract', description:'Update machine-validated style contract with optimistic revision; enforces existing scenes and cannot weaken per-scene must-haves.', inputSchema:obj({id:str('Project slug'),expected_revision:{type:'integer',minimum:0},contract:{type:'object',description:'Style contract schemaVersion=1, palette, typography, safeArea, camera, motion, transitions, sceneOverrides'}},['id','expected_revision','contract']) },
+ { name:'assemble_video', description:'P05: assemble approved and technically valid scene MP4s with project transition plan; returns async job status. Requires 2..12 scene IDs in timeline order.', inputSchema:obj({id:str('Project slug'),scene_ids:{type:'array',minItems:2,maxItems:12,items:{type:'string'}}},['id','scene_ids']) },
+ { name:'get_assembly_status', description:'Check P05 montage job, manifest and download URL.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
-export function makeMcp({ startRender, getRender, baseUrl }) {
+export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
   async function call(name, args) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) throw new UserError('Arguments must be an object');
     switch(name) {
@@ -51,9 +57,20 @@ export function makeMcp({ startRender, getRender, baseUrl }) {
         const summary=tasks.map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}));
         const assigned=args.slide_id?taskStore.read(args.id,args.slide_id):undefined;
         return {project:{id:d.id,title:d.title,style:d.style,format:d.format,target:d.target,slides:d.slides.map(s=>({id:s.id,label:s.label,cues:s.cues.map(c=>({id:c.id,say:c.say,show:c.show}))}))},
-          readme:readmeStore.read(args.id),scene_tasks:summary,...(assigned?{assigned_scene_task:assigned}:{})};
+          readme:readmeStore.read(args.id),style_contract:styles.read(args.id),scene_tasks:summary,...(assigned?{assigned_scene_task:assigned}:{})};
       }
       case 'get_project_readme': return readmeStore.read(args.id);
+      case 'get_style_contract': {
+        const record=styles.read(args.id);
+        if(args.slide_id){
+          if(!getDeck(args.id).slides.some(s=>s.id===args.slide_id))throw new UserError('Scene not found',404);
+          return {...record,scene_id:args.slide_id,effective:((await import('./style-contract.mjs')).effectiveStyle)(record.contract,args.slide_id)};
+        }
+        return record;
+      }
+      case 'set_style_contract': return styles.put(args.id,args.contract,args.expected_revision);
+      case 'assemble_video': if(!assembly)throw new UserError('Assembly is not available',503);return assembly.start(args.id,args.scene_ids);
+      case 'get_assembly_status': if(!assembly)throw new UserError('Assembly is not available',503);return assembly.get(args.id);
       case 'update_project_readme': return readmeStore.write(args.id,args.content,args.expected_revision);
       case 'list_scene_tasks': return taskStore.list(args.id);
       case 'get_scene_task': return taskStore.read(args.id,args.slide_id);
@@ -65,9 +82,9 @@ export function makeMcp({ startRender, getRender, baseUrl }) {
       case 'update_slide': return patchSlide(args.id,args.slide_id,args);
       case 'update_object': return patchObject(args.id,args.slide_id,args.object_id,args);
       case 'get_scene_3d': return scene3d.read(args.id,args.slide_id);
-      case 'set_scene_3d': return scene3d.put(args.id,args.slide_id,args.spec,args.expected_revision);
+      case 'set_scene_3d': enforceScene3D(styles.read(args.id).contract,args.spec,args.slide_id);return scene3d.put(args.id,args.slide_id,args.spec,args.expected_revision);
       case 'reorder_slides': return reorderSlides(args.id,args.slide_ids);
-      case 'set_slide_visuals': return setVisuals(args.id,args.slide_id,args.elements);
+      case 'set_slide_visuals': enforceVisuals(styles.read(args.id).contract,args.elements,args.slide_id);return setVisuals(args.id,args.slide_id,args.elements);
       case 'render_video': return startRender(args.id);
       case 'render_scene': return startRender(args.id,args.slide_id);
       case 'get_scene_render_status': return getRender(args.id,args.slide_id);
