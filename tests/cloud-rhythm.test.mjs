@@ -179,3 +179,25 @@ test('upper-bound word/beat fixture stays deterministic and bounded',()=>{
  assert.ok(elapsed<5000,'bounded input scan exceeded 5 seconds: '+elapsed.toFixed(0)+'ms');
  assert.deepEqual(proposeRhythmCuts(manifest),result);
 });
+
+test('rejected beat and protected-span drift invalidate exact plan fingerprint',()=>{
+ const old=proposeRhythmCuts(example({beats:[{frame:78}]}));
+ const changedBeat=proposeRhythmCuts(example({beats:[{frame:79}]}));
+ assert.deepEqual(old.cuts,changedBeat.cuts); // both markers inside spoken word
+ assert.notEqual(old.plan_sha256,changedBeat.plan_sha256);
+ const changedPolicy=proposeRhythmCuts(example({
+    protected_spans:[{start_us:1_600_000,end_us:1_800_000}]
+ }));
+ const noProtected=proposeRhythmCuts(example());
+ assert.deepEqual(changedPolicy.cuts,noProtected.cuts); // doesn't affect 2.0s pause
+ assert.notEqual(changedPolicy.plan_sha256,noProtected.plan_sha256);
+});
+test('manifest object key order does not change semantic fingerprint',()=>{
+ const a=example();
+ const b={...a,policy:{
+   max_cuts:a.policy.max_cuts,
+   min_shot_frames:a.policy.min_shot_frames,
+   max_cuts_per_10s:a.policy.max_cuts_per_10s
+ }};
+ assert.equal(proposeRhythmCuts(a).plan_sha256,proposeRhythmCuts(b).plan_sha256);
+});
