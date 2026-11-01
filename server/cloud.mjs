@@ -499,7 +499,8 @@ for(const file of fs.readdirSync(JOBS_DIR).filter(n=>/^[0-9a-f]{64}\.json$/.test
   }catch(e){console.warn('Invalid persisted render job:',file,String(e))}
 }
 const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),
-  getApproved:(id,scene)=>versions.approved(id,scene),baseUrl});
+  getApproved:(id,scene)=>versions.approved(id,scene),
+  reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl});
 const mcp=makeMcp({startRender,getRender,baseUrl,assembly,versions,reviews});
 const server=http.createServer(async(req,res)=>{
   try{
