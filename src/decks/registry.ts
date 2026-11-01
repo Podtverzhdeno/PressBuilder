@@ -23,7 +23,35 @@ export async function loadScenes(deckId: string): Promise<Map<string, SceneDef>>
     if (response.ok) {
       const authored = await response.json() as Scene3DRecord[];
       for (const record of authored) if (record.spec) {
-        scenes.set(record.scene_id, scene3dDefinition(record.scene_id, record.spec));
+        // P09: resolve 3D object entrances against the same narration/beat
+        // timeline that determines frame scheduling in the cloud renderer.
+        // Only scenes with marker references require the extra request.
+        const spec=record.spec;
+        if (!spec.objects.some(o=>o.start_marker)) {
+          scenes.set(record.scene_id,scene3dDefinition(record.scene_id,spec));
+          continue;
+        }
+        try {
+          const syncResponse=await fetch(`/api/decks/${encodeURIComponent(deckId)}/sync/${encodeURIComponent(record.scene_id)}`);
+          if (!syncResponse.ok) throw new Error('Scene sync HTTP '+syncResponse.status);
+          const sync=await syncResponse.json() as {
+            validation_error:string|null;
+            timeline:{events:Array<{id:string;local_time:number;out_of_range:boolean}>}
+          };
+          if(sync.validation_error)throw new Error(sync.validation_error);
+          const events=new Map(sync.timeline.events.filter(e=>!e.out_of_range).map(e=>[e.id,e.local_time]));
+          const bound={...spec,objects:spec.objects.map(o=>{
+            if(!o.start_marker)return o;
+            const start=events.get(o.start_marker);
+            if(start===undefined)throw new Error('Missing or out-of-range scene marker: '+o.start_marker);
+            return {...o,start};
+          })};
+          scenes.set(record.scene_id,scene3dDefinition(record.scene_id,bound));
+        } catch (error) {
+          // Do not silently render a mistimed 3D scene when its cue marker is missing.
+          scenes.delete(record.scene_id);
+          console.warn('[PressBuilder] invalid 3D/audio sync in '+record.scene_id,error);
+        }
       }
     } else if (response.status !== 404) {
       throw new Error('Unable to load 3D scene compositions: HTTP ' + response.status);
