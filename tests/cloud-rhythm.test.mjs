@@ -87,8 +87,11 @@ test('beat on active spoken word is discarded',()=>{
  assert.ok(a.discarded.some(x=>x.violation==='CUT_THROUGH_WORD' && x.frame===78));
 });
 test('incorrect FPS and fraction are fail-closed',()=>{
- for(const fps of [{num:29,den:1},{num:30000,den:1000},{num:30.5,den:1},{num:0,den:1}]){
-  failure('UNSUPPORTED_FPS',()=>proposeRhythmCuts(example({frame_rate:fps}))); // nonfinite/zero gives INVALID_FPS
+ for(const fps of [{num:29,den:1},{num:30000,den:1000}]){
+  failure('UNSUPPORTED_FPS',()=>proposeRhythmCuts(example({frame_rate:fps})));
+ }
+ for(const fps of [{num:30.5,den:1},{num:0,den:1}]){
+  failure('INVALID_FPS',()=>proposeRhythmCuts(example({frame_rate:fps})));
  }
 });
 test('fractional NTSC conversion uses integer rational arithmetic',()=>{
