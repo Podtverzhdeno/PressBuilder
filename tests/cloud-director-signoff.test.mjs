@@ -32,6 +32,8 @@ test('Director P10 release boundary: exact six approved tasks, evidence, job and
     const proposal=director.propose(id,{expected_revision:0,goal:'Сохранить смысл исходного текста'});
     assert.equal(proposal.status,'draft');
     assert.equal(director.approve(id,{expected_revision:proposal.revision,confirm:'APPROVE'}).status,'approved');
+    // Visuals are expected to be authored after the director approves the script.
+    deck.slides[0].visuals=[{id:'post-approval',kind:'text',x:20,y:20,text:'Title'}];
     const ids=deck.slides.map(s=>s.id);
     for(const slide of ids){
       const old=tasks.read(id,slide);
@@ -63,6 +65,10 @@ test('Director P10 release boundary: exact six approved tasks, evidence, job and
     rejectStatus(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
       assembly_job_id:'test-job'}),409);
     fs.writeFileSync(path.join(out,id+'_s05.mp4'),Buffer.from('Synthetic input for s05'));
+    deck.slides[0].lead=1.5; // Scene timing changed after approval.
+    rejectStatus(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
+      assembly_job_id:'test-job'}),409);
+    delete deck.slides[0].lead;
     const released=director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
       assembly_job_id:'test-job'});
     assert.equal(released.status,'released');
