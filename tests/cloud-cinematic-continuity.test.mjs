@@ -87,3 +87,28 @@ test('P17 disallows unattested arbitrary extra request fields and impossible ove
  bad('TRANSITION_BOUNDARY_EXCEEDED',()=>proposeContinuityTransition({...y,
   transition:'j_cut',overlap_frames:3}));
 });
+
+
+test('P17 proposal fingerprint includes exact boundary JPEG hashes even with identical metrics',()=>{
+ const baseline=pair();
+ const candidate=pair(); candidate.left.exit.image_sha256=hash('9');
+ const a=proposeContinuityTransition(baseline);
+ const b=proposeContinuityTransition(candidate);
+ assert.equal(a.status,b.status);
+ assert.deepEqual(a.metrics,b.metrics);
+ assert.notEqual(a.proposal_sha256,b.proposal_sha256);
+ assert.notEqual(a.boundary_evidence.left.image_sha256,b.boundary_evidence.left.image_sha256);
+});
+
+test('P17 supports precise cinema 24000/1001 FPS and distinguishes stationary motion',()=>{
+ const rate=proposeContinuityTransition(pair({num:24000,den:1001}));
+ assert.equal(rate.operation.video_boundary_us,6_006_000);
+ const still=pair();
+ still.left.exit.motion_vector=[0,0]; still.right.entry.motion_vector=[0,0];
+ const hard=proposeContinuityTransition(still);
+ assert.equal(hard.status,'READY_FOR_REVIEW');
+ assert.equal(hard.metrics.motion_angle_deg,0);
+ const action=proposeContinuityTransition({...still,transition:'match_on_action'});
+ assert.equal(action.status,'REVIEW');
+ assert.ok(action.issues.includes('MATCH_ON_ACTION_UNVERIFIED'));
+});

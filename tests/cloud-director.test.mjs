@@ -22,7 +22,8 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
   const child=spawn(process.execPath,['server/cloud.mjs'],{
     cwd:process.cwd(),stdio:['ignore','pipe','pipe'],
     env:{...process.env,PORT:String(port),PB_DATA_DIR:dir,MCP_API_KEY:key,
-      PB_WEB_USER:'editor',PB_WEB_PASSWORD:'directorSecret123456789'}
+      PB_WEB_USER:'editor',PB_WEB_PASSWORD:'directorSecret123456789',
+      PB_CREATIVE_STORY_PREVIEW:'1'}
   });
   let output='';
   child.stdout.on('data',v=>output+=v.toString());
@@ -64,6 +65,9 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
     const tools=(await listed.json()).result.tools.map(x=>x.name);
     assert.ok(tools.includes('propose_director_plan'));
     assert.ok(tools.includes('get_director_plan'));
+    assert.ok(tools.includes('get_creative_story_context'));
+    assert.ok(tools.includes('preview_creative_storyboard'));
+    assert.ok(!tools.includes('approve_creative_storyboard'));
     assert.ok(!tools.includes('approve_director_plan'));
 
     await create('six-good');
@@ -94,6 +98,33 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
       {expected_revision:proposed.revision,confirm:'APPROVE'});
     assert.equal(result.status,200,JSON.stringify(result.json));
     assert.equal(result.json.status,'approved');
+    const storyContext=await http('/api/decks/six-good/creative/context');
+    assert.equal(storyContext.status,200,JSON.stringify(storyContext.json));
+    assert.equal(storyContext.json.plan_revision,2);
+    assert.equal(storyContext.json.scenes.length,6);
+    const story=await http('/api/decks/six-good/creative/preview','POST',{
+      manifest:{expected_plan_revision:storyContext.json.plan_revision,
+        expected_source_sha256:storyContext.json.source_sha256}});
+    assert.equal(story.status,200,JSON.stringify(story.json));
+    assert.equal(story.json.status,'READY_FOR_REVIEW');
+    assert.equal(story.json.candidates.length,2);
+    assert.equal(story.json.publication_allowed,false);
+    assert.deepEqual(story.json.candidates[1].order,['s05','s01','s02','s03','s04','s06']);
+    assert.deepEqual((await http('/api/decks/six-good')).json,deckBefore);
+    assert.equal((await good('preview_creative_storyboard',{
+      id:'six-good',expected_plan_revision:2,
+      expected_source_sha256:storyContext.json.source_sha256
+    })).candidates.length,2);
+    const staleStory=await http('/api/decks/six-good/creative/preview','POST',{
+      manifest:{expected_plan_revision:1,expected_source_sha256:storyContext.json.source_sha256}});
+    assert.equal(staleStory.status,409);
+    const unauthStory=await http('/api/decks/six-good/creative/context','GET',undefined,false);
+    assert.equal(unauthStory.status,401);
+    const csrfStory=await http('/api/decks/six-good/creative/preview','POST',{
+      manifest:{expected_plan_revision:2,expected_source_sha256:storyContext.json.source_sha256}},
+      true,{Origin:'https://evil.example'});
+    assert.equal(csrfStory.status,403);
+
     const afterApproveDraft=await rpc('propose_director_plan',{id:'six-good',
       expected_revision:2,goal:'Нельзя подменять утверждённый план'});
     assert.equal(afterApproveDraft.error,true);

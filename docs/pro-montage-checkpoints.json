@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15 C01/C02 TESTED, C03/C04/C05 IN_PROGRESS; P16 C01/C02 TESTED, C03/C04 IN_PROGRESS; P17 C01/C02 TESTED (pure core only), C03–C06 TODO. Unaccepted technical validation cannot authorize publication.",
+  "notice": "P15 C01/C02 TESTED; C03/C04/C05 IN_PROGRESS. P16 C01/C02 TESTED; C03/C04 IN_PROGRESS. P17 C01/C02 IN_PROGRESS pending current-head CI after boundary SHA / FPS hardening; P17 C03-C06 TODO; P18-P24 TODO. No approval or publication authorized.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -556,7 +556,7 @@
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "Contract and threat model",
-      "status": "TESTED",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [],
       "inputs": "P05/P08 approved scene source and boundary states",
@@ -588,7 +588,7 @@
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": "Trusted server-side P08 approved version/frame-attestation integration and independent review outstanding.",
+      "blocked_reason": "Previously tested data-only core extended with exact boundary frame hashes, static-motion semantics and 24000/1001. Re-run Cloud CI and OpenSpec SDD integrity on the new merge commit before marking TESTED; real P08/P03 approval and human review still absent.",
       "accepted_release": null,
       "release_eligible": false,
       "source_commit_sha": "7a556a04d2fd5f89cae71fb2c46eb8ca8aebb687"
@@ -598,7 +598,7 @@
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "Bounded functional vertical slice",
-      "status": "TESTED",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P17-C01",
@@ -634,7 +634,7 @@
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": "Pure frame-safe core is tested; actual source media/mixed audio, visual transitions, reviewer and real E2E pending.",
+      "blocked_reason": "Previously tested data-only core extended with exact boundary frame hashes, static-motion semantics and 24000/1001. Re-run Cloud CI and OpenSpec SDD integrity on the new merge commit before marking TESTED; real P08/P03 approval and human review still absent.",
       "accepted_release": null,
       "release_eligible": false,
       "source_commit_sha": "7a556a04d2fd5f89cae71fb2c46eb8ca8aebb687"
