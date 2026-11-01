@@ -196,6 +196,14 @@ export function rhythmPreviewService({
     const initial=preview(id,input,{skipAudio:true});
     if(!audioEvidenceEnabled||!Array.isArray(input?.pauses)||!input.pauses.length||
        initial.status!=='READY_FOR_REVIEW')return initial;
+    const narrationOffset=getDeck(id).audio?.offset??0;
+    // PCM spans are source-relative whereas browser/export track offsets are
+    // timeline-relative. Until true offset mapping is validated, fail closed.
+    if(!Number.isFinite(narrationOffset)||narrationOffset!==0)
+      return {...initial,status:'REVIEW',cuts:[],plan_sha256:undefined,
+        issues:[...initial.issues,'AUDIO_OFFSET_UNSUPPORTED'],
+        provenance:{...initial.provenance,pause_audio_verified:false},
+        approved:false,persisted:false,publication_allowed:false};
     const original=context(id);
     let audio_evidence=null,problem=null;
     try{
