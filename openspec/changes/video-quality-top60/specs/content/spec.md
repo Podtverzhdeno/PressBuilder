@@ -94,6 +94,9 @@
 
 ### Requirement M40 — Director briefs как исполняемые типизированные контракты
 
+> **Реальный прогресс 2026-11-02:** срез M40-R01 (read-only P10→MCP/REST/Studio, SHA и ревизии, флаг по умолчанию OFF) внесён в PR #41. Это НЕ C03 write/C05 six-scene E2E/C06 измерение эффекта и НЕ полная приёмка. Детали: [docs/M40_TYPED_SCENE_BRIEF.md](../../../../../docs/M40_TYPED_SCENE_BRIEF.md). Указанные в карточке source rights, signed reviewer и timebox ещё не подтверждены.
+
+
 - **Тип:** Системная; **оценки Q/E/F/C/S/L:** 10/10/9/9/10/10; **зависимости:** P06,P10,P16,P23; **статус:** PROPOSED.
 - **Проблема и ценность:** Отдельные агенты получают длинный расплывчатый промпт, делают разные стили и повторяют чужую работу.
 - **Архитектура / реализация:** Перевести задачу сцены в immutable typed brief: scene_id, goal, essential_claims, visual references, source hashes, style rules, permitted tools, timebox, acceptance tests, forbidden edits. Reviewer выдаёт новые ревизии спецификации, worker читает перед каждой попыткой.
