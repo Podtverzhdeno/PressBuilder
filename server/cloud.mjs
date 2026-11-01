@@ -29,6 +29,7 @@ import {assemblyService} from './assemble-scenes.mjs';
 import {sceneVersionStore} from './scene-versions.mjs';
 import {sceneReviewStore} from './scene-reviews.mjs';
 import {captureFrameEvidence} from './frame-qa.mjs';
+import {sceneComparisonService} from './scene-comparison.mjs';
 import {randomUUID} from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -266,6 +267,16 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  // P11 comparison is read-only from the user's perspective. Its FFmpeg
+  // computation is serialized with Chromium and montage by the governor.
+  const diffMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)\/compare\/([0-9a-f]{16})\/([0-9a-f]{16})(?:\/([012])\.jpg)?$/.exec(p);
+  if(diffMatch){
+    if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
+    const id=deckId(escaped(diffMatch[1])),scene=deckId(escaped(diffMatch[2])),
+      before=diffMatch[3],after=diffMatch[4];
+    if(diffMatch[5]!==undefined)return fileResponse(req,res,await comparisons.frame(id,scene,before,after,Number(diffMatch[5])));
+    return json(res,200,await comparisons.compare(id,scene,before,after));
+  }
   const sourceStateMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)\/source-state$/.exec(p);
   if(sourceStateMatch){
     if(method!=='GET')throw new UserError('Method not allowed',405);
@@ -493,6 +504,8 @@ function sourceFingerprint(id,slideId){
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 const resources=createResourceGovernor({capacity:1,maxWaiting:64});
+const comparisons=sceneComparisonService({versions,out:OUT,baseUrl,
+  acquireResource:options=>resources.acquire(options)});
 const renderJobs=makeRenderQueue({
   root:path.join(DATA,'render-jobs'),outputDir:OUT,
   resolveDeck:getDeck,baseUrl,
@@ -541,7 +554,8 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   getApproved:(id,scene)=>versions.approved(id,scene),
   reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl,
   getPlan:id=>assemblyPlans.read(id),getStyle:id=>styles.read(id)});
-const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch});
+const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
