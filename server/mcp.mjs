@@ -74,7 +74,7 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
         const summary=tasks.map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}));
         const assigned=args.slide_id?taskStore.read(args.id,args.slide_id):undefined;
         return {project:{id:d.id,title:d.title,style:d.style,format:d.format,target:d.target,slides:d.slides.map(s=>({id:s.id,label:s.label,cues:s.cues.map(c=>({id:c.id,say:c.say,show:c.show}))}))},
-          readme:readmeStore.read(args.id),scene_tasks:summary,...(assigned?{assigned_scene_task:assigned}:{})};
+          readme:readmeStore.read(args.id),style_contract:styles.read(args.id),scene_tasks:summary,...(assigned?{assigned_scene_task:assigned}:{})};
       }
       case 'get_project_readme': return readmeStore.read(args.id);
       case 'update_project_readme': directorOnly(actor);return readmeStore.write(args.id,args.content,args.expected_revision);
