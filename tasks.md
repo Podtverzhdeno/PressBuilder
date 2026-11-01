@@ -19,8 +19,8 @@
 | ID | Возможность | Полезность /10 | Сложность | Зависимости | Состояние |
 |---|---|---:|---|---|---|
 | P01 | 3D Scene SDK и публикация через MCP | 10.0 | Очень высокая | Существующий wire3d, Canvas, MCP | **IN PROGRESS** |
-| P02 | Независимый рендер + очередь | 9.8 | Высокая | P01: scene-scoped вход | **IN PROGRESS — FIFO MVP** |
-| P03 | Автоматический Video QA | 9.7 | Средняя | P02: отдельные MP4/кадры | **IN PROGRESS — ffprobe MVP** |
+| P02 | Независимый рендер + очередь | 9.8 | Высокая | P01: scene-scoped вход | **IN PROGRESS — durable FIFO, immutable MP4, cancel/retry** |
+| P03 | Автоматический Video QA | 9.7 | Средняя | P02: отдельные MP4/кадры | **IN PROGRESS — ffprobe + data-text/frame QA** |
 | P04 | Машинный style contract | 9.5 | Средняя | P01 + P03 | **IN PROGRESS — project contract MVP** |
 | P05 | Автоматическая сборка/переходы | 9.4 | Высокая | P02 + P04 | **IN PROGRESS — hard-cut MVP** |
 | P06 | Scene ownership/leases/ACL | 9.3 | Средняя | MCP identity + хранилище | **IN PROGRESS — scoped leases MVP** |
@@ -56,9 +56,9 @@
 **Проблема:** серверный `render_video` использует глобальный `busy`; шесть агентов не могут независимо получать MP4 своих сцен.
 
 - [x] **P02.1** `render_scene({id,slide_id,revision?})`, точный тайм-код начала/конца из расписания; аудио с корректным offset.
-- [ ] **P02.2** (одноузловая FIFO реализована, долговременная очередь/worker pool не готовы) Job queue c состояниями `queued/running/completed/failed/cancelled`, идентификатором job_id, лимитом параллелизма, fair scheduling.
+- [ ] **P02.2** (одноузловая FIFO с восстановлением состояния, отменой и retries реализована; worker pool и multi-instance fencing остаются) Job queue c состояниями `queued/running/completed/failed/cancelled`, идентификатором job_id, лимитом параллелизма, fair scheduling.
 - [ ] **P02.3** Несколько workers или ограниченный pool; Railway CPU/RAM измерить нагрузочным экспериментом, не обещать 6 одновременных Chromium на одном сервере.
-- [ ] **P02.4** Тайм-ауты, retries с backoff, отмена, восстановление после перезапуска, контроль повторных задач по content hash.
+- [ ] **P02.4** Тайм-ауты, retries с backoff, отмена, восстановление после перезапуска, контроль повторных задач по content hash. **Готово в MVP:** AbortSignal cancel, явный retry, source fingerprint SHA-256, atomic persistence, ограниченное restart/recovery. **Открыто:** backoff, multi-worker locking, продолжительная эксплуатационная проверка.
 - [x] **P02.5** API `get_scene_render_status`, ссылки на MP4/превью, технические метаданные (codec/fps/duration/bytes).
 - [ ] **P02.6** Тест: 6 запросов, 2+ разных сцен, один намеренно плохой job, отсутствие блокировки успешных; перезапуск worker не теряет запись о заданиях.
 - **DoD:** каждый агент может проверить только свою сцену; ошибка одного job не влияет на другие.
@@ -69,9 +69,9 @@
 
 **Проблема:** искажения шрифта, наложения объектов и пустые кадры обнаруживаются вручную после длительного рендера.
 
-- [ ] **P03.1** Извлекать репрезентативные кадры: начало, 25%, 50%, 75%, конец, а также моменты появления объектов/реплик.
+- [ ] **P03.1** Извлекать репрезентативные кадры: начало, 25%, 50%, 75%, конец, а также моменты появления объектов/реплик. **Готово частично:** реальные luminance samples на 22/50/78% каждого клипа; PNG/cue extraction остаётся.
 - [ ] **P03.2** Проверка формата (ffprobe), чёрных/битых кадров, резких скачков яркости, отсутствия звука при обязательной озвучке.
-- [ ] **P03.3** Проверка геометрии: текст вне safe area, наложения крупных текстовых bbox, недопустимый horizontal compression, отсутствующие требуемые элементы.
+- [ ] **P03.3** Проверка геометрии: текст вне safe area, наложения крупных текстовых bbox, недопустимый horizontal compression, отсутствующие требуемые элементы. **Готово частично:** Canvas measureText с настоящими гарнитурами и правками редактора для data-driven текста; произвольные кодовые сцены остаются без инструментального анализа.
 - [ ] **P03.4** Регрессионные снимки / golden images с порогами для предсказуемых сцен; отчёты без ложного «художественного балла».
 - [x] **P03.5** MCP `get_scene_qa_report`, вердикты PASS/REVIEW/FAIL и evidence (кадр+тайм-код+правило).
 - [ ] **P03.6** Тестовые дефекты: намеренно обрезанный заголовок, полностью чёрный кадр и некорректный FPS должны ловиться; живые сцены не должны массово давать false positive.
@@ -179,9 +179,10 @@
 | 2026-11-01 | P02 | Файловая персистентность job состояния в `/data/render-jobs`, восстановление queued/running после рестарта (макс. 2 попытки). | Код `e6eac70eff`; требуется отдельный restart/crash-test перед отметкой P02.4 как done. | P02 PERSISTENCE IMPLEMENTED / RESTART NOT YET VERIFIED |
 | 2026-11-01 | P03 | `server/video-qa.mjs`, ffprobe отчёты QA и MCP `get_scene_qa_report` / `get_video_qa_report`, синтетические PASS/FAIL тесты. | CI `cloud` SUCCESS на `f683600088`; PR Docker `render-smoke` SUCCESS на `ef1925ed26` (workflow 41264142281): оба H.264 MP4 отрендерены, скачаны и прошли ffprobe QA. | P03 TECHNICAL QA VERIFIED; visual QA backlog |
 
+| 2026-11-01 | P02–P03 | Изолированный модуль `server/render-queue.mjs`, иммутабельные MP4, отмена/повтор с ID, предотвращение выдачи результатов при смене исходников; `src/engine/visual-qa.ts` и 3 выборочных кадра/клип, визуальные `PASS/REVIEW/FAIL` в отчёте QA. | `tests/cloud-render-queue.test.mjs`, `tests/cloud-visual-qa.test.mjs`; GitHub Actions cloud SUCCESS на `d22a3e0565`, Docker smoke проверяется отдельно. | P02/P03 HARDENING VERIFIED IN UNIT/BUILD; full DoD still open |
 | 2026-11-01 | P04–P06 | Реализованы валидируемый project style contract, hard-cut FFmpeg assembly из одобренных сцен, scoped bearer tokens, fenced leases и журнал аудита. | `server/style-contract.mjs`, `server/assemble-scenes.mjs`, `server/scene-leases.mjs`, `tests/cloud-production-p04-p06.test.mjs`. GitHub Actions cloud SUCCESS на `28d589a3` (повторные обновления документации/CI проверить). | **MVP IN PROGRESS**; полный DoD ещё не закрыт |
 
-**Следующая обязательная работа:** отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P06 выполняются на уровне MVP, P07–P10 остаются BACKLOG. Для P04 требуется редактор/реальная bbox-проверка и inheritance, для P05 — переходы/immutable artifacts, для P06 — распределённые транзакционные leases и rotation токенов.
+**Следующая обязательная работа:** проверить итоговый Docker smoke объединённого кода, затем довести distributed worker pool, backoff и полностью independent failure testing P02, а также PNG/cue snapshots и golden images P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P06 выполняются на уровне MVP, P07–P10 остаются BACKLOG. Для P04 требуется редактор/реальная bbox-проверка и inheritance, для P05 — переходы/immutable artifacts, для P06 — распределённые транзакционные leases и rotation токенов.
 
 
 ### P04–P06: пределы реализованного среза
