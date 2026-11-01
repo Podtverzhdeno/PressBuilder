@@ -68,7 +68,7 @@ test('M01 live REST/MCP: protected rational graph, worker-scoped scene, source-p
   const denyWorker=await rpc(workerKey,'propose_edit_graph',args);
   assert.equal(denyWorker.isError,true);
   const proposal=await http('/api/decks/edit-demo/edit-graph','POST',args);
-  assert.equal(proposal.status,409,'No P08 approved MP4, so trims must fail closed');
+  assert.equal(proposal.status,409,'Missing approved P08 must fail closed: '+JSON.stringify(proposal.body));
   const csrf=await http('/api/decks/edit-demo/edit-graph','POST',args,true,{Origin:'https://malicious.example'});
   assert.equal(csrf.status,403);
   assert.equal((await http('/api/decks/edit-demo/edit-graph')).body.candidate_revision,0);
