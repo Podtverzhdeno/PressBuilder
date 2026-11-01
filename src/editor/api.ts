@@ -7,6 +7,15 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface RhythmSilenceEvidence {
+  schema_version:1;analysis:'MEASURED_AUDIO_SILENCE';audio_source_sha256:string;
+  project_id:string;timebase_revision:string;
+  time_reference:'source_audio_start_not_project_clock';
+  silences:Array<{start_us:number;end_us:number;method:'pcm16_rms';
+    confidence:'measured_signal_only';scene_id:string|null;cue_id:string|null}>;
+  sample_rate:number;channels:number;duration_us:number;word_alignment_verified:false;
+  publication_allowed:false;note:string;
+}
 export interface RhythmContext {
   project_id:string;
   voice_source_sha256:string;
@@ -143,6 +152,8 @@ export const api = {
     call<RhythmDraftRecord>(`/api/decks/${encodeURIComponent(id)}/rhythm/draft`,{
       method:'POST',...body({manifest,expected_revision,note})
     }),
+  measureRhythmSilence: (id:string) =>
+    call<RhythmSilenceEvidence>(`/api/decks/${encodeURIComponent(id)}/rhythm/silence`),
   getRhythmContext: (id:string) =>
     call<RhythmContext>(`/api/decks/${encodeURIComponent(id)}/rhythm/context`),
   previewRhythm: (id:string,manifest:Record<string,unknown>) =>
