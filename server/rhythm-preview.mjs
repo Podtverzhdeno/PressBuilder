@@ -24,8 +24,7 @@ function voiceHash(root,id,filename){
   let fd;
   try{
     const base=fs.lstatSync(dir);
-    if(!base.isDirectory()||base.isSymbolicLink()||base.isDirectory()!==true||
-       (typeof fs.lstatSync(dir).isSymbolicLink==='function'&&base.isSymbolicLink()))deny('VOICE_DIRECTORY_UNSAFE',403);
+    if(!base.isDirectory()||base.isSymbolicLink())deny('VOICE_DIRECTORY_UNSAFE',403);
     const before=fs.lstatSync(file);
     if(!before.isFile()||before.isSymbolicLink()||before.size<1||before.size>MAX_AUDIO)deny('VOICE_FILE_UNSAFE',403);
     const flags=fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW??0);
@@ -78,6 +77,10 @@ export function rhythmPreviewService({root,getDeck,enabled=false}){
     }
     if(cueMap.length>2500)deny('TOO_MANY_CUES',413);
     const timebase_revision=digest({fps,duration_us,cues:cueMap,
+      cue_source:timeline.slides.map(sc=>({
+        scene_id:sc.slide.id,label:sc.slide.label,
+        cues:sc.cues.map(c=>({id:c.id,say:c.say,show:c.show,dur:c.dur}))
+      })),
       voice:deck.audio.file,format:deck.format});
     return {project_id:id,voice_source_sha256:sha256,
       timebase_revision,alignment_revision:timebase_revision,
