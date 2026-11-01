@@ -55,6 +55,11 @@ Every source/image/frame/font/audio/model snapshot is content-addressed and vers
 
 All schema revisions require migration/reviewer, strict extra-field rejection, max bytes/count/duration and old-read fallback. Services expose explainable `reason_code` and human review rationale; remove sensitive voice/text from telemetry.
 
+
+### Семантика зависимостей и предотвращение циклов
+
+Колонка `depends_on`/«зависимости» в M01–M60 **описывает точки интеграции с Pxx**, включая ещё НЕ реализованные P19–P24. Это не причинный DAG и не требование ждать полной реализации P24 перед M01. Машинное поле `recommended_predecessors` отдельно задаёт минимальный советуемый порядок для ключевых задач; для остальных — пустой список, а фактические входы проверяет C01. Пример: M01 начинает с уже проверенных P05/P08 и определяет будущий граф для P24, а не наоборот; M58 начинается с имеющихся P03/P05/P08 и позже расширяет acceptance P23. Все непроверенные capabilities блокируются на конкретном этапе, но не создают ложный глобальный цикл.
+
 ## Cost, measurements and quality claims
 Compare matched six-scene baselines (synthetic fixtures plus licensed footage) under identical image digest, CPU/RAM/ffmpeg/Chromium versions, codec/color profile, source hashes, and output FPS. Record:
 - `editor_minutes`: measured human time for the same script and deliverables; blind task order counterbalanced.
