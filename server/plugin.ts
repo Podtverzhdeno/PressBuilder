@@ -25,6 +25,7 @@ import { styleContractStore,enforceScene3D,enforceVisuals } from './style-contra
 import {styleById} from '../src/engine/styles.ts';
 import { assemblyPlanStore } from './assembly-plan.mjs';
 import {rhythmPreviewService} from './rhythm-preview.mjs';
+import {musicRightsVerifier} from './rhythm-music-rights.mjs';
 import {rhythmDraftStore} from './rhythm-drafts.mjs';
 
 const ROOT = process.cwd();
@@ -74,9 +75,16 @@ const readmeStore=projectReadmeStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.p
 const scene3d=scene3dStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 const styleContracts=styleContractStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 const assemblyPlans=assemblyPlanStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),getStyle:(id:string)=>styleContracts.read(id)});
+const rhythmRights=(process.env.PB_RHYTHM_RIGHTS_CATALOG&&process.env.PB_RHYTHM_MUSIC_ROOT)
+  ? musicRightsVerifier({
+      catalogFile:process.env.PB_RHYTHM_RIGHTS_CATALOG,
+      assetRoot:process.env.PB_RHYTHM_MUSIC_ROOT,projectRoot:DECKS_DIR
+    }) : null;
 const rhythmPreview=rhythmPreviewService({root:DECKS_DIR,
   getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),
-  enabled:process.env.PB_RHYTHM_PREVIEW==='1'});
+  enabled:process.env.PB_RHYTHM_PREVIEW==='1',
+  audioEvidenceEnabled:process.env.PB_RHYTHM_AUDIO_VERIFY==='1',
+  rightsVerifier:rhythmRights});
 const rhythmDrafts=rhythmDraftStore({root:DECKS_DIR,
   getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),
   previewService:rhythmPreview});
