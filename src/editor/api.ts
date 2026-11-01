@@ -21,6 +21,13 @@ export interface SceneRenderVersion {
 }
 export interface ApprovedScenePointer {revision:number;version_id:string|null;updated_at:string|null}
 export interface SceneVersionList {versions:SceneRenderVersion[];approved:ApprovedScenePointer}
+export interface SceneDraftPreview {
+  id:string;slide_id:string;
+  status:'queued'|'running'|'cancelling'|'completed'|'failed'|'cancelled'|'stale'|'not_started';
+  job_id?:string;cache_hit?:boolean;source_fingerprint?:string;error?:string;
+  width?:number;height?:number;wait_resource_ms?:number;
+  frames?:{index:number;t:number;sha256:string;size:number;url:string}[];
+}
 export interface SceneVersionComparison {
   project:string;scene_id:string;from_version:string;to_version:string;
   scope:'PIXEL_DIFFERENCE_ONLY';samples:'P03_RELATIVE_10_50_90';
@@ -95,6 +102,12 @@ export const api = {
     }),
   getSceneVersions: (id:string,scene:string) =>
     call<SceneVersionList>(`/api/decks/${id}/versions/${scene}`),
+  startScenePreview: (id:string,scene:string) =>
+    call<SceneDraftPreview>(`/api/decks/${encodeURIComponent(id)}/preview/${encodeURIComponent(scene)}`,{method:'POST'}),
+  getScenePreview: (id:string,scene:string) =>
+    call<SceneDraftPreview>(`/api/decks/${encodeURIComponent(id)}/preview/${encodeURIComponent(scene)}`),
+  cancelScenePreview: (id:string,scene:string) =>
+    call<SceneDraftPreview>(`/api/decks/${encodeURIComponent(id)}/preview/${encodeURIComponent(scene)}/cancel`,{method:'POST'}),
   compareSceneVersions: (id:string,scene:string,from:string,to:string) =>
     call<SceneVersionComparison>(`/api/decks/${encodeURIComponent(id)}/versions/${encodeURIComponent(scene)}/compare/${encodeURIComponent(from)}/${encodeURIComponent(to)}`),
   getSceneReviews: (id:string,scene:string) =>
