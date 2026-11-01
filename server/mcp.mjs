@@ -83,12 +83,14 @@ export const TOOLS = [
  { name:'get_video_qa_report', description:'Read technical MP4 QA after a full video render. Validates stream metadata, not artistic composition.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_scene_render_status', description:'Check the independent render job status for one scene and get a direct MP4 download URL when complete.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'get_rhythm_context', description:'P15 director-only read-only preview prerequisites: real on-disk voice SHA and current cue clock. No word alignment is authenticated and no release is changed.', inputSchema:obj({id:str('Project ID')},['id']) },
+ { name:'preview_rhythm_cuts', description:'P15 director-only draft cuts from pinned voice/cues and caller-supplied markers. No approval, storage or rendering. Default disabled until PB_RHYTHM_PREVIEW=1.', inputSchema:obj({id:str('Project ID'),manifest:{type:'object',description:'P15 rhythm-v1 manifest based on get_rhythm_context'}},['id','manifest']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
 export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly,
   assemblyPlans,versions,reviews,sceneSync,comparisons=null,previews=null,
   directorPlan:providedDirectorPlan=null,
-  dispatch:providedDispatch=null }) {
+  dispatch:providedDispatch=null,rhythmPreview=null }) {
   const directorPlan=providedDirectorPlan||directorStore({root:DECKS,getDeck,
     sceneTasks:taskStore,projectReadmes:readmeStore,styles,getAssembly:()=>assembly,
     getApproved:(id,scene)=>versions?.approved(id,scene),out:OUT});
@@ -235,6 +237,12 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'get_scene_qa_report': {scoped(args.id,args.slide_id,actor);const r=getRender(args.id,args.slide_id);return {id:args.id,slide_id:args.slide_id,status:r.status,report:r.qa_report||null};}
       case 'get_video_qa_report': {const r=getRender(args.id);return {id:args.id,status:r.status,report:r.qa_report||null};}
       case 'get_render_status': return getRender(args.id);
+      case 'get_rhythm_context': directorOnly(actor);
+        if(!rhythmPreview)throw new UserError('Rhythm preview disabled',501);
+        return rhythmPreview.context(args.id);
+      case 'preview_rhythm_cuts': directorOnly(actor);
+        if(!rhythmPreview)throw new UserError('Rhythm preview disabled',501);
+        return rhythmPreview.preview(args.id,args.manifest);
       case 'get_editor_link': getDeck(args.id); return { url:baseUrl().replace(/\/$/,'')+'/?deck='+encodeURIComponent(args.id), note:'Opens a password-protected editor. New projects use placeholder visuals unless scene code is deployed.' };
       default: throw new UserError('Unknown tool: '+name,404);
     }
