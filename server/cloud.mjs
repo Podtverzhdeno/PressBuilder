@@ -26,7 +26,7 @@ if (!MCP_SECRET || MCP_SECRET.length < 24 || !WEB_USER || !WEB_PASS || WEB_PASS.
 }
 fs.mkdirSync(DECKS, {recursive:true});
 fs.mkdirSync(OUT, {recursive:true});
-const sceneTasks=sceneTaskStore({root:DECKS,getDeck});
+const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 
 function secureEq(a,b) {
