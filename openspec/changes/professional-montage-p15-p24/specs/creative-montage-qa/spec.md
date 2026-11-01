@@ -34,9 +34,3 @@ The system SHALL compare new rules against baseline samples, publish false-posit
 #### Scenario: Rejected or degraded calibration and reviewer signoff
 - **WHEN** the rule causes systematic false positives on known valid sequences
 - **THEN** it remains advisory and cannot become a production hard gate
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P23.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P23, checkpoints P23-C01…P23-C06 and release gate in `specs/002-professional-montage/tasks.md`.
