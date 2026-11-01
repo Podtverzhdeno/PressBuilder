@@ -193,11 +193,13 @@ export function presbuilder(): Plugin {
         return fail(res,status,e instanceof Error?e.message:String(e));
       }
     }
-    const rhythm=/^([^/]+)\/rhythm\/(context|preview)$/.exec(rest);
+    const rhythm=/^([^/]+)\/rhythm\/(context|preview|silence)$/.exec(rest);
     if(rhythm){
       const id=rhythm[1];
       if(!ID_RE.test(id)||!fs.existsSync(deckFile(id)))return fail(res,404,'Ролик не найден');
       try{
+        if(rhythm[2]==='silence'&&req.method==='GET')
+          return json(res,rhythmPreview.measuredSilence(id));
         if(rhythm[2]==='context'&&req.method==='GET')
           return json(res,rhythmPreview.context(id));
         if(rhythm[2]==='preview'&&req.method==='POST'){
