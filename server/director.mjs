@@ -30,7 +30,7 @@ function fingerprint(deck){
 }
 const state=(status)=>['todo','in_progress','review','done','blocked'].includes(status);
 
-export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles}){
+export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,getAssembly,out}){
   function location(id){
     if(typeof id!=='string'||!SLUG.test(id))fail('Invalid project id');
     getDeck(id);
@@ -80,6 +80,13 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles}){
     const plan=raw(id);
     if(plan.status==='none')return plan;
     const tasks=sceneTasks.list(id);
+    const receipt=plan.release_receipt;
+    const releaseFile=out&&receipt?path.join(out,id+'_final.mp4'):null;
+    const stat=releaseFile&&fs.existsSync(releaseFile)?fs.statSync(releaseFile):null;
+    const releaseStatus=plan.status==='released'?
+      (!out?'signed_off_unverified':(!stat?'artifact_missing':
+        (stat.size===receipt.size&&stat.mtimeMs===receipt.mtime_ms?'signed_off':'artifact_changed'))):
+      'manual_review_required';
     return {...plan,progress:{
       total:tasks.length,
       done:tasks.filter(t=>t.status==='done').length,
@@ -87,7 +94,7 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles}){
       blocked:tasks.filter(t=>t.status==='blocked').length,
       checkpoints_done:tasks.reduce((n,t)=>n+t.checkpoints.filter(c=>c.done).length,0),
       checkpoints_total:tasks.reduce((n,t)=>n+t.checkpoints.length,0),
-      release_status:'manual_review_required',
+      release_status:releaseStatus,
       scene_statuses:tasks.map(t=>({scene_id:t.scene_id,assignee:t.assignee,status:state(t.status)?t.status:'unknown',
         revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,
         checkpoints_total:t.checkpoints.length}))
@@ -98,6 +105,7 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles}){
     for(const k of Object.keys(args))
       if(!['expected_revision','goal','constraints','scene_directions'].includes(k))fail('Unknown proposal field: '+k);
     const before=read(id);
+    if(before.status==='released')fail('Released plans cannot be replaced in place',409);
     if(!Number.isSafeInteger(args.expected_revision)||args.expected_revision!==before.revision)
       fail('Director plan changed; reload and retry',409);
     const deck=getDeck(id);
@@ -299,6 +307,55 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles}){
     }
     return read(id);
   }
+  // Web-only final sign-off. P05 has already assembled and technically checked
+  // the video; verify its immutable input manifest and actual file before release.
+  function signoff(id,args){
+    read(id);
+    const plan=raw(id);
+    if(plan.status!=='approved')fail('Only an approved director plan can be released',409);
+    if(!args||args.confirm!=='RELEASE'||!Number.isSafeInteger(args.expected_plan_revision)||
+      args.expected_plan_revision!==plan.revision||
+      typeof args.assembly_job_id!=='string'||!args.assembly_job_id)
+      fail('Explicit RELEASE, current plan revision and assembly job ID are required');
+    if(fingerprint(getDeck(id))!==plan.script_fingerprint)
+      fail('Deck changed after director approval',409);
+    if(styles&&styles.read(id).revision!==plan.style_contract_revision)
+      fail('Style contract changed after director approval',409);
+    const tasks=sceneTasks.list(id);
+    const expected=plan.scenes.map(s=>s.scene_id);
+    if(tasks.length!==6||tasks.some(t=>!expected.includes(t.scene_id)||
+      t.status!=='done'||t.checkpoints.length<6||t.checkpoints.some(cp=>!cp.done)))
+      fail('All six scene assignments and checkpoints require acceptance',409);
+    const proofIds=new Set(['render','technical_qa','human_review']);
+    if(tasks.some(t=>t.checkpoints.some(cp=>proofIds.has(cp.id)&&!cp.note?.trim())))
+      fail('Render, QA and human review checkpoints require evidence notes',409);
+    const svc=getAssembly?.();
+    if(!svc||!out)fail('Assembly verification is not available',501);
+    const job=svc.get(id),manifest=job.manifest;
+    if(job.status!=='completed'||job.job_id!==args.assembly_job_id||
+      !manifest||manifest.job_id!==job.job_id||
+      manifest.project!==id||manifest.output?.qa?.verdict!=='PASS'||
+      JSON.stringify(manifest.scenes?.map(x=>x.id))!==JSON.stringify(expected))
+      fail('No matching completed six-scene assembly with passing QA',409);
+    const file=path.join(out,id+'_final.mp4');
+    if(!fs.existsSync(file)||!fs.statSync(file).isFile())
+      fail('Final MP4 is missing',409);
+    const st=fs.statSync(file);
+    if(!Number.isSafeInteger(st.size)||st.size<=0||st.size!==manifest.output.size)
+      fail('Final MP4 size does not match manifest',409);
+    const hash=createHash('sha256');
+    const fd=fs.openSync(file,'r'),buf=Buffer.allocUnsafe(1024*1024);
+    try{
+      let n;while((n=fs.readSync(fd,buf,0,buf.length,null))>0)hash.update(buf.subarray(0,n));
+    }finally{fs.closeSync(fd)}
+    const sha256=hash.digest('hex');
+    if(sha256!==manifest.output.sha256)fail('Final MP4 checksum does not match manifest',409);
+    const released_at=new Date().toISOString();
+    save(planFile(id),{...plan,status:'released',revision:plan.revision+1,
+      release_receipt:{file:'out/'+id+'_final.mp4',size:st.size,mtime_ms:st.mtimeMs,
+        sha256,assembly_job_id:job.job_id,plan_id:plan.plan_id,released_at}});
+    return read(id);
+  }
   // Run recovery before the server accepts any scene-task requests. Without
   // this, another API route might read half-published tasks after a crash.
   if(fs.existsSync(root)){
@@ -308,5 +365,5 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles}){
         recover(entry.name);
     }
   }
-  return {read,propose,approve,replan};
+  return {read,propose,approve,replan,signoff};
 }
