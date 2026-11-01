@@ -7,10 +7,17 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface FrameEvidence {
+  schema_version:number;scope:'FRAME_HEURISTICS_ONLY';verdict:'CAPTURED';
+  frames:{index:number;t:number;frame:number;file:string;sha256:string;size:number;
+    mean_luma:number;luma_stddev:number;warnings:string[]}[];
+  differences:{from:number;to:number;mean_absolute_difference:number}[];
+  warnings:string[];note:string;
+}
 export interface SceneRenderVersion {
   version_id:string; project:string; scene_id:string; created_at:string;
   file:string; sha256:string; size:number; duration:number; fps:number; height:number;
-  qa:{verdict:string}; source:{fingerprint:string;scene3d_revision:number;style_revision:number};
+  qa:{verdict:string}; frame_evidence?:FrameEvidence; source:{fingerprint:string;scene3d_revision:number;style_revision:number};
 }
 export interface ApprovedScenePointer {revision:number;version_id:string|null;updated_at:string|null}
 export interface SceneVersionList {versions:SceneRenderVersion[];approved:ApprovedScenePointer}
