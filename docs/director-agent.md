@@ -65,7 +65,7 @@ Do not send web credentials to an untrusted scene agent. POST must be made to th
 | MCP get_scene_task | Read the published instructions for one scene |
 | MCP set_scene_checkpoint | Record an independently verified result, with evidence |
 
-Plan states: none → draft → approved. A subsequent proposal creates a new draft; existing assignments are **not** silently replaced. Publishing over populated or changed assignments is rejected. A blocked or in-review scene may be replanned independently through POST /api/decks/:id/director/replan/:scene. Provide expected_plan_revision, expected_task_revision, reason, optional direction and reset_checkpoint_ids. Only explicitly selected checkpoint done flags are reset; their notes remain as historical evidence. The updated task returns to todo, other scenes do not change, and the plan records each revision. Maximum three manual replans per scene; no automatic agent retry or execution.
+Plan states: none → draft → approved → released. Drafts can be revised before approval; after approval the plan is locked against replacement and only a single blocked/review scene can be manually replanned. Publishing over populated or changed assignments is rejected. A blocked or in-review scene may be replanned independently through POST /api/decks/:id/director/replan/:scene. Provide expected_plan_revision, expected_task_revision, reason, optional direction and reset_checkpoint_ids. Only explicitly selected checkpoint done flags are reset; their notes remain as historical evidence. The updated task returns to todo, other scenes do not change, and the plan records each revision. Maximum three manual replans per scene; no automatic agent retry or execution.
 
 Example HTTP replan after inspecting the current plan and task revisions:
 
@@ -95,7 +95,7 @@ A human reviewer checks the assembled output, then sends:
 }
 ~~~
 
-to POST /api/decks/:id/director/signoff with web-editor credentials. Sign-off rejects missing or mismatching MP4 bytes, checksum, assembly job, project, scene order, incomplete checkpoints or absent render/QA/human-review evidence. It records a release receipt (SHA-256, size, mtime, plan/job IDs). Reading a release later reports artifact_missing/artifact_changed if file metadata no longer agrees with the receipt. This is a human QA-to-release gate, **not** autonomous creative review.
+to POST /api/decks/:id/director/signoff with web-editor credentials. Sign-off rejects missing or mismatching final MP4 bytes, any modified/missing source scene MP4 (using P05 manifest SHA-256), assembly job, project, scene order, incomplete checkpoints or absent render/QA/human-review evidence. It records a release receipt (SHA-256, size, mtime, plan/job IDs). Reading a release later reports artifact_missing/artifact_changed if file metadata no longer agrees with the receipt. This is a human QA-to-release gate, **not** autonomous creative review.
 
 ## Not implemented
 
