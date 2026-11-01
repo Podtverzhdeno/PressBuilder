@@ -117,8 +117,9 @@ test('P10 signs off only active immutable P05 release with matching job, manifes
     scenes,output:{bytes:fs.statSync(file).size,sha256:sha(file),qa:{verdict:'PASS'}}};
   let pointer=releaseId;
   const job={status:'completed',job_id:'job-123',result:{release_id:releaseId},manifest};
+  let workerState=job;
   const svc={
-    get:()=>job,
+    get:()=>workerState,
     current:()=>({release_id:pointer,manifest}),
     download:(_id,rid)=>{assert.equal(rid,releaseId);return file}
   };
@@ -142,6 +143,9 @@ test('P10 signs off only active immutable P05 release with matching job, manifes
     fs.writeFileSync(file,corrupted);
     rejectStatus(()=>director.signoff(id,args),409);
     fs.writeFileSync(file,correct);
+    workerState={status:'running'};
+    rejectStatus(()=>director.signoff(id,args),409);
+    workerState={status:'not_started'}; // simulated Railway restart / lost in-memory queue
     const signed=director.signoff(id,args);
     assert.equal(signed.status,'released');
     assert.equal(signed.release_receipt.release_id,releaseId);
