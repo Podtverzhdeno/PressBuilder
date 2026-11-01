@@ -9,7 +9,7 @@
 1. render_scene → get_scene_render_status: получить конкретную сцену с QA PASS.
 2. save_scene_version: архивировать только готовый результат, если source fingerprint при постановке рендера совпадает с текущими входными данными.
 3. list_scene_versions: получить version_id, SHA-256 файла, список версий, approval revision и current_fingerprint.
-4. approve_scene_version: явно принять версию с expected_revision. Принятие не удаляет предыдущие MP4.
+4. Подтвердить выбранную версию отдельным операторским HTTP-запросом POST /api/decks/:id/versions/:scene/:version/approve с expected_revision. Общий MCP-токен агентов НЕ даёт им право утверждать релиз.
 5. restore_scene_version: восстановить slide, scene3d и cue markers с обязательным expected_fingerprint; без перерендера остаётся доступен архивный MP4.
 6. compare_scene_versions: получить изменения cue IDs, 3D, markers, FPS, длительности и SHA файлов.
 
@@ -17,7 +17,7 @@
 
 **Fingerprint:** SHA-256 по слайду (реплики, 2D), JSON 3D, cue markers, global render style/format, точным началу/длительности сцены, хэшу voice файла и commit metadata (при наличии). Immutable MP4 сохраняется под именем v-<24hex>.mp4, manifest — рядом. Новый рендер не перезаписывает принятый MP4.
 
-**Что не гарантировано:** полная воспроизводимость произвольных TypeScript сцен без надёжно зафиксированного build artifact; конкурентная запись из разных Railway replicas; отдельные identity для reviewer; storage GC; PNG сравнение ключевых кадров. Существующая авторизация — общая для MCP, не настоящий per-agent ACL. Не считать approval юридически значимым электронным подписанием.
+**Что не гарантировано:** полная воспроизводимость произвольных TypeScript сцен без надёжно зафиксированного build artifact; конкурентная запись из разных Railway replicas; отдельные identity для reviewer; storage GC; PNG сравнение ключевых кадров. Общий MCP-токен не даёт права утверждения релиза: approval доступен только через веб-авторизацию Basic. Полноценного per-agent ACL и отдельных reviewer-identity пока нет. Не считать approval юридически значимым электронным подписанием.
 
 ## P09: единая шкала времени
 
