@@ -127,3 +127,23 @@ test('changing actual voice while worker is pending fails closed after queue',as
   assert.equal(r.publication_allowed,false);
  }finally{x.close()}
 });
+
+
+test('shifted narration never receives false audio-silence approval',async()=>{
+ let calls=0;
+ const pool={inspect:async()=>{calls++;return {status:'PAUSES_SUPPORTED'}}};
+ const x=fixture(pool);
+ try{
+  x.deck.audio.offset=0.25;
+  const c=x.service.context(x.id);
+  const request={...x.request,alignment_revision:c.alignment_revision,
+   expected_alignment_revision:c.alignment_revision,
+   timebase_revision:c.timebase_revision,
+   expected_timebase_revision:c.timebase_revision};
+  const r=await x.service.previewAsync(x.id,request);
+  assert.equal(r.status,'REVIEW');
+  assert.deepEqual(r.cuts,[]);
+  assert.ok(r.issues.includes('AUDIO_OFFSET_UNSUPPORTED'));
+  assert.equal(calls,0,'must reject before launching decoder');
+ }finally{x.close()}
+});
