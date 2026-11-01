@@ -62,6 +62,8 @@ export const TOOLS = [
 export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, reviews }) {
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
+  const visibleTasks=(id,actor)=>taskStore.list(id)
+    .filter(t=>actor.role==='director'||actor.scenes?.includes(t.scene_id));
   const assigned=(id,slide,actor)=>{
     if(actor.role!=='worker')return;
     const assignee=taskStore.read(id,slide).assignee?.trim();
@@ -90,10 +92,11 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
       throw new UserError('Only director may change slide timing',403);
     switch(name) {
       case 'list_decks': return actor.role==='director'?listDecks():listDecks().filter(d=>actor.projects.includes(d.id));
-      case 'get_deck': return {...getDeck(args.id),project_readme:readmeStore.read(args.id),scene_tasks:taskStore.list(args.id).map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}))};
+      case 'get_deck': return {...getDeck(args.id),project_readme:readmeStore.read(args.id),scene_tasks:visibleTasks(args.id,actor).map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}))};
       case 'get_project_context': {
         const d=getDeck(args.id);
-        const tasks=taskStore.list(args.id);
+        if(args.slide_id)scoped(args.id,args.slide_id,actor);
+        const tasks=visibleTasks(args.id,actor);
         const summary=tasks.map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}));
         const assigned=args.slide_id?taskStore.read(args.id,args.slide_id):undefined;
         return {project:{id:d.id,title:d.title,style:d.style,format:d.format,target:d.target,slides:d.slides.map(s=>({id:s.id,label:s.label,cues:s.cues.map(c=>({id:c.id,say:c.say,show:c.show}))}))},
@@ -101,7 +104,7 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
       }
       case 'get_project_readme': return readmeStore.read(args.id);
       case 'update_project_readme': directorOnly(actor);return readmeStore.write(args.id,args.content,args.expected_revision);
-      case 'list_scene_tasks': return taskStore.list(args.id);
+      case 'list_scene_tasks': return visibleTasks(args.id,actor);
       case 'get_scene_task': scoped(args.id,args.slide_id,actor);return taskStore.read(args.id,args.slide_id);
       case 'set_scene_task': {const {id,slide_id,expected_revision,fence_token,...fields}=args;return write(id,slide_id,actor,fence_token,'write_task',()=>taskStore.put(id,slide_id,fields,expected_revision))}
       case 'set_scene_checkpoint': {const {id,slide_id,checkpoint_id,fence_token,...patch}=args;return write(id,slide_id,actor,fence_token,'checkpoint',()=>taskStore.checkpoint(id,slide_id,checkpoint_id,patch))}
