@@ -3,7 +3,7 @@
 ## Контракт оформления
 
 HTTP: GET/PUT /api/decks/:id/style-contract (PUT: contract + expected_revision). MCP: get_style_contract, set_style_contract. В get_project_context приложена версия договора.
-Поле enforce=true активирует серверные проверки до записи 2D и 3D через MCP и 3D через REST. В редакторе есть кнопка «Контракт стиля» с JSON, палитрой и схемой safe area.
+Поле enforce=true активирует серверные проверки до записи 2D/3D через MCP, 3D REST, а также при полном сохранении deck.json через Cloud REST и локальный Vite API. Цветовые токены h1/accent/pos/text/panel/bg в 2D сначала переводятся в HEX из текущего пресета; палитра контракта должна содержать их фактические разрешённые значения. В редакторе есть кнопка «Контракт стиля» с JSON, палитрой и схемой safe area.
 Параметры sceneOverrides могут только ужесточать глобальные правила: палитру, размер шрифта, safe area, максимальные угловые скорости, вращение и длительность перехода.
 JSON Schema: docs/style-contract.schema.json. Runtime использует ручную строгую проверку структуры и семантических зависимостей; AJV не подключён.
 
@@ -16,15 +16,16 @@ MCP: get_assembly_plan, set_assembly_plan, assemble_video, get_assembly_status, 
 Сцена в assembly-plan содержит scene_id, entry_state, exit_state, transition_after. У состояния: subject, background, camera=[0..1,0..1], motion. У перехода: type, duration.
 Типы: hard-cut (0 сек), crossfade (FFmpeg xfade + acrossfade), match-cut (проверка совпадающего предмета, движения и кадрирования; физически жёсткий стык). Морфинг не реализован.
 
-Сборка разрешена только по 2–12 соседним сценам в исходном порядке. Каждая должна иметь task.status=done и последний render со статусом completed и PASS.
-Входные MP4 замораживаются в staging и сверяются по SHA-256; FPS и разрешение приводятся к проектным параметрам, звук AAC stereo/48k. Для сцен без звука добавляется тишина.
+Сборка разрешена только по 2–12 соседним сценам в исходном порядке. Каждая должна иметь task.status=done и **явно утверждённую неизменяемую MP4-версию (P08) с PASS**. Новые черновые рендеры не должны подменять утверждённую версию. Для standalone unit-сценариев без P08 остаётся обратная совместимость с getRender.
+Входные MP4 замораживаются в staging и сверяются по SHA-256; для P08 дополнительно фиксируются approved_version_id и revision и повторно проверяются перед публикацией. FPS и разрешение приводятся к проектным параметрам, звук AAC stereo/48k. Если речь заканчивается раньше видео, хвост дополняется тишиной. FFmpeg сообщает приблизительный прогресс через pipe:2; отдельный рабочий слот ограничивает нагрузку Railway. Исправлен порядок trim → setpts → fps для xfade на FFmpeg 7.
 Финальный артефакт: /data/out/releases/:project/:releaseId/final.mp4 и manifest.json. Сначала атомарно переименовывается каталог, затем current.json. При сбое/отмене старый релиз остаётся активным.
 Ссылка на скачивание: /api/decks/:id/assembly/releases/:releaseId/final.mp4 (под WEB auth). Получить текущий релиз можно из GET /api/decks/:id/assemble, поле current_release.
 
 ## Проверки и ограничения
 
 - node --test tests/cloud-style-assembly-contract.test.mjs
-- node --test tests/cloud-assembly-ffmpeg.test.mjs
+- node --test tests/cloud-assembly-ffmpeg.test.mjs — 6 отдельных клипов, замена только s03, разные FPS/озвучка, реальные переходы
+- node --test tests/cloud-reviews-versions.test.mjs — подтверждение P08 approved-версий и запрета подмены черновиком
 - npm run build && npm run test:cloud
 - Docker/Chromium render-smoke — в CI pull request
 
