@@ -98,6 +98,9 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
     assert.equal(result.json.progress.total,6);
     assert.equal(result.json.progress.done,0);
     assert.equal(result.json.progress.release_status,'manual_review_required');
+    assert.ok(result.json.progress.ready_to_start.includes('s01'));
+    assert.ok(!result.json.progress.ready_to_start.includes('s02'));
+    assert.deepEqual(result.json.progress.scene_statuses[1].waiting_on,['s01']);
     const tasks=(await http('/api/decks/six-good/tasks')).json;
     assert.deepEqual(tasks.map(x=>x.assignee),['Agent-01','Agent-02','Agent-03',
       'Agent-04','Agent-05','Agent-06']);
