@@ -79,3 +79,36 @@ if(qa?.report?.verdict!=='PASS')throw new Error('P03 scene technical QA failed '
 const qaFull=unwrap(await rpc('tools/call',{name:'get_video_qa_report',arguments:{id}}));
 if(qaFull?.report?.verdict!=='PASS')throw new Error('P03 full video technical QA failed '+JSON.stringify(qaFull));
 console.log('PASS P03 ffprobe quality gates for scene and full video');
+
+const versions=unwrap(await rpc('tools/call',{name:'list_scene_versions',arguments:{id,slide_id:firstSlide}}));
+if(versions.versions.length!==1)throw new Error('P08 immutable render version not recorded');
+const version=versions.versions[0];
+if(version.qa.verdict!=='PASS'||!/^[0-9a-f]{16}$/.test(version.version_id))throw new Error('P08 immutable metadata is invalid');
+const immutable=await fetch(BASE+'/'+version.file,{headers:{Authorization:basic}});
+if(!immutable.ok || (await immutable.arrayBuffer()).byteLength<1000)throw new Error('P08 immutable MP4 not downloadable');
+const newReview=unwrap(await rpc('tools/call',{name:'add_scene_review_item',arguments:{
+  id,slide_id:firstSlide,expected_revision:0,version_id:version.version_id,
+  t:Math.max(0,Math.min(version.duration-1/version.fps,0.25)),severity:'medium',
+  text:'Review position and motion of the published 3D objects',
+  rect:{x:0.2,y:0.2,w:0.3,h:0.3}
+}}));
+if(newReview.item.status!=='OPEN'||newReview.item.version_id!==version.version_id)throw new Error('P07 review not anchored');
+unwrap(await rpc('tools/call',{name:'set_scene_task',arguments:{id,slide_id:firstSlide,expected_revision:0,status:'done'}}));
+const blocked=await rpc('tools/call',{name:'approve_scene_version',arguments:{
+  id,slide_id:firstSlide,version_id:version.version_id,expected_revision:0}});
+if(!blocked.isError)throw new Error('P07 unresolved issue did not block approval');
+const fixed=unwrap(await rpc('tools/call',{name:'transition_scene_review_item',arguments:{
+  id,slide_id:firstSlide,item_id:newReview.item.id,status:'FIXED',
+  note:'Correct composition confirmed in frame samples',expected_revision:1}}));
+if(fixed.item.status!=='FIXED')throw new Error('P07 FIXED transition failed');
+const verified=unwrap(await rpc('tools/call',{name:'transition_scene_review_item',arguments:{
+  id,slide_id:firstSlide,item_id:newReview.item.id,status:'VERIFIED',
+  note:'Reviewed against immutable MP4',expected_revision:2}}));
+if(verified.item.status!=='VERIFIED')throw new Error('P07 VERIFIED transition failed');
+const approved=unwrap(await rpc('tools/call',{name:'approve_scene_version',arguments:{
+  id,slide_id:firstSlide,version_id:version.version_id,expected_revision:0}}));
+if(approved.version_id!==version.version_id||approved.revision!==1)throw new Error('P08 version approval failed');
+const approvedRest=await fetch(BASE+'/api/decks/'+id+'/versions/'+firstSlide,{headers:{Authorization:basic}});
+if(!approvedRest.ok||(await approvedRest.json()).approved.version_id!==version.version_id)throw new Error('P08 REST approved pointer unavailable');
+console.log('PASS P07 review workflow + P08 immutable version approval and authenticated download');
+
