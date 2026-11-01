@@ -162,7 +162,7 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
           disabled={busy||!saved||result?.status!=='READY_FOR_REVIEW'||note.trim().length<10}>
           Сохранить новый черновик
         </button>
-        <button type="button" class="btn is-primary" onClick={()=>void preview()
+        <button type="button" class="btn is-primary" onClick={()=>void preview()}
           disabled={!ctx||busy}>{busy?'Проверяю…':'Предложить склейки'}</button>
       </footer>
     </div>
