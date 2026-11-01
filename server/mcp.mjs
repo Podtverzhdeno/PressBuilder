@@ -83,6 +83,8 @@ export const TOOLS = [
  { name:'get_video_qa_report', description:'Read technical MP4 QA after a full video render. Validates stream metadata, not artistic composition.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_scene_render_status', description:'Check the independent render job status for one scene and get a direct MP4 download URL when complete.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'get_continuity_boundary_context', description:'P17 director-only verified first/last JPEG hashes from two approved immutable P08 MP4s; read-only, FFmpeg-bounded, no motion/audio attestation.', inputSchema:obj({id:str('Project ID'),left_scene_id:str('Left approved scene'),right_scene_id:str('Right approved scene')},['id','left_scene_id','right_scene_id']) },
+ { name:'preview_continuity_hard_cut', description:'P17 director-only review of exact approved source pair. Accepts pinned SHA; does NOT publish or approve. J/L and motion matches not supported.', inputSchema:obj({id:str('Project ID'),manifest:{type:'object',description:'{left_scene_id,right_scene_id,expected_pair_sha256,transition:hard_cut}' }},['id','manifest']) },
  { name:'get_creative_story_context', description:'P16 director-only: read pinned human-approved P10 script sources for two story arcs; no scene edits.', inputSchema:obj({id:str('Project ID')},['id']) },
  { name:'preview_creative_storyboard', description:'P16 director-only: two source-anchored narrative orders from current approved script. Human acceptance required; does not publish, write or reorder anything.', inputSchema:obj({id:str('Project ID'),expected_plan_revision:{type:'integer',minimum:1},expected_source_sha256:str('Source SHA-256 from get_creative_story_context')},['id','expected_plan_revision','expected_source_sha256']) },
  { name:'get_rhythm_context', description:'P15 director-only read-only preview prerequisites: real on-disk voice SHA and current cue clock. No word alignment is authenticated and no release is changed.', inputSchema:obj({id:str('Project ID')},['id']) },
@@ -95,7 +97,7 @@ export const TOOLS = [
 export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly,
   assemblyPlans,versions,reviews,sceneSync,comparisons=null,previews=null,
   directorPlan:providedDirectorPlan=null,
-  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null }) {
+  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null,continuity=null }) {
   const directorPlan=providedDirectorPlan||directorStore({root:DECKS,getDeck,
     sceneTasks:taskStore,projectReadmes:readmeStore,styles,getAssembly:()=>assembly,
     getApproved:(id,scene)=>versions?.approved(id,scene),out:OUT});
@@ -242,6 +244,12 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'get_scene_qa_report': {scoped(args.id,args.slide_id,actor);const r=getRender(args.id,args.slide_id);return {id:args.id,slide_id:args.slide_id,status:r.status,report:r.qa_report||null};}
       case 'get_video_qa_report': {const r=getRender(args.id);return {id:args.id,status:r.status,report:r.qa_report||null};}
       case 'get_render_status': return getRender(args.id);
+      case 'get_continuity_boundary_context': directorOnly(actor);
+        if(!continuity)throw new UserError('Continuity review unavailable',501);
+        return continuity.context(args.id,args.left_scene_id,args.right_scene_id);
+      case 'preview_continuity_hard_cut': directorOnly(actor);
+        if(!continuity)throw new UserError('Continuity review unavailable',501);
+        return continuity.preview(args.id,args.manifest);
       case 'get_creative_story_context': directorOnly(actor);
         if(!creativeStory)throw new UserError('Creative story preview disabled',501);
         return creativeStory.context(args.id);
