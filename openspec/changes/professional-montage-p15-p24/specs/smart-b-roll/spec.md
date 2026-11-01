@@ -34,9 +34,3 @@ The system SHALL preserve license/credit evidence, use source-pinned media and r
 #### Scenario: Rejected or degraded attribution, fingerprint and change control
 - **WHEN** license expiry, corrupted media or source SHA drift occurs before release
 - **THEN** the assembly gate blocks the changed clip without deleting the last approved render
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P22.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P22, checkpoints P22-C01…P22-C06 and release gate in `specs/002-professional-montage/tasks.md`.
