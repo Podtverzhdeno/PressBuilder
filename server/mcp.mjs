@@ -1,8 +1,10 @@
 /** Stateless Streamable HTTP MCP endpoint. No arbitrary shell or filesystem tools. */
-import { createDeck, DECKS, getDeck, listDecks, patchCue, patchDeck, patchObject, patchSlide, reorderSlides, setVisuals, UserError } from './cloud-core.mjs';
+import { createDeck, DECKS, OUT, getDeck, listDecks, patchCue, patchDeck, patchObject, patchSlide, reorderSlides, setVisuals, UserError } from './cloud-core.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
+import {directorStore} from './director.mjs';
+import {directorDispatchStore} from './director-dispatch.mjs';
 import {styleContractStore,enforceScene3D,enforceVisuals} from './style-contract.mjs';
 import {sceneLeaseStore} from './scene-leases.mjs';
 import path from 'node:path';
@@ -10,6 +12,7 @@ const taskStore=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src
 const readmeStore=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const styles=styleContractStore({root:DECKS,getDeck});
+const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks:taskStore,projectReadmes:readmeStore,styles});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 
 const obj = (properties, required=[]) => ({ type:'object', properties, required, additionalProperties:false });
@@ -32,6 +35,13 @@ export const TOOLS = [
  { name:'get_scene_task', description:'Get the full scene-specific agent assignment, detailed brief, deliverables, checkpoints and revision.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'set_scene_task', description:'Create or edit the full assignment for one scene (not the deck). Requires the latest expected_revision from get_scene_task or list_scene_tasks to avoid overwriting another agent. Keeps unspecified fields unchanged.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Scene ID'),expected_revision:{type:'integer',minimum:0},title:str('Scene task title'),assignee:str('Agent/owner name'),brief:str('Detailed task specification, up to 20000 characters'),deliverables:str('Acceptance criteria and deliverable requirements'),status:{type:'string',enum:['todo','in_progress','review','done','blocked']},checkpoints:{type:'array',maxItems:60,items:obj({id:str('Stable checkpoint id'),title:str('Checkpoint action'),done:{type:'boolean'},note:str('Completion evidence or blocker')},['id','title'])}},['id','slide_id','expected_revision']) },
  { name:'set_scene_checkpoint', description:'Update exactly one scene checkpoint and preserve all other scenes/tasks. Use after completing and checking a milestone; provide evidence in note.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Scene ID'),checkpoint_id:str('Checkpoint ID'),done:{type:'boolean'},note:str('Evidence or details')},['id','slide_id','checkpoint_id']) },
+ { name:'get_director_work', description:'Read current Director work dispatch board. Workers see only authorized scenes; dependencies and remaining claim budget are included. Does not start any agent.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'claim_director_job', description:'Worker-only: claim your assigned ready scene after claim_scene acquired a valid P06 fenced lease. Requires the latest task revision. Does not run any model or renderer. Returns durable job_id.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1},expected_task_revision:{type:'integer',minimum:0}},['id','slide_id','fence_token','expected_task_revision']) },
+ { name:'heartbeat_director_job', description:'Worker-only: record liveness after renewing P06 scene lease, without extending beyond the current lease.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1},job_id:str('Claimed job id')},['id','slide_id','fence_token','job_id']) },
+ { name:'submit_director_job', description:'Worker-only: submit a claimed scene for HUMAN review. Requires completed render+technical_qa checkpoints with evidence, passing render job QA and actual MP4. Never marks scene done.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Claimed job ID'),fence_token:{type:'integer',minimum:1},expected_task_revision:{type:'integer',minimum:0}},['id','slide_id','job_id','fence_token','expected_task_revision']) },
+ { name:'fail_director_job', description:'Worker-only: mark only your claimed scene blocked, recording failure for director replan.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Claimed job ID'),fence_token:{type:'integer',minimum:1},expected_task_revision:{type:'integer',minimum:0},reason:str('Failure description')},['id','slide_id','job_id','fence_token','expected_task_revision','reason']) },
+ { name:'get_director_plan', description:'Director-only: view six-scene plan, current revision, dependency graph and task progress; no actions are launched.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'propose_director_plan', description:'Director-only: propose (not publish) six scene briefs grounded in the existing deck cues. Requires six existing slides and latest revision. Human approval uses separately authenticated web-editor HTTP, not MCP.', inputSchema:obj({id:str('Project slug'),expected_revision:{type:'integer',minimum:0},goal:str('Video objective, up to 2500 chars'),constraints:str('Global restrictions, up to 5000 chars'),scene_directions:{type:'array',maxItems:6,items:obj({scene_id:str('Existing scene ID'),concept:str('Visual concept'),must_show:str('Required visible elements'),depends_on:{type:'array',maxItems:5,items:{type:'string'}}},['scene_id'])}},['id','expected_revision','goal']) },
  { name:'get_scene_3d', description:'Read the independently stored data-only 3D composition of a particular video scene, including revision. Returns null spec if not authored yet.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
  { name:'set_scene_3d', description:'Publish a safe declarative 3D composition for exactly one scene, with 1..18 shaded rotating 3D meshes and an animated perspective camera. No arbitrary JS; uses the existing 3D engine and is rendered in the web editor and MP4. Must pass expected_revision from get_scene_3d. Does not edit deck.json or other scenes.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Existing scene ID'),expected_revision:{type:'integer',minimum:0},spec:obj({version:{type:'integer',const:1},camera:obj({cx:num('Camera center X in 1920px space'),cy:num('Camera center Y'),size:num('Pixels per 3D unit 20..500'),dist:num('Camera distance 5..80'),yaw:num('Yaw radians'),pitch:num('Pitch radians'),yaw_speed:num('Yaw radians/second -2..2'),pitch_speed:num('Pitch radians/second'),zoom_speed:num('Proportional zoom per second')},[]),objects:{type:'array',minItems:1,maxItems:18,items:obj({id:str('Stable ID'),mesh:{type:'string',enum:['cube','pyramid','octa','icosa','hexPrism','cylinder']},pos:{type:'array',items:{type:'number'},minItems:3,maxItems:3},scale:num('0.02..5'),rotation:{type:'array',items:{type:'number'},minItems:3,maxItems:3},spin:{type:'array',items:{type:'number'},minItems:3,maxItems:3},color:str('Hex color #RRGGBB'),edge_color:{type:['string','null']},wire:{type:'boolean'},start:num('Entrance start seconds'),fade:num('Entrance fade seconds')},['id','mesh','color'])}},['version','camera','objects'])},['id','slide_id','expected_revision','spec']) },
  { name:'reorder_slides', description:'Reorder existing slides without losing any cue IDs.', inputSchema:obj({id:str('Project slug'),slide_ids:{type:'array',items:{type:'string'}}},['id','slide_ids']) },
@@ -64,12 +74,13 @@ export const TOOLS = [
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
 export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, reviews }) {
+  const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks:taskStore,leases,getRender,out:OUT});
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
   const assigned=(id,slide,actor)=>{
     if(actor.role!=='worker')return;
     const assignee=taskStore.read(id,slide).assignee?.trim();
-    if(assignee&&assignee!==actor.id)throw new UserError('Scene assigned to another agent',403);
+    if(assignee&&assignee.toLowerCase()!==actor.id.toLowerCase())throw new UserError('Scene assigned to another agent',403);
   };
   const write=(id,slide,actor,fence,action,fn)=>{
     leases.assertWrite(id,slide,actor,fence);
@@ -114,6 +125,13 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
       case 'update_cue': return write(args.id,args.slide_id,actor,args.fence_token,'update_cue',()=>patchCue(args.id,args.slide_id,args.cue_id,args));
       case 'update_slide': return write(args.id,args.slide_id,actor,args.fence_token,'update_slide',()=>patchSlide(args.id,args.slide_id,args));
       case 'update_object': return write(args.id,args.slide_id,actor,args.fence_token,'update_object',()=>patchObject(args.id,args.slide_id,args.object_id,args));
+      case 'get_director_work': return dispatch.snapshot(args.id,actor);
+      case 'claim_director_job': return dispatch.claim(args.id,args.slide_id,actor,args);
+      case 'heartbeat_director_job': return dispatch.heartbeat(args.id,args.slide_id,actor,args);
+      case 'submit_director_job': return dispatch.submit(args.id,args.slide_id,actor,args);
+      case 'fail_director_job': return dispatch.fail(args.id,args.slide_id,actor,args);
+      case 'get_director_plan': directorOnly(actor);return directorPlan.read(args.id);
+      case 'propose_director_plan': {directorOnly(actor);const {id,...proposal}=args;return directorPlan.propose(id,proposal)}
       case 'get_scene_3d': scoped(args.id,args.slide_id,actor);return scene3d.read(args.id,args.slide_id);
       case 'set_scene_3d': enforceScene3D(styles.read(args.id).contract,args.spec);return write(args.id,args.slide_id,actor,args.fence_token,'write_3d',()=>scene3d.put(args.id,args.slide_id,args.spec,args.expected_revision));
       case 'reorder_slides': directorOnly(actor);return reorderSlides(args.id,args.slide_ids);
