@@ -31,6 +31,19 @@ export function directorDispatchStore({
       const r=JSON.parse(fs.readFileSync(file,'utf8'));
       if(r.id!==id||r.scene_id!==scene||!Number.isSafeInteger(r.attempt)||r.attempt<1)
         throw new Error('Invalid persisted dispatch');
+      // A crash can occur after changing the scene task but before recording
+      // the dispatch outcome. Never invent a successful submission on recovery.
+      // Freeze the attempt for explicit human reconciliation instead.
+      const task=sceneTasks.read(id,scene);
+      if(r.state==='claimed'&&['review','done','blocked'].includes(task.status)){
+        const updated={...r,state:'needs_reconciliation',
+          reconciliation_reason:'Task state is '+task.status+' while claim was still active',
+          reconciled_at:ISO(now())};
+        persist(id,scene,updated);
+        event(id,scene,{id:'system-recovery'},'reconciliation_required',updated,
+          {task_status:task.status});
+        return updated;
+      }
       return r;
     }catch{fail('Dispatch record unreadable',500)}
   }
