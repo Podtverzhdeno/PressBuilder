@@ -28,6 +28,7 @@ export function rhythmDraftStore(input:{
 }):{
   status(id:string,actor:{id:string;role:string;projects?:string[];scenes?:string[]}):RhythmSidecar;
   submit(id:string,actor:{id:string;role:string},manifest:Record<string,unknown>,expected_revision:number,note:string):RhythmSidecar;
+  submitAsync(id:string,actor:{id:string;role:string},manifest:Record<string,unknown>,expected_revision:number,note:string):Promise<RhythmSidecar>;
   decide(id:string,actor:{id:string;role:string;projects:string[];scenes:string[]},
     data:{expected_revision:number;plan_sha256:string;decision:'endorse'|'reject';note:string}):RhythmSidecar;
 };
