@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pressbuilder.local/schemas/rhythm-plan-v1.schema.json",
+  "title": "P15 deterministic rhythm proposal input (not a publishable plan)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "voice_source_sha256",
+    "alignment_revision",
+    "timebase_revision",
+    "expected_alignment_revision",
+    "expected_timebase_revision",
+    "frame_rate",
+    "duration_us",
+    "words",
+    "pauses",
+    "policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+    },
+    "voice_source_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "alignment_revision": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,96}$"
+    },
+    "timebase_revision": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,96}$"
+    },
+    "expected_alignment_revision": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,96}$"
+    },
+    "expected_timebase_revision": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,96}$"
+    },
+    "frame_rate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "num",
+        "den"
+      ],
+      "properties": {
+        "num": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        "den": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1001
+        }
+      }
+    },
+    "duration_us": {
+      "type": "integer",
+      "minimum": 1000,
+      "maximum": 3600000000
+    },
+    "words": {
+      "type": "array",
+      "maxItems": 2500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "cue_id",
+          "start_us",
+          "end_us"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "cue_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "start_us": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end_us": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "protected": {
+            "type": "boolean"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+          }
+        }
+      }
+    },
+    "pauses": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start_us",
+          "end_us",
+          "cue_id"
+        ],
+        "properties": {
+          "start_us": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end_us": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cue_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+          }
+        }
+      }
+    },
+    "beats": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "frame"
+        ],
+        "properties": {
+          "frame": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "music": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_sha256",
+        "license_ref",
+        "licensed"
+      ],
+      "properties": {
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "license_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "licensed": {
+          "const": true
+        }
+      }
+    },
+    "protected_spans": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start_us",
+          "end_us"
+        ],
+        "properties": {
+          "start_us": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end_us": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "manual_cut_frames": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min_shot_frames",
+        "max_cuts_per_10s",
+        "max_cuts"
+      ],
+      "properties": {
+        "min_shot_frames": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6000
+        },
+        "max_cuts_per_10s": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        },
+        "max_cuts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "beats": {
+            "minItems": 1
+          }
+        },
+        "required": [
+          "beats"
+        ]
+      },
+      "then": {
+        "required": [
+          "music"
+        ]
+      }
+    }
+  ],
+  "description": "Offline preview input, not proof of permissions or verified audio. Caller-provided license claims require trusted server validation before any production use."
+}

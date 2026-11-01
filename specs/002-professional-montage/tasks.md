@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-All entries are PLANNED, all checkboxes unchecked. Creating OpenSpec/SDD artifacts is not delivery of editor features.
+Progress: P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41344739143: 135 cloud tests, 119 passed, 16 skipped; Docker six-scene H264/AAC and render-smoke PASS). 55 other checkpoints TODO. Synthetic audio != actual human speech alignment or artistic release.
 
 ## Evidence and progression rules
 
@@ -24,7 +24,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C01 — Contract and threat model
 
-- [ ] P15-C01 — TODO. Deliverable: montage/rhythm-engine-v1.json and JSON Schema.
+- [ ] P15-C01 — TESTED (CI green; separate code/security reviewer signoff required). Deliverable: montage/rhythm-engine-v1.json and JSON Schema.
 - Actions: Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json. Define P09 cue/word alignment + owned music beats; reject missing words, nonfinite BPM, stale source, cuts through protected narration.
 - Dependencies: Existing P06/P08/P09 and current OpenSpec.
 - Acceptance: Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.
@@ -36,7 +36,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C02 — Bounded functional vertical slice
 
-- [ ] P15-C02 — TODO. Deliverable: server/rhythm-plan.mjs.
+- [ ] P15-C02 — TESTED (CI green; separate code/security reviewer signoff required). Deliverable: server/rhythm-plan.mjs.
 - Actions: Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback. Implement: rational-frame cut candidate generation, protected phrases, pacing constraints.
 - Dependencies: P15-C01.
 - Acceptance: Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.
@@ -48,7 +48,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C03 — MCP + REST + Studio preview
 
-- [ ] P15-C03 — TODO. Deliverable: MCP/REST route and Studio scene editor.
+- [ ] P15-C03 — IN_PROGRESS (source-pinned Studio preview, persistent CAS draft and independent non-publishable reviewer MCP tested; verified voice alignment/rights, human approval, real P15 render and production gate outstanding). Deliverable: MCP/REST route and Studio scene editor.
 - Actions: Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor. Expose revisioned preview for proposed cut list with source frames and deterministic review evidence; leave published release unchanged.
 - Dependencies: P15-C02.
 - Acceptance: Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.
@@ -60,7 +60,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C04 — Negative and regression suite
 
-- [ ] P15-C04 — TODO. Deliverable: tests/cloud-rhythm.test.mjs.
+- [ ] P15-C04 — IN_PROGRESS (voice PCM/rights negative security suite run 41344739143; independent review and real speech-source validation outstanding). Deliverable: tests/cloud-rhythm.test.mjs.
 - Actions: Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation. Exercise deliberately broken cases: missing words, nonfinite BPM, stale source, cuts through protected narration.
 - Dependencies: P15-C03.
 - Acceptance: All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.
@@ -72,7 +72,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C05 — Real six-scene E2E and QA
 
-- [ ] P15-C05 — TODO. Deliverable: Docker real media job and immutable artifact.
+- [ ] P15-C05 — IN_PROGRESS (synthetic six-scene H.264/AAC Docker E2E PASS run 41344739143; real human narration, 30000/1001 and artistic A/B outstanding). Deliverable: Docker real media job and immutable artifact.
 - Actions: Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline. Run real media test: 6 scenes at 24 and 30000/1001 fps with real aligned narration, no cut-time drift.
 - Dependencies: P15-C04.
 - Acceptance: Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.

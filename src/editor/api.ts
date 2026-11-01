@@ -7,6 +7,44 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface RhythmContext {
+  project_id:string;
+  voice_source_sha256:string;
+  alignment_revision:string;
+  timebase_revision:string;
+  frame_rate:{num:number;den:number};
+  duration_us:number;
+  voice_verified:boolean;
+  word_alignment_verified:boolean;
+  cues:Array<{scene_id:string;cue_id:string;start_us:number;end_us:number}>;
+  note:string;
+}
+export interface RhythmDraftRecord {
+  schema_version:1;project_id:string;revision:number;
+  status:'empty'|'submitted'|'endorsed_nonpublishable'|'rejected';
+  proposal:null|{plan_sha256:string;voice_source_sha256:string;timebase_revision:string;
+    cuts:Array<{id:string;frame:number;reason:string;cue_id:string|null}>;
+    provenance:{word_alignment_verified:false;music_rights_verified:false}};
+  author:null|{id:string;note:string;at:string};
+  review:null|{reviewer_id:string;decision:'endorse'|'reject';note:string;at:string};
+  source_state:'CURRENT'|'STALE'|'NOT_APPLICABLE';
+  publication_allowed:false;
+}
+export interface RhythmPreview {
+  schema_version:number;
+  status:'REVIEW'|'READY_FOR_REVIEW';
+  duration_frames:number;
+  plan_sha256?:string;
+  cuts:Array<{id:string;frame:number;cue_id:string|null;reason:string;confidence:string}>;
+  discarded:Array<{frame:number;reason:string;violation:string}>;
+  issues:string[];
+  approved:boolean;
+  persisted:boolean;
+  publication_allowed:boolean;
+  provenance:{voice_sha_verified:boolean;deck_clock_verified:boolean;
+    word_alignment_verified:boolean;music_rights_verified:boolean;caller_markers_unverified:boolean};
+}
+
 export interface FrameEvidence {
   schema_version:number;scope:'FRAME_HEURISTICS_ONLY';verdict:'CAPTURED';
   frames:{index:number;t:number;frame:number;file:string;sha256:string;size:number;
@@ -98,6 +136,19 @@ const body = (data: unknown): RequestInit => ({
 
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
+  getRhythmDraft: (id:string) =>
+    call<RhythmDraftRecord>(`/api/decks/${encodeURIComponent(id)}/rhythm/draft`),
+  submitRhythmDraft: (id:string,manifest:Record<string,unknown>,
+    expected_revision:number,note:string) =>
+    call<RhythmDraftRecord>(`/api/decks/${encodeURIComponent(id)}/rhythm/draft`,{
+      method:'POST',...body({manifest,expected_revision,note})
+    }),
+  getRhythmContext: (id:string) =>
+    call<RhythmContext>(`/api/decks/${encodeURIComponent(id)}/rhythm/context`),
+  previewRhythm: (id:string,manifest:Record<string,unknown>) =>
+    call<RhythmPreview>(`/api/decks/${encodeURIComponent(id)}/rhythm/preview`,{
+      method:'POST',...body({manifest})
+    }),
   getDeck: (id: string) => call<DeckData>(`/api/decks/${id}`),
   getScene3D: (id: string, slideId: string) => call<Scene3DRecord>(`/api/decks/${id}/scene3d/${slideId}`),
   saveScene3D: (id: string, slideId: string, spec: Scene3DSpec, expected_revision: number) =>

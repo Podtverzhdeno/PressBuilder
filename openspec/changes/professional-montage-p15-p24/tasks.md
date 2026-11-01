@@ -1,6 +1,6 @@
 # OpenSpec Tasks — Professional Montage P15–P24
 
-All 60 checkboxes are TODO; completion evidence lives in SDD tasks and the versioned JSON registry.
+All 60 checkboxes remain unchecked until independent review. P15-C01/C02 TESTED, P15-C03/C04/C05 IN_PROGRESS with evidence for six-scene synthetic-media CI (run 41344739143); other 55 TODO. This does not approve natural human speech alignment or publication.
 
 ## Apply checklist
 

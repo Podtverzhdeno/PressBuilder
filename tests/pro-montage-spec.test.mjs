@@ -126,3 +126,21 @@ test('Canonical docs and onboarding exist without asserting implementation',()=>
  assert.match(read(change+'/proposal.md'),/Out of Scope/);
  assert.match(read(sdd+'/spec.md'),/NOT IMPLEMENTED/);
 });
+
+test('every SDD status matches machine registry and TESTED has observed CI evidence',()=>{
+ for(const item of registry.checkpoints){
+  const match=sddTasks.match(new RegExp('^- \\[([ x])\\] '+item.id+' — ([A-Z_]+)\\b','m'));
+  assert.ok(match,item.id+' missing explicit SDD status');
+  assert.equal(match[2],item.status,item.id+' status drift in SDD');
+  assert.equal(match[1],item.status==='ACCEPTED'?'x':' ',item.id+' acceptance drift');
+  if(item.status==='TESTED'){
+   assert.match(item.source_commit_sha||'',/^[a-f0-9]{40}$/);
+   assert.ok(item.evidence.some(e=>
+      e.exit_code===0 && e.command && e.commit_sha===item.source_commit_sha &&
+      /^https:\/\/github\.com\/[^/]+\/[^/]+\/actions\/runs\/\d+$/.test(e.run_url)
+   ),item.id+' missing genuine CI source reference');
+   assert.equal(item.release_eligible,false);
+   assert.equal(item.reviewer,null,'TESTED cannot self-claim independent reviewer');
+  }
+ }
+});
