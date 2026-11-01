@@ -7,6 +7,22 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface StyleContractRecord {
+  id: string;
+  revision: number;
+  updated_at: string | null;
+  contract: {
+    schemaVersion: number;
+    enforce: boolean;
+    palette: string[];
+    typography: {fonts:string[];minFontSize:number;maxTextLength:number};
+    safeArea: {left:number;right:number;top:number;bottom:number};
+    camera: {maxYawSpeed:number;maxPitchSpeed:number};
+    motion: {maxSpin:number};
+    transitions: {allowed:string[];maxDuration:number};
+    sceneOverrides?:Record<string,unknown>;
+  };
+}
 export interface DeckMeta {
   id: string;
   title: string;
@@ -45,6 +61,11 @@ export const api = {
   saveScene3D: (id: string, slideId: string, spec: Scene3DSpec, expected_revision: number) =>
     call<Scene3DRecord>(`/api/decks/${id}/scene3d/${slideId}`,{
       method:'PUT',...body({spec,expected_revision})
+    }),
+  getStyleContract: (id: string) => call<StyleContractRecord>('/api/decks/'+id+'/style-contract'),
+  saveStyleContract: (id: string, contract: StyleContractRecord['contract'], expected_revision: number) =>
+    call<StyleContractRecord>('/api/decks/'+id+'/style-contract',{
+      method:'PUT',...body({contract,expected_revision})
     }),
   getProjectReadme: (id: string) => call<ProjectReadme>(`/api/decks/${id}/readme`),
   saveProjectReadme: (id: string, content: string, expected_revision: string) =>
