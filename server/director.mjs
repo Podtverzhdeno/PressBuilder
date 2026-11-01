@@ -30,6 +30,15 @@ function fingerprint(deck){
 }
 const state=(status)=>['todo','in_progress','review','done','blocked'].includes(status);
 
+function hashFile(file){
+  const hash=createHash('sha256');
+  const fd=fs.openSync(file,'r'),buf=Buffer.allocUnsafe(1024*1024);
+  try{
+    let n;while((n=fs.readSync(fd,buf,0,buf.length,null))>0)hash.update(buf.subarray(0,n));
+  }finally{fs.closeSync(fd)}
+  return hash.digest('hex');
+}
+
 export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,getAssembly,out}){
   function location(id){
     if(typeof id!=='string'||!SLUG.test(id))fail('Invalid project id');
@@ -116,7 +125,8 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
     for(const k of Object.keys(args))
       if(!['expected_revision','goal','constraints','scene_directions'].includes(k))fail('Unknown proposal field: '+k);
     const before=read(id);
-    if(before.status==='released')fail('Released plans cannot be replaced in place',409);
+    if(before.status==='approved'||before.status==='released')
+      fail('An approved or released plan cannot be replaced in place; use scene replan',409);
     if(!Number.isSafeInteger(args.expected_revision)||args.expected_revision!==before.revision)
       fail('Director plan changed; reload and retry',409);
     const deck=getDeck(id);
@@ -354,12 +364,12 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
     const st=fs.statSync(file);
     if(!Number.isSafeInteger(st.size)||st.size<=0||st.size!==manifest.output.size)
       fail('Final MP4 size does not match manifest',409);
-    const hash=createHash('sha256');
-    const fd=fs.openSync(file,'r'),buf=Buffer.allocUnsafe(1024*1024);
-    try{
-      let n;while((n=fs.readSync(fd,buf,0,buf.length,null))>0)hash.update(buf.subarray(0,n));
-    }finally{fs.closeSync(fd)}
-    const sha256=hash.digest('hex');
+    const sha256=hashFile(file);
+    for(const scene of manifest.scenes){
+      const inputFile=path.join(out,id+'_'+scene.id+'.mp4');
+      if(!fs.existsSync(inputFile)||hashFile(inputFile)!==scene.sha256)
+        fail('Assembled input scene artifact was removed or changed: '+scene.id,409);
+    }
     if(sha256!==manifest.output.sha256)fail('Final MP4 checksum does not match manifest',409);
     const released_at=new Date().toISOString();
     save(planFile(id),{...plan,status:'released',revision:plan.revision+1,
