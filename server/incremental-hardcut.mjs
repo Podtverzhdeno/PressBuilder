@@ -99,19 +99,19 @@ function verifiedCache(file,manifest,key,settings){
     return info;
   }catch{return null}
 }
-async function buildSegment({out,id,item,source,fps,height,encoderProfile,signal,ffmpegRun}){
+async function buildSegment({out,id,item,source,fps,height,encoderProfile,signal,ffmpegRun,benchmarkFfmpeg}){
   const key=digest({version:VERSION,encoderProfile,source:item.source_sha256,
     duration:item.duration,fps,height});
   const dir=path.join(out,'assembly-segments',id,item.scene);
   const file=path.join(dir,key+'.mp4'),manifest=path.join(dir,key+'.json');
   const settings={height,fps,duration:item.duration};
   let info=verifiedCache(file,manifest,key,settings);
-  if(info)return {file,info,reused:true};
+  if(info)return {file,info,reused:true,benchmark:null};
   fs.mkdirSync(dir,{recursive:true});
   const tmp=path.join(dir,'.partial-'+randomUUID()+'.mp4');
   try{
     signal?.throwIfAborted();
-    await ffmpegRun(['-hide_banner','-loglevel','error','-nostats','-y',
+    const benchmark=await ffmpegRun(['-hide_banner','-loglevel','error','-nostats','-y',
       '-i',source,'-map','0:v:0','-an','-vf',
       'trim=duration='+rounded(item.duration)+',setpts=PTS-STARTPTS,fps='+fps+
       ',scale='+Math.round(height*16/9)+':'+height+
@@ -119,7 +119,7 @@ async function buildSegment({out,id,item,source,fps,height,encoderProfile,signal
       '-c:v','libx264','-preset','veryfast','-crf','20',
       '-bf','0','-g',String(fps),'-r',String(fps),
       '-video_track_timescale',String(fps*1000),'-movflags','+faststart',tmp],
-    {signal,timeout:240000});
+    {signal,timeout:240000,benchmark:benchmarkFfmpeg});
     signal?.throwIfAborted();
     info=validateSegment(tmp,settings);
     const record={version:VERSION,key,sha256:sha(tmp),
@@ -129,24 +129,25 @@ async function buildSegment({out,id,item,source,fps,height,encoderProfile,signal
     try{fs.writeFileSync(manifestTemp,JSON.stringify(record)+'\n',{mode:0o600});
       fs.renameSync(manifestTemp,manifest)}
     finally{fs.rmSync(manifestTemp,{force:true})}
-    return {file,info,reused:false};
+    return {file,info,reused:false,benchmark};
   }finally{fs.rmSync(tmp,{force:true})}
 }
 export async function encodeIncrementalHardCuts({out,id,work,sourcePaths,inputs,
-  fps,height,target,encoderProfile,signal,ffmpegRun}){
+  fps,height,target,encoderProfile,signal,ffmpegRun,benchmarkFfmpeg=false}){
   if(inputs.length<2||inputs.length>12||sourcePaths.length!==inputs.length)
     throw err('invalid clip count');
   const started=performance.now();
-  const chunks=[],protectedSegments=[];let reused=0,encoded=0,commonSignature=null;
+  const chunks=[],protectedSegments=[],measurements=[];let reused=0,encoded=0,commonSignature=null;
   for(let i=0;i<inputs.length;i++){
     signal?.throwIfAborted();
     const chunk=await buildSegment({out,id,item:inputs[i],source:sourcePaths[i],
-      fps,height,encoderProfile,signal,ffmpegRun});
+      fps,height,encoderProfile,signal,ffmpegRun,benchmarkFfmpeg});
     if(commonSignature===null)commonSignature=chunk.info.signature;
     if(chunk.info.signature!==commonSignature)throw err('different video codec parameters');
     reused+=Number(chunk.reused);
     encoded+=Number(!chunk.reused);
     protectedSegments.push(chunk.file);
+    if(chunk.benchmark)measurements.push(chunk.benchmark);
     // Only generated local basenames appear in the safe concat list.
     const local='seg'+i+'.mp4',dest=path.join(work,local);
     fs.copyFileSync(chunk.file,dest);
@@ -181,7 +182,8 @@ export async function encodeIncrementalHardCuts({out,id,work,sourcePaths,inputs,
     '-c:v','copy','-c:a','aac','-ar','48000','-ac','2','-b:a','192k',
     '-movflags','+faststart',output);
   const muxStart=performance.now();
-  await ffmpegRun(args,{signal,timeout:240000});
+  const muxBenchmark=await ffmpegRun(args,{signal,timeout:240000,benchmark:benchmarkFfmpeg});
+  if(muxBenchmark)measurements.push(muxBenchmark);
   const muxMs=Number((performance.now()-muxStart).toFixed(2));
   signal?.throwIfAborted();
   const report=inspectMp4(output,{fps,height,duration:target,audio_required:true});
@@ -199,7 +201,15 @@ export async function encodeIncrementalHardCuts({out,id,work,sourcePaths,inputs,
   // used for this release while pruning other projects' expired artifacts.
   const cache=pruneSegmentCache({out,protect:protectedSegments});
   const elapsedMs=Number((performance.now()-started).toFixed(2));
-  return {strategy:'incremental-hardcut-v1',cache_cleanup:cache,segments_reused:reused,
+  const ffmpeg_benchmark=measurements.length?{
+    scope:'FFMPEG_CHILDREN_SUMMED_CPU_MAX_SINGLE_RSS',
+    measured_processes:measurements.length,
+    cpu_user_ms:Number(measurements.reduce((n,v)=>n+v.cpu_user_ms,0).toFixed(2)),
+    cpu_system_ms:Number(measurements.reduce((n,v)=>n+v.cpu_system_ms,0).toFixed(2)),
+    peak_single_process_rss_kib:Math.max(...measurements.map(v=>v.max_rss_kib||0))
+  }:null;
+  return {strategy:'incremental-hardcut-v1',cache_cleanup:cache,
+    ...(ffmpeg_benchmark?{ffmpeg_benchmark}:{}),segments_reused:reused,
     segments_encoded:encoded,normalize_ms:normalizeMs,mux_ms:muxMs,
     total_ms:elapsedMs};
 }
