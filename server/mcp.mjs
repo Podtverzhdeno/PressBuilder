@@ -60,8 +60,14 @@ export const TOOLS = [
 export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
+  const assigned=(id,slide,actor)=>{
+    if(actor.role!=='worker')return;
+    const owner=taskStore.read(id,slide).assignee?.trim();
+    if(owner&&owner!==actor.id)throw new UserError('Scene is assigned to a different agent',403);
+  };
   const write=(id,slide,actor,fence,action,fn)=>{
     leases.assertWrite(id,slide,actor,fence);
+    assigned(id,slide,actor);
     const result=fn();
     leases.logWrite(id,slide,actor,result?.revision??null,action);
     return result;
@@ -111,7 +117,7 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
       case 'get_style_contract': return styles.read(args.id);
       case 'set_style_contract': directorOnly(actor);return styles.put(args.id,args.contract,args.expected_revision);
       case 'get_scene_lease': scoped(args.id,args.slide_id,actor);return leases.read(args.id,args.slide_id);
-      case 'claim_scene': return leases.claim(args.id,args.slide_id,actor,args.ttl??300);
+      case 'claim_scene': assigned(args.id,args.slide_id,actor);return leases.claim(args.id,args.slide_id,actor,args.ttl??300);
       case 'renew_scene_lease': return leases.renew(args.id,args.slide_id,actor,args.fence_token,args.ttl??300);
       case 'release_scene': return leases.release(args.id,args.slide_id,actor,args.fence_token);
       case 'assemble_video': directorOnly(actor);return assembly.start(args.id,args.scene_ids);
