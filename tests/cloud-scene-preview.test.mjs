@@ -41,6 +41,7 @@ test('P12 quick draft PNG: source-pinned cache, tamper detection and no P08 appr
     assert.equal(f.renders(),1);
     assert.ok(f.preview.frame('demo','s01',0).endsWith('f0.png'));
     fs.appendFileSync(f.preview.frame('demo','s01',1),'corruption');
+    assert.equal(f.preview.get('demo','s01').status,'failed','Status must not advertise a broken draft');
     const miss=f.preview.start('demo','s01');
     assert.notEqual(miss.cache_hit,true);
     await until(()=>f.renders()===2&&f.preview.get('demo','s01').status==='completed');
