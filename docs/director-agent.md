@@ -81,6 +81,28 @@ Example HTTP replan after inspecting the current plan and task revisions:
 
 Every scene has six uncompleted checkpoints: storyboard, assets, animation, render, technical QA, human review. A dependency may refer only to an earlier scene, so the dependency graph is acyclic. Other scenes are independently assignable. Progress is derived from actual tasks and is not an execution log. `progress.ready_to_start` and each scene's `waiting_on`/`ready_to_start` make dependencies visible; **advisory only**, they do not spawn workers or replace P06 leases.
 
+## P10 worker dispatch (pull-based MVP)
+
+Following Director approval, **external workers** can pull their authorized scenes through MCP. The server does not start LLM sessions, shell commands, videos or remote agents on their own.
+
+1. The project owner configures unique P06 worker keys via `PB_AGENT_KEYS_JSON`. Each `id` must match its Director-assigned task name case-insensitively (e.g. `agent-01` ↔ `Agent-01`), with the appropriate project and scene scopes.
+2. The worker calls `get_director_work({id})`. A scene is ready only when every declared dependency is marked `done` by human acceptance.
+3. The worker calls `claim_scene({id,slide_id,ttl})` to receive the P06 fencing token, then `claim_director_job({id,slide_id,fence_token,expected_task_revision})`. The job state is saved in `/data/decks/<id>/.director/dispatch/<scene>.json`. Repeating the same live claim is idempotent, including after process restart.
+4. During lengthy tasks, renew the P06 scene lease first, then call `heartbeat_director_job`. A heartbeat cannot extend past that lease's actual expiry.
+5. After creating a real scene MP4, complete the `render` and `technical_qa` checkpoints, each with evidence. Then call `submit_director_job`. The server checks the current render status, QA verdict and actual MP4 file, and moves the scene to **review**, never `done`.
+6. On failure, call `fail_director_job` with a reason: only the assigned scene becomes `blocked`. The director can use the existing authenticated `director/replan/:scene` endpoint to publish revised instructions; this starts a new **scene-specific** dispatch epoch without resetting other scenes.
+
+| Tool | Who may use it | Purpose |
+|---|---|---|
+| `get_director_work` | Director / scoped worker | Get pending, claimed, expired, submitted and blocked jobs |
+| `claim_director_job` | Fenced worker | Claim their ready scene with task revision and actor check |
+| `heartbeat_director_job` | Fenced worker | Persist heartbeat without extending P06 lease |
+| `submit_director_job` | Fenced worker | Require passed render and QA, then request human review |
+| `fail_director_job` | Fenced worker | Persist a failure reason and block only its scene |
+| `GET /api/decks/:id/director/work` | Authenticated editor | View complete dispatch board |
+
+Safety and limits: three claim attempts per scene/replan epoch; no monetary cost metering yet. A worker cannot modify another scene, a stale fencing token cannot advance a job, and a failed render cannot be promoted to review. The append-only local event log lives in `.director/dispatch-events.jsonl`. File atomic replacement is only safe for a **single process**; distributed workers sharing a volume require transactional storage, fencing at the storage layer and an explicit multi-instance design. This is a *durable pull coordinator*, not an autonomous AI-agent launcher or distributed task queue.
+
 ## Final delivery / human sign-off
 
 The P05 assembler runs separately: after six individual scenes are marked done, actually rendered, and passed technical QA, the director requests assemble_video with all six scene IDs. Wait for get_assembly_status to return completed. This does **not** automatically sign off the video.
@@ -102,10 +124,10 @@ to POST /api/decks/:id/director/signoff with web-editor credentials. Sign-off re
 - No external LLM calls, creative evaluation, or actual autonomous agent process spawning.
 - Director does not invent or overwrite a P04 style contract; style enforcement follows the currently configured P04 enforce flag.
 - No reliable worker leasing or authentication per agent (P06 pending).
-- No **automatic** agent retry, worker scheduler, cost/time budgets or event-sourced orchestration (P10.3/P10.4); only bounded, manual scene-specific replanning is implemented.
+- No automatic spawning of external agents, distributed worker scheduler or monetary cost metering (P10.3/P10.4). A local persistent pull/claim/heartbeat/submission coordination layer is implemented; manual replan still governs failures.
 - No automatic progression from QA to human review and final release: P05 assembly and P10 final sign-off are explicit, separately invoked operations. P05 only supports hard cuts.
 - No full six-real-render failure-injection E2E (P10.6). Planning/replan integration and release-manifest boundary tests pass independently; the sign-off unit fixture uses synthetic bytes and does **not** assert actual MP4 codec correctness. Real MP4 validation is P05's responsibility.
 
 ## Verification
 
-Run npm run test:cloud and npm run build. The test cloud-director.test.mjs covers a six-scene draft, human-only approval, scene task isolation, changes to deck/README, stale plan and task revisions, and the absence of an automatic release.
+Run npm run test:cloud and npm run build. In addition to the planning/sign-off checks, cloud-director-dispatch.test.mjs tests retry budgets, P06 fencing, restart replay and QA→review; cloud-director-dispatch-http.test.mjs verifies real MCP worker scopes, project dependency gates, HTTP approval and manual replan across an HTTP server restart.
