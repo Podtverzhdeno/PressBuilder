@@ -19,6 +19,8 @@ import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 import { inspectMp4, mergeVisualQA } from './video-qa.mjs';
 import { makeRenderQueue } from './render-queue.mjs';
+import {createResourceGovernor} from './resource-governor.mjs';
+import {findReusableScene} from './scene-reuse.mjs';
 import {styleContractStore,enforceScene3D,enforceVisuals} from './style-contract.mjs';
 import {styleById} from '../src/engine/styles.ts';
 import {assemblyPlanStore} from './assembly-plan.mjs';
@@ -490,10 +492,13 @@ function sourceFingerprint(id,slideId){
   }
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
+const resources=createResourceGovernor({capacity:1,maxWaiting:64});
 const renderJobs=makeRenderQueue({
   root:path.join(DATA,'render-jobs'),outputDir:OUT,
   resolveDeck:getDeck,baseUrl,
   fingerprint:sourceFingerprint,
+  acquireResource:options=>resources.acquire(options),
+  reuseScene:args=>findReusableScene({...args,versions,reviews,baseUrl}),
   render:args=>renderWithChrome({...args,port:PORT,username:WEB_USER,password:WEB_PASS,timeoutMs:900000}),
   outputNameForJob:(id,scene,jobId)=>scene
     ? id+'_'+scene+'_v'+versions.versionId(jobId)
@@ -506,7 +511,8 @@ const renderJobs=makeRenderQueue({
     const evidence=captureFrameEvidence({file,out:OUT,id:job.id,scene,
       version:versions.versionId(job.job_id),duration:rendered.duration,fps:rendered.fps});
     const record=versions.capture({id:job.id,scene,jobId:job.job_id,file,rendered,qa,
-      expectedSource:snapshot,frameEvidence:evidence});
+      expectedSource:snapshot,renderFingerprint:job.source_fingerprint,
+      frameEvidence:evidence});
     try{versions.publishPreview(job.id,scene,record)}
     catch(e){console.warn('Draft preview update failed:',String(e))}
     return {version_id:record.version_id};
@@ -529,7 +535,9 @@ const getRender=(id,slideId=null)=>renderJobs.get(id,slideId);
 const startRender=(id,slideId=null)=>renderJobs.enqueue(id,slideId);
 const cancelRender=(id,slideId,jobId)=>renderJobs.cancel(id,slideId,jobId);
 const retryRender=(id,slideId,jobId)=>renderJobs.retry(id,slideId,jobId);
-const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),
+const assembly=assemblyService({out:OUT,getDeck,getRender,
+  acquireResource:options=>resources.acquire(options),
+  getTask:(id,scene)=>sceneTasks.read(id,scene),
   getApproved:(id,scene)=>versions.approved(id,scene),
   reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl,
   getPlan:id=>assemblyPlans.read(id),getStyle:id=>styles.read(id)});

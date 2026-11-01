@@ -39,6 +39,7 @@ export function makeRenderQueue({
   root,outputDir,resolveDeck,render,inspect,baseUrl,
   fingerprint=()=>null,concurrency=1,maxPending=50,maxRestarts=2,jobTimeoutMs=3600000,
   outputNameForJob=null,publishScene=null,recoverCompleted=null,
+  reuseScene=null,acquireResource=async()=>()=>{},
   logger=console,autoStart=false
 }){
   if(!Number.isSafeInteger(concurrency)||concurrency!==1)
@@ -154,13 +155,32 @@ export function makeRenderQueue({
     validate(id,slide_id);
     return clone(latest.get(key(id,slide_id))||{id,...(slide_id?{slide_id}:{}),status:'not_started'});
   }
-  function enqueue(id,slide_id=null,{expected_job_id=null}={}){
+  function enqueue(id,slide_id=null,{expected_job_id=null,force=false}={}){
+    if(typeof force!=='boolean')throw err('Invalid force flag');
     validate(id,slide_id);
     const k=key(id,slide_id);
     const old=latest.get(k);
     if(expected_job_id!==null&&old?.job_id!==expected_job_id)throw err('Job changed; refresh and retry',409);
     if(old&&active.has(old.status))return clone(old);
     if(pending.length>=maxPending)throw err('Render queue is full',429);
+    const source_fingerprint=fingerprint(id,slide_id);
+    if(slide_id&&reuseScene&&!force){
+      const cached=reuseScene({id,slide_id,source_fingerprint});
+      if(cached){
+        if(!idRE.test(cached.job_id||'')||typeof cached.output_name!=='string'||
+           !/^[a-z0-9][a-z0-9_-]{0,125}$/.test(cached.output_name)||
+           cached.qa_report?.verdict!=='PASS'||!cached.version_id||!cached.result?.file)
+          throw err('Invalid reusable scene artifact',500);
+        const j={id,slide_id,job_id:cached.job_id,output_name:cached.output_name,
+          status:'completed',progress:100,cache_hit:true,
+          request_id:randomBytes(12).toString('hex'),
+          queuedAt:stamp(),finishedAt:stamp(),restartAttempts:0,
+          source_fingerprint,version_id:cached.version_id,
+          qa_report:cached.qa_report,result:cached.result};
+        save(j);latest.set(k,j);
+        return clone(j);
+      }
+    }
     const token=randomBytes(6).toString('hex');
     const job_id=token; // ≤40 characters; never uses user-supplied filenames
     const output_name=outputNameForJob?.(id,slide_id,job_id)??
@@ -168,7 +188,7 @@ export function makeRenderQueue({
     if(typeof output_name!=='string'||!/^[a-z0-9][a-z0-9_-]{0,125}$/.test(output_name))
       throw err('Invalid output name');
     const j={id,...(slide_id?{slide_id}:{}),job_id,output_name,status:'queued',
-      queuedAt:stamp(),progress:0,restartAttempts:0,source_fingerprint:fingerprint(id,slide_id)};
+      queuedAt:stamp(),progress:0,restartAttempts:0,cache_hit:false,source_fingerprint};
     save(j);latest.set(k,j);pending.push(j);
     void pump();return clone(j);
   }
@@ -197,7 +217,12 @@ export function makeRenderQueue({
       deadline.unref?.();
       running={job:j,abort};
       j.status='running';j.startedAt=stamp();j.progress=0;save(j);
+      let releaseResource=null;
       try{
+        const waitStart=Date.now();
+        releaseResource=await acquireResource({kind:'render',id:j.id,scene:j.slide_id??null,signal:abort.signal});
+        j.resource_wait_ms=Date.now()-waitStart;
+        abort.signal.throwIfAborted();
         if(j.source_fingerprint!==fingerprint(j.id,j.slide_id))
           throw Error('Source changed since job was queued; request a new render');
         const rendered=await render({id:j.id,slideId:j.slide_id||null,outputName:j.output_name,signal:abort.signal,
@@ -244,7 +269,7 @@ export function makeRenderQueue({
         // even if preview publication fails; removing it corrupts the catalog.
         if(!j.version_id)try{fs.rmSync(path.join(outputDir,j.output_name+'.mp4'),{force:true})}catch{}
       }finally{
-        clearTimeout(deadline);
+        try{releaseResource?.()}finally{clearTimeout(deadline)}
         j.finishedAt=stamp();save(j);running=null;
       }
     }
@@ -252,7 +277,7 @@ export function makeRenderQueue({
   return {
     start(){enabled=true;void pump()},
     get:info,enqueue,cancel,
-    retry(id,slide_id,job_id){return enqueue(id,slide_id,{expected_job_id:job_id})},
+    retry(id,slide_id,job_id){return enqueue(id,slide_id,{expected_job_id:job_id,force:true})},
     snapshot(){return {queued:pending.filter(j=>j.status==='queued').length,
       running:running?.job.job_id||null}},
   };

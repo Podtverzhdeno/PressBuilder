@@ -57,10 +57,14 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreS
     if(!fs.existsSync(f))return {project:id,scene_id:scene,revision:0,version_id:null,updated_at:null};
     return JSON.parse(fs.readFileSync(f,'utf8'));
   }
-  function capture({id,scene,jobId,file,rendered,qa,expectedSource,frameEvidence=null}){
+  function capture({id,scene,jobId,file,rendered,qa,expectedSource,
+    renderFingerprint=null,frameEvidence=null}){
     const {dir}=locate(id,scene);
     if(qa?.verdict!=='PASS')bad('Failed QA cannot be versioned',422);
     if(typeof jobId!=='string'||jobId.length>220)bad('Invalid render job');
+    if(renderFingerprint!==null&&
+       (typeof renderFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(renderFingerprint)))
+      bad('Invalid render fingerprint');
     if(source(id,scene).fingerprint!==expectedSource?.fingerprint)bad('Scene changed during render',409);
     if(list(id,scene).length>=50)bad('Scene version quota reached (50); explicit archival/GC required',413);
     const version=versionId(jobId);
@@ -86,7 +90,9 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreS
     const item={version_id:version,project:id,scene_id:scene,job_id:jobId,created_at:now(),
       file:'out/'+targetName,sha256:hash,size:fs.statSync(target).size,
       duration:rendered.duration,fps:rendered.fps,height:rendered.height,
-      source:sourceSummary,qa,...(frameEvidence?{frame_evidence:frameEvidence}:{})};
+      source:sourceSummary,qa,
+      ...(renderFingerprint?{render_fingerprint:renderFingerprint}:{}),
+      ...(frameEvidence?{frame_evidence:frameEvidence}:{})};
     const f=path.join(dir,version+'.json');
     if(fs.existsSync(f))bad('Render version already exists',409);
     const sourceFile=path.join(dir,version+'.source.json');

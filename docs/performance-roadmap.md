@@ -25,15 +25,15 @@
 |---|---|---|---|---|
 | **1, реализуется в PR #19** | Проверенный cache-hit сборки | Повторный экспорт без FFmpeg; тот же MP4 | Низкая / устаревший источник | Cold-vs-warm, SHA, P07/P08/P10, no FFmpeg |
 | **2, реализуется в PR #19** | Stage timing + cache telemetry | Находит фактические узкие места | Низкая / искажения под нагрузкой | stage ms в API/journal, p50/p95 в будущей телеметрии |
-| 3 | Единый CPU/RAM resource governor для Chromium и FFmpeg | Предотвращает конкурирующие тяжёлые запуски и OOM | Средняя / очереди и отмена | параллельный render+montage не превышает выделенный budget |
+| **3, реализовано в PR #20** | Единый CPU/RAM resource governor для Chromium и FFmpeg | Предотвращает конкурирующие тяжёлые запуски и OOM | Средняя / очереди и отмена | параллельный render+montage не превышает выделенный budget |
 | 4 | Инкрементальный кэш crossfade-runs | При изменении одной сцены пересобирает только затронутый сегмент | Высокая / A/V синхронность, границы | same audio/video durations, no discontinuity, меньше перекодированных кадров |
-| 5 | Source-aware reuse рендера отдельной сцены | Пропускает CDP/Chromium при точном совпадении source fingerprint | Средняя / QA, P08 approval | unchanged source reuses verified version; policy drift causes miss |
+| **5, реализовано в PR #20** | Source-aware reuse рендера отдельной сцены | Пропускает CDP/Chromium при точном совпадении source fingerprint | Средняя / QA, P08 approval | unchanged source reuses verified version; policy drift causes miss |
 | 6 | Протокол слоёв QA с golden frames + diff viewer | Удобнее находить отличия версий и ошибки текста/3D | Средняя / ложные срабатывания | 3+ реальные кадра и сопоставимый визуальный diff |
 | 7 | Browser→encoder profiling и альтернативная raw-frame pipe | Снижает CPU/latency на большом FPS/4K | Высокая / memory, transport, цвет | benchmark CPU/heap/time с равным качеством; выбор только после PoC |
 | 8 | Preflight ETA/ресурсный план | Директор знает ожидаемый размер и длительность рендера до запуска | Средняя / прогнозы | калиброванная ошибка прогноза и верхняя граница затрат |
 | 9 | Preview render 360p/720p + final 1080p | Быстрая итерация художественных сцен | Средняя / несовпадение QA | отдельные профили, запрет approval draft за final |
 | 10 | Postgres + object storage + lease/fencing | Реальная очередь для нескольких workers и горизонтальный scale | Очень высокая / migration и race | E2E kill/network-partition, единственный publish, ACID CAS |
 
-**Следующая инженерная ставка после PR #19:** ресурсный governor (#3) и scene-level render reuse (#5). Они уменьшают расходы без изменения графики ролика. Оптимизацию frame transport (#7) следует выбирать *только* после измерений.
+**Реализовано после PR #19:** resource governor (#3) и scene-level render reuse (#5) в PR #20. Проверки используют FIFO очередь, сброс отменённых запросов, полный отпечаток P02/P08 и версионный QA. Это не distributed semaphore и не доказательство снижения CPU в production. Следующие кандидаты: golden frame visual diff (#6) и preview профили (#9); raw-frame transport (#7) только после профилирования.
 
 Не включено в план без отдельного PoC: lossless concat copy как универсальное решение (недопустимы разные codecs, timebase или audio), неподтверждённое ускорение в процентах, увеличение реплик с локальным `flock`.
