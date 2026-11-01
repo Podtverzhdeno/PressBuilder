@@ -31,7 +31,7 @@
 | 6 | Протокол слоёв QA с golden frames + diff viewer (P11: API диффа готов, UI редактора ещё нет) | Удобнее находить отличия версий и ошибки текста/3D | Средняя / ложные срабатывания | 3+ реальные кадра и сопоставимый визуальный diff |
 | 7 | Browser→encoder profiling и альтернативная raw-frame pipe | Снижает CPU/latency на большом FPS/4K | Высокая / memory, transport, цвет | benchmark CPU/heap/time с равным качеством; выбор только после PoC |
 | 8 | Preflight ETA/ресурсный план | Директор знает ожидаемый размер и длительность рендера до запуска | Средняя / прогнозы | калиброванная ошибка прогноза и верхняя граница затрат |
-| 9 | Preview render 360p/720p + final 1080p | Быстрая итерация художественных сцен | Средняя / несовпадение QA | отдельные профили, запрет approval draft за final |
+| 9 | Preview 3 кадров Chromium без MP4 (P12 реализовано; видео-профили 360p/720p ещё нет) | Быстрая итерация художественных сцен | Средняя / несовпадение QA | отдельные профили, запрет approval draft за final |
 | 10 | Postgres + object storage + lease/fencing | Реальная очередь для нескольких workers и горизонтальный scale | Очень высокая / migration и race | E2E kill/network-partition, единственный publish, ACID CAS |
 
 **Реализовано после PR #19:** resource governor (#3) и scene-level render reuse (#5) в PR #20. Проверки используют FIFO очередь, сброс отменённых запросов, полный отпечаток P02/P08 и версионный QA. Это не distributed semaphore и не доказательство снижения CPU в production. Следующие кандидаты: golden frame visual diff (#6) и preview профили (#9); raw-frame transport (#7) только после профилирования.
