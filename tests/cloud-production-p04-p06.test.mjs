@@ -154,7 +154,14 @@ test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale 
     assert.equal(denyRender.isError,true,'Rendering needs current fenced lease');
     const denyReviewerRender=await rpc(agent2,'render_scene',{id:'scene-demo',slide_id:'s01'});
     assert.equal(denyReviewerRender.isError,true,'Other agent cannot render foreign scene');
-    const task=await rpc(agent1,'set_scene_task',{id:'scene-demo',slide_id:'s01',fence_token:fence,expected_revision:0,title:'Owned scene'});
+    const rejectBrief=await rpc(agent1,'set_scene_task',{id:'scene-demo',slide_id:'s01',
+      fence_token:fence,expected_revision:0,brief:'Relaxed approval conditions'});
+    assert.equal(rejectBrief.isError,true,'Worker cannot rewrite the director brief');
+    const rejectChecklist=await rpc(agent1,'set_scene_task',{id:'scene-demo',slide_id:'s01',
+      fence_token:fence,expected_revision:0,checkpoints:[]});
+    assert.equal(rejectChecklist.isError,true,'Worker cannot delete the acceptance checklist');
+    const task=await rpc(agent1,'set_scene_task',{id:'scene-demo',slide_id:'s01',
+      fence_token:fence,expected_revision:0,status:'in_progress'});
     assert.equal(task.isError,false,JSON.stringify(task));
     const otherWrite=await rpc(agent2,'set_scene_task',{id:'scene-demo',slide_id:'s01',fence_token:fence,expected_revision:1,title:'Hijack'});
     assert.equal(otherWrite.isError,true);
