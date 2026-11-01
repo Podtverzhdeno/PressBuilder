@@ -26,7 +26,7 @@ export function scene3dDefinition(scene_id:string,spec:Scene3DSpec):SceneDef{
   return {
     id:scene_id,
     energy(t){
-      return clamp01(.15+spec.objects.reduce((s,o)=>s+(t>o.start?.12:0),0));
+      return clamp01(.15+spec.objects.reduce((sum,o)=>sum+(t>o.start?0.12:0),0));
     },
     render(frame){
       const {ctx,t}=frame;
