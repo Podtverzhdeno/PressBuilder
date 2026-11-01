@@ -31,6 +31,7 @@ test('P17 real FFmpeg boundary frames: proof, CAS, no unauthenticated media path
   assert.equal(c.left.frames,24);assert.equal(c.right.frames,24);
   assert.equal(c.left.entry.frame,0);assert.equal(c.left.exit.frame,23);
   assert.match(c.left.entry.image_sha256,/^[a-f0-9]{64}$/);
+  assert.equal(createHash('sha256').update(Buffer.from(c.left.entry.jpeg_base64,'base64')).digest('hex'),c.left.entry.image_sha256);
   assert.equal(c.left.mp4_sha256,hash(files[0]));
   const input={left_scene_id:'s01',right_scene_id:'s02',
     expected_pair_sha256:c.source_pair_sha256,transition:'hard_cut'};
