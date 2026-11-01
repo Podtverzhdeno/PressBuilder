@@ -19,6 +19,7 @@ export interface SceneReviewItem {
   text:string;severity:'low'|'medium'|'high'|'blocking';
   status:'OPEN'|'FIXED'|'VERIFIED'|'REOPENED';created_at:string;created_by:string;
   history:{status:string;at:string;actor:string;note?:string}[];
+  has_frame_evidence?:boolean;frame_evidence?:string|null;
 }
 export interface SceneReviewRecord {project:string;scene_id:string;revision:number;items:SceneReviewItem[]}
 
@@ -65,7 +66,9 @@ export const api = {
     call<SceneVersionList>(`/api/decks/${id}/versions/${scene}`),
   getSceneReviews: (id:string,scene:string) =>
     call<SceneReviewRecord>(`/api/decks/${id}/reviews/${scene}`),
-  addSceneReview: (id:string,scene:string,item:Pick<SceneReviewItem,'version_id'|'t'|'text'|'severity'|'rect'>,expected_revision:number) =>
+  getSceneReviewItem: (id:string,scene:string,itemId:string) =>
+    call<SceneReviewItem>(`/api/decks/${id}/reviews/${scene}/${itemId}`),
+  addSceneReview: (id:string,scene:string,item:Pick<SceneReviewItem,'version_id'|'t'|'text'|'severity'|'rect'> & {frame_evidence?:string|null},expected_revision:number) =>
     call<{revision:number;item:SceneReviewItem}>(`/api/decks/${id}/reviews/${scene}`,{
       method:'POST',...body({item,expected_revision}),
     }),
