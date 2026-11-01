@@ -6,7 +6,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const now=()=>Math.floor(Date.now()/1000);
 const random=()=>randomBytes(32).toString('base64url');
@@ -60,7 +60,35 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
   fs.mkdirSync(consentDir,{recursive:true,mode:0o700});
   const consentPath=nonce=>path.join(consentDir,nonce+'.json');
   const validNonce=nonce=>typeof nonce==='string' && /^[A-Za-z0-9_-]{43,64}$/.test(nonce);
+  // A browser can submit the same approval form twice. Preserve a brief,
+  // authenticated idempotency result, but NOT a reusable OAuth grant.
+  const receiptDir=path.join(dataDir,'oauth-consent-receipts');
+  fs.mkdirSync(receiptDir,{recursive:true,mode:0o700});
+  const receiptPath=nonce=>path.join(receiptDir,digest(nonce)+'.json');
+  const codeFor=nonce=>createHmac('sha256',clientSecret).update('PressBuilder OAuth code v1:').update(nonce).digest('base64url');
+  function readReceipt(nonce){
+    try{
+      const r=JSON.parse(fs.readFileSync(receiptPath(nonce),'utf8'));
+      if(r.exp>now() && secure(r.id,clientId) && allowedRedirects.has(r.red))return r;
+    }catch{}
+    return null;
+  }
+  async function replayReceipt(nonce){
+    // A simultaneous second POST may arrive while the first is being saved.
+    for(let i=0;i<12;i++){
+      const r=readReceipt(nonce);
+      if(r)return r;
+      if(i<11)await new Promise(resolve=>setTimeout(resolve,35));
+    }
+    return null;
+  }
   function cleanConsents(){
+    for(const name of fs.readdirSync(receiptDir)){
+      if(!/^[A-Za-z0-9_-]{43}\.json$/.test(name))continue;
+      const file=path.join(receiptDir,name);
+      try{if(JSON.parse(fs.readFileSync(file,'utf8')).exp<=now())fs.rmSync(file,{force:true})}
+      catch{fs.rmSync(file,{force:true})}
+    }
     for(const name of fs.readdirSync(consentDir)){
       if(!/^[A-Za-z0-9_-]{43,64}\.json$/.test(name))continue;
       const file=path.join(consentDir,name);
@@ -155,22 +183,51 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
     let form;try{form=await formBody(req)}catch(e){return fail(res,400,'invalid_request',e.message)}
     const nonce=form.get('csrf')||'';
     if(!validNonce(nonce))return fail(res,400,'invalid_request','Consent expired or already used');
+    const receipt=readReceipt(nonce);
+    if(receipt){
+      // Return the very same callback, not a new authorization code.
+      // The OAuth token endpoint still consumes that code only once.
+      console.info('[oauth] duplicate consent form -> idempotent callback');
+      return redirect(res,toCallback(receipt,receipt.decision==='approve'
+        ? {code:codeFor(nonce),state:receipt.state}
+        : {error:'access_denied',state:receipt.state}));
+    }
     const file=consentPath(nonce);
     let a;
-    try{a=JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fail(res,400,'invalid_request','Consent expired or already used')}
+    try{a=JSON.parse(fs.readFileSync(file,'utf8'))}catch{
+      const done=await replayReceipt(nonce);
+      if(done)return redirect(res,toCallback(done,done.decision==='approve'
+        ? {code:codeFor(nonce),state:done.state}
+        : {error:'access_denied',state:done.state}));
+      console.info('[oauth] consent missing, expired or already completed');
+      return fail(res,400,'invalid_request','Consent expired or already used');
+    }
     if(!a||a.exp<=now()||!secure(a.id,clientId)||!allowedRedirects.has(a.red)){
       fs.rmSync(file,{force:true});
       return fail(res,400,'invalid_request','Consent expired or already used');
     }
-    // Atomic, single-use claim: only one Railway process can rename this file.
+    // Claim only once across multiple Railway processes.
     const claimed=path.join(consentDir,nonce+'.used');
-    try{fs.renameSync(file,claimed)}catch{return fail(res,400,'invalid_request','Consent expired or already used')}
-    fs.rmSync(claimed,{force:true});
-    if(form.get('decision')!=='approve')return redirect(res,toCallback(a,{error:'access_denied',state:a.state}));
-    const code=random();
-    records.codes[digest(code)]={client:clientId,red:a.red,cc:a.cc,scope:a.scope,aud:a.aud,exp:now()+300};
-    save();
-    redirect(res,toCallback(a,{code,state:a.state}));
+    try{fs.renameSync(file,claimed)}catch{
+      const done=await replayReceipt(nonce);
+      if(done)return redirect(res,toCallback(done,done.decision==='approve'
+        ? {code:codeFor(nonce),state:done.state}
+        : {error:'access_denied',state:done.state}));
+      return fail(res,400,'invalid_request','Consent expired or already used');
+    }
+    try{
+      const decision=form.get('decision')==='approve'?'approve':'deny';
+      if(decision==='approve'){
+        const code=codeFor(nonce);
+        records.codes[digest(code)]={client:clientId,red:a.red,cc:a.cc,scope:a.scope,aud:a.aud,exp:now()+300};
+        save();
+      }
+      fs.writeFileSync(receiptPath(nonce),JSON.stringify({...a,decision,exp:now()+90}),{mode:0o600,flag:'wx'});
+      console.info('[oauth] consent completed; temporary replay protection active');
+      return redirect(res,toCallback(a,decision==='approve'
+        ? {code:codeFor(nonce),state:a.state}
+        : {error:'access_denied',state:a.state}));
+    }finally{fs.rmSync(claimed,{force:true})}
   }
   function mint(a,includeRefresh=true){
     const token=random(),r={client:clientId,scope:a.scope,aud:a.aud,exp:now()+3600};
@@ -188,9 +245,11 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
     if(!clientAuth(req,form))return fail(res,401,'invalid_client','Client authentication failed',{'WWW-Authenticate':'Basic realm="PressBuilder OAuth token"'});
     const grant=form.get('grant_type');
     if(grant==='authorization_code'){
-      const code=form.get('code')||'',verifier=form.get('code_verifier')||'',red=form.get('redirect_uri')||'',aud=form.get('resource')||'';
+      const code=form.get('code')||'',verifier=form.get('code_verifier')||'',red=form.get('redirect_uri')||'',requestedAud=form.get('resource');
       const hash=digest(code),a=records.codes[hash];
-      if(!a||a.exp<=now()||!secure(a.red,red)||!allowedResources.has(aud)||a.aud!==aud||!(/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)))return fail(res,400,'invalid_grant','Invalid or expired code, redirect URI, PKCE verifier or resource');
+      // Per RFC 8707, the token request may omit resource; it then uses the
+      // audience bound to the original authorization code.
+      if(!a||a.exp<=now()||!secure(a.red,red)||(requestedAud!==null && (requestedAud!==a.aud||!allowedResources.has(requestedAud)))||!(/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)))return fail(res,400,'invalid_grant','Invalid or expired code, redirect URI, PKCE verifier or resource');
       delete records.codes[hash];save(); // consume once, even on failed PKCE
       if(!secure(digest(verifier),a.cc))return fail(res,400,'invalid_grant','PKCE challenge mismatch');
       return json(res,200,mint(a));
