@@ -76,6 +76,31 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
     }catch(e){setError(e instanceof Error?e.message:String(e))}
     finally{setBusy(false)}
   }
+  function insertMeasuredPauses(){
+    if(!silence||!ctx)return;
+    setError('');
+    try{
+      if(silence.audio_source_sha256!==ctx.voice_source_sha256||
+         silence.timebase_revision!==ctx.timebase_revision)
+        throw new Error('Источники изменились: повторно измерьте паузы.');
+      if(silence.cue_mapping_verified===false)
+        throw new Error('Неизвестен сдвиг аудио относительно таймлайна: вставка запрещена.');
+      const current=JSON.parse(draft) as Record<string,unknown>;
+      if(!current||typeof current!=='object'||Array.isArray(current)||
+         !Array.isArray(current.pauses)||current.pauses.length>0)
+        throw new Error('Существующие ручные паузы не перезаписываются. Сохраните или очистите их самостоятельно.');
+      const pauses=silence.silences.filter(p=>p.scene_id&&p.cue_id)
+        .map(p=>({scene_id:p.scene_id,cue_id:p.cue_id,
+          start_us:p.start_us,end_us:p.end_us}));
+      if(!pauses.length)throw new Error('Нет пауз, однозначно относящихся к одной реплике.');
+      if(pauses.length>500)throw new Error('Превышен лимит 500 интервалов.');
+      if(!confirm('Подставить '+pauses.length+
+          ' измеренных пауз в черновую разметку? Временные метки слов по-прежнему не проверены.'))
+        return;
+      setDraft(JSON.stringify({...current,pauses},null,2));
+      setModified(true);setResult(null);
+    }catch(e){setError(e instanceof Error?e.message:String(e))}
+  }
   async function saveDraft(){
     if(busy||!saved||result?.status!=='READY_FOR_REVIEW'||!result.plan_sha256)return;
     if(note.trim().length<10){setError('Укажите пояснение к черновику (не менее 10 символов)');return}
@@ -135,6 +160,11 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
           </div>
           {silence&&<div role="status" class="task-readme-help">
             <b>Измерено: {silence.silences.length} интервалов тишины.</b>
+            <button type="button" class="btn" onClick={insertMeasuredPauses}
+              disabled={!silence.cue_mapping_verified||
+                !silence.silences.some(p=>p.scene_id&&p.cue_id)}>
+              Подставить измеренные паузы в JSON
+            </button>
             <p>Только время относительно начала аудиофайла, не распознанные слова.
               Автоматически в монтажный план ничего не добавляется.</p>
             {silence.silences.slice(0,30).map((p,i)=><div key={i}>
