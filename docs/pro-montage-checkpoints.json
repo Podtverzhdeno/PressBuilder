@@ -127,16 +127,16 @@
       "proposed_test_file": "tests/cloud-rhythm.test.mjs",
       "evidence": [
         {
-          "kind": "cloud_ci_test",
-          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41340395952",
-          "commit_sha": "91faef4e5375c3e730566540b428a1dc23ba19ec",
-          "command": "npm run build && npm run test:cloud",
+          "kind": "cloud_and_docker_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41340562286",
+          "commit_sha": "35fd4c0c84264167a5cc8322376f8db04e868bda",
+          "command": "npm run build && npm run test:cloud; Docker render-smoke job",
           "exit_code": 0,
           "tests_total": 117,
           "tests_passed": 103,
           "tests_skipped": 14,
           "artifact_path": "server/rhythm-preview.mjs",
-          "note": "Read-only source-pinned preview, director-only MCP/REST, local Vite route, Studio UI; actual cloud HTTP/MCP wire test passed. Docker real-render smoke pending at initial evidence entry; no P15 production render/approval."
+          "note": "GitHub cloud and Docker render-smoke PASS on exact implementation SHA. Real cloud REST/MCP wire tests included. Docker smoke regresses P01-P14; does not attest actual P15 aligned voice or creative edit quality. No reviewer acceptance, no production enable."
         }
       ],
       "reviewer": null,
@@ -145,7 +145,7 @@
       "blocked_reason": "Read-only REST/MCP + Studio preview implemented and cloud-tested. Missing trusted word/music license attestation, persistent revision-CAS, separate reviewer signature, and approved workflow; no C03 acceptance.",
       "accepted_release": null,
       "release_eligible": false,
-      "source_commit_sha": "91faef4e5375c3e730566540b428a1dc23ba19ec"
+      "source_commit_sha": "35fd4c0c84264167a5cc8322376f8db04e868bda"
     },
     {
       "id": "P15-C04",
