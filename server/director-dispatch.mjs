@@ -70,6 +70,8 @@ export function directorDispatchStore({
       fail('Expired, missing or foreign fenced scene lease',409);
     return lease;
   }
+  const epoch=(plan,scene)=>({plan_id:plan.plan_id,replans:(plan.replan_history||[]).filter(x=>x.scene_id===scene).length});
+  const sameEpoch=(rec,plan,scene)=>Boolean(rec&&rec.plan_id===plan.plan_id&&rec.replans===epoch(plan,scene).replans);
   function snapshot(id,actor){
     if(!allowedRole(actor))fail('Director or worker role required',403);
     const plan=director.read(id);
@@ -83,7 +85,7 @@ export function directorDispatchStore({
       const task=byId.get(s.scene_id);
       const last=record(id,s.scene_id);
       const wait=s.depends_on.filter(dep=>byId.get(dep)?.status!=='done');
-      const sameRevision=last?.plan_revision===plan.revision;
+      const sameRevision=sameEpoch(last,plan,s.scene_id);
       const currentlyClaimed=Boolean(sameRevision&&last?.state==='claimed'&&last.expires_at>now());
       const exhausted=Boolean(sameRevision&&last?.attempt>=maxClaims);
       const candidate=Boolean(plan.status==='approved'&&wait.length===0&&
@@ -109,7 +111,7 @@ export function directorDispatchStore({
     if(dep.some(s=>sceneTasks.read(id,s).status!=='done'))
       fail('Scene dependencies are not yet approved',409);
     const previous=record(id,scene);
-    const same=previous?.plan_revision===plan.revision;
+    const same=sameEpoch(previous,plan,scene);
     if(same&&previous?.state==='claimed'&&previous.expires_at>now()){
       if(previous.actor_id===actor.id&&previous.fence_token===fence_token)
         return {idempotent:true,job:previous};
@@ -126,7 +128,7 @@ export function directorDispatchStore({
     if(attempt>maxClaims)fail('Scene dispatch attempt budget exhausted',429);
     // Worker P06 lease expires at most 3600 seconds in the future.
     const job={id,scene_id:scene,job_id:randomUUID(),attempt,state:'claimed',
-      actor_id:actor.id,fence_token,plan_revision:plan.revision,
+      actor_id:actor.id,fence_token,...epoch(plan,scene),
       created_at:ISO(now()),expires_at:lease.expires_at};
     // Persist first: retrying after a crash is idempotent while the lease lives.
     persist(id,scene,job);
@@ -159,7 +161,7 @@ export function directorDispatchStore({
     const lease=activeLease(id,scene,actor,fence_token);
     const r=record(id,scene);
     if(!r||r.state!=='claimed'||r.actor_id!==actor.id||r.job_id!==job_id||
-      r.fence_token!==fence_token||r.plan_revision!==plan.revision||
+      r.fence_token!==fence_token||!sameEpoch(r,plan,scene)||
       r.expires_at<=now()||lease.expires_at<=now())
       fail('Dispatch attempt is no longer active',409);
     if(!Number.isSafeInteger(expected_task_revision)||task.revision!==expected_task_revision)
