@@ -43,7 +43,19 @@ export function sourceManifest({deck,slide,scene3d,styleContract,mediaDir,static
     audioAsset={file:audio.file,...hashRegularFile(file)};
   }
   const browser=browserBundleManifest(staticDir);
-  const snapshot={schema_version:1,slide:structuredClone(slide),project_settings:{
+  const currentIndex=deck.slides.findIndex(s=>s.id===slide.id);
+  if(currentIndex<0)throw new Error('Scene disappeared from timeline');
+  const timeline_context={
+    project_target:deck.target??null,
+    order:deck.slides.map(s=>s.id),
+    // Earlier cues influence the current scene's start time and narration alignment.
+    preceding:deck.slides.slice(0,currentIndex).map(s=>({
+      id:s.id,lead:s.lead??null,tail:s.tail??null,
+      cues:(s.cues||[]).map(c=>({id:c.id,say:c.say,dur:c.dur??null,hold:c.hold??null}))
+    }))
+  };
+  const snapshot={schema_version:1,slide:structuredClone(slide),timeline_context,
+    project_settings:{
     style:deck.style,format:structuredClone(deck.format),audio:structuredClone(audio)},
     scene3d:structuredClone(scene3d),style_contract:structuredClone(styleContract),
     assets:{audio:audioAsset,browser}};
