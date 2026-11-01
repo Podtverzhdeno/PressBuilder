@@ -66,3 +66,8 @@ Do not expose credentials in GitHub issues, repository files, or chat. The publi
 - One private user and one pre-registered confidential OAuth client; not a public multi-tenant identity service. For multi-user use, replace this with an established identity provider and per-user scopes.
 
 **Do not** use an OAuth access token, refresh token or `MCP_API_KEY` as the OAuth client secret. Never paste OAuth secrets into GitHub.
+
+
+## Single-writer production guard
+
+`Dockerfile` and `railway.json` start the service under `flock -F -n -E 75 /data/.pressbuilder-writer.lock`. The lock lives on the same persistent volume as job journals and releases. A second process sharing that volume exits with code 75 rather than writing concurrently. A process crash releases the kernel lock automatically. Local `npm run start:cloud` bypasses this production guard. This does **not** authorize multiple Railway replicas backed by independent disks; external shared storage + distributed fencing are mandatory before scaling beyond one writer.

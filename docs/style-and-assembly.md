@@ -30,3 +30,11 @@ MCP: get_assembly_plan, set_assembly_plan, assemble_video, get_assembly_status, 
 - Docker/Chromium render-smoke — в CI pull request
 
 Недоказанная часть DoD: промышленная нагрузка Railway и художественная проверка 6 сложных сцен. Для полноценной P04/QA проверки текста требуется P03. Для P05 morph-like не стоит выдавать примитивный crossfade за морфинг.
+
+## Crash recovery / writer exclusivity
+
+Для Railway production запускайте контейнер только через `flock -F -n -E 75 /data/.pressbuilder-writer.lock node server/cloud.mjs` (команда в `Dockerfile` и `railway.json`). `flock` использует kernel advisory lock; `-F` передаёт владение блокировкой самому Node-процессу, так что SIGKILL/завершение процесса автоматически освобождает её. Второй процесс на **том же разделе /data** не стартует (код выхода 75). Файл блокировки удалять не требуется. Обход через `node server/cloud.mjs` или `npm run start:cloud` **не обеспечивает взаимного исключения** и допустим только для локальной разработки.
+
+`/data/out/assembly-jobs/<project>.json` содержит состояние последней сборки (queued/running/completed/failed/cancelled), сохраняемое атомарным rename. После перезапуска queued/running помечаются `failed` с явной причиной, после чего оператор может запустить экспорт заново. Ранее опубликованный `current.json` и immutable MP4 остаются нетронутыми. Промежуточные `.partial-*` не очищаются автоматически, чтобы исключить небезопасное удаление при нестандартном запуске.
+
+**Это не поддержка нескольких Railway-реплик.** Advisory `flock` защищает только процессы на общем томе с корректными POSIX locks; отдельные volumes не координируются. Для настоящих нескольких реплик необходимы общая БД для lease/fencing+CAS, общие object storage/bucket для MP4, очередь с дедупликацией, proxy/routing и E2E тесты kill/network partition. Пока держите одну реплику и один writer, а при несрабатывании flock — не запускайте сервер.

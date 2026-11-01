@@ -18,6 +18,7 @@ function sha256(file){
 }
 const round=n=>Number(n.toFixed(5));
 function writeAtomic(file,obj){
+  fs.mkdirSync(path.dirname(file),{recursive:true});
   const tmp=file+'.'+randomUUID()+'.tmp';
   try{fs.writeFileSync(tmp,JSON.stringify(obj,null,2)+'\n',{mode:0o600});fs.renameSync(tmp,file)}
   finally{fs.rmSync(tmp,{force:true})}
@@ -58,6 +59,31 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0}={}){
 }
 export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,baseUrl,getPlan,getStyle,reviewUnresolved=()=>false}){
   const jobs=new Map(),controllers=new Map();
+  // The journal is durable on the same volume as release artifacts. It does not
+  // provide distributed consensus: production must enforce a single writer.
+  const jobFile=id=>path.join(out,'assembly-jobs',id+'.json');
+  const saveJob=job=>writeAtomic(jobFile(job.id),job);
+  function storedJob(id){
+    if(jobs.has(id))return jobs.get(id);
+    const file=jobFile(id);
+    if(!fs.existsSync(file))return null;
+    let job;
+    try{job=JSON.parse(fs.readFileSync(file,'utf8'))}
+    catch{throw bad('Corrupted assembly job journal; manual repair required',500)}
+    if(!job||job.id!==id||typeof job.job_id!=='string'||
+       !['queued','running','completed','failed','cancelled'].includes(job.status))
+      throw bad('Invalid assembly job journal; manual repair required',500);
+    // The old owner cannot survive a restart under the exclusive flock entrypoint.
+    // Never advertise a crashed in-flight export as an accepted release.
+    if(job.status==='queued'||job.status==='running'){
+      job.status='failed';
+      job.error='Assembly interrupted by server restart; retry explicitly';
+      job.finished_at=new Date().toISOString();
+      saveJob(job);
+    }
+    jobs.set(id,job);
+    return job;
+  }
   // Bound FFmpeg CPU/RAM usage on a single Railway instance.
   let assemblySlots=0;
   const releaseRoot=id=>path.join(out,'releases',id);
@@ -103,7 +129,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       .filter(scene=>scene.approved_version_id&&
         reviewUnresolved(id,scene.id,scene.approved_version_id))
       .map(scene=>scene.id);
-    return {...(jobs.get(id)||{id,status:'not_started'}),current_release:release,
+    return {...(storedJob(id)||{id,status:'not_started'}),current_release:release,
       review_valid:unresolved_scenes.length===0,unresolved_scenes};
   }
   function download(id,releaseId){
@@ -112,9 +138,10 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
   }
   function cancel(id){
     getDeck(id);
-    const j=jobs.get(id);
+    const j=storedJob(id);
     if(!j||!['queued','running'].includes(j.status))throw bad('No running assembly',409);
     j.cancel_requested=true;
+    saveJob(j);
     controllers.get(id)?.abort();
     return {...j};
   }
@@ -128,7 +155,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     for(let i=1;i<scene_ids.length;i++){
       if(all.indexOf(scene_ids[i])!==all.indexOf(scene_ids[i-1])+1)throw bad('Assembly scenes must be consecutive in timeline order');
     }
-    const existing=jobs.get(id);
+    const existing=storedJob(id);
     if(existing&&['queued','running'].includes(existing.status))throw bad('Assembly already running',409);
     if(assemblySlots>=1)throw bad('Assembly worker busy; retry after active job completes',429);
     const {height,fps}=deck.format;
@@ -180,6 +207,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     const job={id,job_id:randomUUID(),status:'queued',progress:0,scene_ids:[...scene_ids],
       created_at:new Date().toISOString(),plan_revision:planRecord.revision,
       style_revision:style.revision};
+    saveJob(job);
     jobs.set(id,job);
     assemblySlots++;
     const controller=new AbortController();controllers.set(id,controller);
@@ -189,6 +217,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       let published=false;
       try{
         job.status='running';
+        saveJob(job);
         fs.mkdirSync(work,{recursive:true});
         const sourcePaths=[];
         for(const item of inputs){
@@ -295,7 +324,9 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       }finally{
         fs.rmSync(work,{recursive:true,force:true});
         if(published&&job.status!=='completed')fs.rmSync(release,{recursive:true,force:true});
-        job.finished_at=new Date().toISOString();controllers.delete(id);
+        job.finished_at=new Date().toISOString();
+        try{saveJob(job)}catch(err){console.error('Assembly journal write failed',id,err)}
+        controllers.delete(id);
         assemblySlots=Math.max(0,assemblySlots-1);
       }
     })();
