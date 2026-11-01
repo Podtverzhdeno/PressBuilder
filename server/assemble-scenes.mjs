@@ -140,6 +140,10 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       return item.transition_after;
     });
     const style=getStyle(id);
+    // Revisions alone are insufficient if persisted JSON is modified without
+    // a revision bump. Freeze both actual policies as part of the render job.
+    const planHash=createHash('sha256').update(JSON.stringify(plan)).digest('hex');
+    const styleHash=createHash('sha256').update(JSON.stringify(style.contract)).digest('hex');
     // Assemble only after every scene is explicitly accepted and has passed technical QA.
     const inputs=scene_ids.map(scene=>{
       if(getTask(id,scene).status!=='done')throw bad('Scene not approved: '+scene,409);
@@ -244,6 +248,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
         if(qa.verdict!=='PASS')throw bad('Output QA failure: '+qa.issues.map(x=>x.id).join(','),422);
         const manifest={schemaVersion:1,project:id,release_id:releaseId,job_id:job.job_id,
           plan_revision:job.plan_revision,style_revision:job.style_revision,
+          plan_sha256:planHash,style_sha256:styleHash,
           scenes:inputs.map((x,i)=>({id:x.scene,sha256:x.source_sha256,duration:x.duration,
             approved_version_id:x.approved_version_id,approved_revision:x.approved_revision,
             render_job_id:x.render_job_id,
@@ -253,6 +258,17 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
         fs.writeFileSync(path.join(work,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{mode:0o600});
         for(const item of inputs)fs.rmSync(path.join(work,item.scene+'.mp4'),{force:true});
         if(controller.signal.aborted)throw new Error('Assembly cancelled');
+        // Publication is a compare-and-swap boundary. A Director may edit the
+        // montage plan, visual policy or scene ordering while FFmpeg is busy.
+        // Such an export must fail rather than publish under stale assumptions.
+        const livePlan=getPlan(id),liveStyle=getStyle(id),liveDeck=getDeck(id);
+        if(livePlan.revision!==job.plan_revision||
+           createHash('sha256').update(JSON.stringify(livePlan.plan)).digest('hex')!==planHash||
+           liveStyle.revision!==job.style_revision||
+           createHash('sha256').update(JSON.stringify(liveStyle.contract)).digest('hex')!==styleHash||
+           JSON.stringify(liveDeck.slides.map(s=>s.id))!==JSON.stringify(all)||
+           liveDeck.format.fps!==fps||liveDeck.format.height!==height)
+          throw bad('Assembly plan, visual style or scene order changed during render',409);
         // The approved pointers, not merely the immutable source bytes, must
         // still match this assembly snapshot before the final publication.
         if(inputs.some(item=>item.approved_version_id&&reviewUnresolved(id,item.scene,item.approved_version_id)))

@@ -170,3 +170,62 @@ test('P05: six independent scenes, mixed FPS/audio, multiple crossfades and matc
     assert.equal(service.get('six').current_release.release_id,second.result.release_id);
   }finally{fs.rmSync(root,{recursive:true,force:true})}
 });
+
+
+test('P05 refuses stale plan/style policy at publication without changing the active release',{
+  skip:!ready,timeout:90000
+},async()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-assembly-cas-'));
+  const out=path.join(root,'out'),decks=path.join(root,'decks');
+  fs.mkdirSync(out,{recursive:true});
+  const deck={id:'demo',slides:[{id:'s01'},{id:'s02'}],format:{height:720,fps:24}};
+  const getDeck=()=>deck;
+  const styles=styleContractStore({root:decks,getDeck});
+  const plans=assemblyPlanStore({root:decks,getDeck,getStyle:id=>styles.read(id)});
+  const base={out,getDeck,getRender:()=>({status:'completed',qa_report:{verdict:'PASS'}}),
+    getTask:()=>({status:'done'}),baseUrl:()=> 'https://example.test'};
+  try{
+    clip(path.join(out,'demo_s01.mp4'),'red',24,true,0.5);
+    clip(path.join(out,'demo_s02.mp4'),'blue',24,false,0.5);
+    const accepted=assemblyService({...base,getPlan:id=>plans.read(id),getStyle:id=>styles.read(id)});
+    accepted.start('demo',['s01','s02']);
+    const first=await untilDone(()=>accepted.get('demo'));
+    assert.equal(first.status,'completed',first.error);
+    const releaseId=first.result.release_id;
+    const acceptedSha=first.manifest.output.sha256;
+
+    let planReads=0;
+    const planDrift=assemblyService({...base,
+      getPlan:id=>{const record=plans.read(id);return {...record,
+        revision:record.revision+(++planReads>=2?1:0)}},
+      getStyle:id=>styles.read(id)});
+    planDrift.start('demo',['s01','s02']);
+    const rejectedPlan=await untilDone(()=>planDrift.get('demo'));
+    assert.equal(rejectedPlan.status,'failed',JSON.stringify(rejectedPlan));
+    assert.match(rejectedPlan.error,/Assembly plan, visual style or scene order changed/);
+    assert.ok(planReads>=2);
+    assert.equal(accepted.current('demo').release_id,releaseId);
+    assert.equal(first.manifest.output.sha256,acceptedSha);
+
+    let styleReads=0;
+    const styleDrift=assemblyService({...base,getPlan:id=>plans.read(id),
+      getStyle:id=>{const record=styles.read(id);return {...record,
+        revision:record.revision+(++styleReads>=2?1:0)}}});
+    styleDrift.start('demo',['s01','s02']);
+    const rejectedStyle=await untilDone(()=>styleDrift.get('demo'));
+    assert.equal(rejectedStyle.status,'failed',JSON.stringify(rejectedStyle));
+    assert.match(rejectedStyle.error,/Assembly plan, visual style or scene order changed/);
+    assert.ok(styleReads>=2);
+    assert.equal(accepted.current('demo').release_id,releaseId);
+    assert.equal(accepted.current('demo').manifest.output.sha256,acceptedSha);
+
+    const changedDeck=assemblyService({...base,getPlan:id=>plans.read(id),
+      getStyle:id=>styles.read(id)});
+    changedDeck.start('demo',['s01','s02']);
+    deck.slides.reverse();
+    const rejectedOrder=await untilDone(()=>changedDeck.get('demo'));
+    assert.equal(rejectedOrder.status,'failed',JSON.stringify(rejectedOrder));
+    assert.match(rejectedOrder.error,/Assembly plan, visual style or scene order changed/);
+    assert.equal(accepted.current('demo').release_id,releaseId);
+  }finally{fs.rmSync(root,{recursive:true,force:true})}
+});
