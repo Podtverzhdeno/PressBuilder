@@ -77,9 +77,9 @@ test('P05: FFmpeg montage, FPS normalization, silent audio, crossfade, immutable
     const meta=inspectMp4(assembly.download('demo',b.result.release_id),{height:720,fps:24,audio_required:true,duration:3.6});
     assert.equal(meta.verdict,'PASS',JSON.stringify(meta.issues));
     assert.ok(Math.abs(meta.metadata.duration-3.6)<0.25);
-    // Cancellation cannot replace a previously published version.
+    // Explicit force exercises cancellation even when identical export is cached.
     const before=assembly.get('demo').current_release.release_id;
-    assembly.start('demo',['s01','s02']);
+    assembly.start('demo',['s01','s02'],{force:true});
     const requested=assembly.cancel('demo');
     assert.equal(requested.cancel_requested,true);
     const cancelled=await untilDone(()=>assembly.get('demo'));
@@ -205,7 +205,7 @@ test('P05 refuses stale plan/style policy at publication without changing the ac
       getPlan:id=>{const record=plans.read(id);return {...record,
         revision:record.revision+(++planReads>=2?1:0)}},
       getStyle:id=>styles.read(id)});
-    planDrift.start('demo',['s01','s02']);
+    planDrift.start('demo',['s01','s02'],{force:true});
     const rejectedPlan=await untilDone(()=>planDrift.get('demo'));
     assert.equal(rejectedPlan.status,'failed',JSON.stringify(rejectedPlan));
     assert.match(rejectedPlan.error,/Assembly plan, visual style or scene order changed/);
@@ -217,7 +217,7 @@ test('P05 refuses stale plan/style policy at publication without changing the ac
     const styleDrift=assemblyService({...base,getPlan:id=>plans.read(id),
       getStyle:id=>{const record=styles.read(id);return {...record,
         revision:record.revision+(++styleReads>=2?1:0)}}});
-    styleDrift.start('demo',['s01','s02']);
+    styleDrift.start('demo',['s01','s02'],{force:true});
     const rejectedStyle=await untilDone(()=>styleDrift.get('demo'));
     assert.equal(rejectedStyle.status,'failed',JSON.stringify(rejectedStyle));
     assert.match(rejectedStyle.error,/Assembly plan, visual style or scene order changed/);
@@ -227,11 +227,65 @@ test('P05 refuses stale plan/style policy at publication without changing the ac
 
     const changedDeck=assemblyService({...base,getPlan:id=>plans.read(id),
       getStyle:id=>styles.read(id)});
-    changedDeck.start('demo',['s01','s02']);
+    changedDeck.start('demo',['s01','s02'],{force:true});
     deck.slides.reverse();
     const rejectedOrder=await untilDone(()=>changedDeck.get('demo'));
     assert.equal(rejectedOrder.status,'failed',JSON.stringify(rejectedOrder));
     assert.match(rejectedOrder.error,/Assembly plan, visual style or scene order changed/);
     assert.equal(accepted.current('demo').release_id,releaseId);
   }finally{fs.rmSync(root,{recursive:true,force:true})}
+});
+
+
+test('P05 cache: identical inputs reuse QA-verified MP4 without FFmpeg; changed inputs invalidate',{
+  skip:!ready,timeout:100000
+},async()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-assembly-cache-'));
+  const out=path.join(root,'out'),decks=path.join(root,'decks');
+  fs.mkdirSync(out,{recursive:true});
+  const deck={id:'demo',slides:[{id:'s01'},{id:'s02'}],format:{height:720,fps:24}};
+  const getDeck=()=>deck;
+  const styles=styleContractStore({root:decks,getDeck});
+  const plans=assemblyPlanStore({root:decks,getDeck,getStyle:id=>styles.read(id)});
+  const opts={out,getDeck,getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
+    getRender:()=>({status:'completed',qa_report:{verdict:'PASS'}}),
+    getTask:()=>({status:'done'}),baseUrl:()=> 'https://example.test'};
+  const service=assemblyService(opts);
+  const saved=process.env.FFMPEG;
+  try{
+    clip(path.join(out,'demo_s01.mp4'),'red',24,true,0.5);
+    clip(path.join(out,'demo_s02.mp4'),'blue',24,false,0.5);
+    service.start('demo',['s01','s02']);
+    const first=await untilDone(()=>service.get('demo'));
+    assert.equal(first.status,'completed',first.error);
+    assert.equal(first.cache_hit,false);
+    assert.ok(first.timings_ms.encode>=0);
+    const release=first.result.release_id;
+    process.env.FFMPEG='intentionally-missing-ffmpeg';
+    const second=service.start('demo',['s01','s02']);
+    assert.equal(second.status,'completed');
+    assert.equal(second.cache_hit,true);
+    assert.equal(second.timings_ms.encode,0);
+    assert.equal(second.job_id,first.job_id,'Director signoff must match the immutable manifest');
+    assert.notEqual(second.request_id,first.job_id,'Cache request has a separate ID');
+    assert.equal(second.result.release_id,release);
+    assert.equal(fs.readdirSync(path.join(out,'releases','demo')).filter(
+      x=>/^[0-9a-f-]{36}$/.test(x)).length,1);
+    const restarted=assemblyService(opts);
+    assert.equal(restarted.get('demo').cache_hit,true);
+    if(saved===undefined)delete process.env.FFMPEG;else process.env.FFMPEG=saved;
+    clip(path.join(out,'demo_s02.mp4'),'green',24,false,0.5);
+    const third=service.start('demo',['s01','s02']);
+    assert.notEqual(third.cache_hit,true);
+    const changed=await untilDone(()=>service.get('demo'));
+    assert.equal(changed.status,'completed',changed.error);
+    assert.notEqual(changed.result.release_id,release);
+    assert.ok(fs.existsSync(service.download('demo',release)));
+    console.log('ASSEMBLY_CACHE_BENCHMARK '+JSON.stringify({
+      cold_total_ms:first.timings_ms.total,cold_encode_ms:first.timings_ms.encode,
+      warm_total_ms:second.timings_ms.total,warm_encode_ms:second.timings_ms.encode}));
+  }finally{
+    if(saved===undefined)delete process.env.FFMPEG;else process.env.FFMPEG=saved;
+    fs.rmSync(root,{recursive:true,force:true});
+  }
 });

@@ -65,7 +65,7 @@ export const TOOLS = [
  { name:'get_scene_review_item', description:'Read the complete frame review issue, including optional persisted JPEG/PNG thumbnail.', inputSchema:obj({id:str('Project'),slide_id:str('Scene'),item_id:str('Review UUID')},['id','slide_id','item_id']) },
  { name:'add_scene_review_item', description:'Reviewer or director creates a time/frame-specific issue with normalized rectangle; requires current review revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),expected_revision:{type:'integer',minimum:0},version_id:str('Immutable version ID'),t:num('Seconds within scene'),text:str('Concrete issue, 4..2000 characters'),severity:{type:'string',enum:['low','medium','high','blocking']},rect:obj({x:num('0..1'),y:num('0..1'),w:num('0..1'),h:num('0..1')},['x','y','w','h']),frame_evidence:str('Optional data:image/jpeg;base64 or PNG <=130 KB')},['id','slide_id','expected_revision','version_id','t','text','severity']) },
  { name:'transition_scene_review_item', description:'Worker with live fenced lease marks FIXED; reviewer or director verifies or reopens; every transition is audited.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),item_id:str('Review issue UUID'),status:{type:'string',enum:['FIXED','VERIFIED','REOPENED']},note:str('Evidence or reason'),expected_revision:{type:'integer',minimum:0},fence_token:{type:'integer',minimum:1}},['id','slide_id','item_id','status','note','expected_revision']) },
- { name:'assemble_video', description:'Director only: assemble 2-12 approved, QA-passing scenes by hard cut.', inputSchema:obj({id:str('Project slug'),scene_ids:{type:'array',minItems:2,maxItems:12,items:{type:'string'}}},['id','scene_ids']) },
+ { name:'assemble_video', description:'Director only: assemble 2-12 approved QA-passing scenes. Identical verified exports are reused; force=true explicitly re-encodes.', inputSchema:obj({id:str('Project slug'),scene_ids:{type:'array',minItems:2,maxItems:12,items:{type:'string'}},force:{type:'boolean'}},['id','scene_ids']) },
  { name:'get_assembly_plan', description:'Read P05 scene transitions and policy.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'set_assembly_plan', description:'Director only: revision-fenced transition update.', inputSchema:obj({id:str('Project slug'),plan:{type:'object'},expected_revision:{type:'integer',minimum:0}},['id','plan','expected_revision']) },
  { name:'cancel_assembly', description:'Director only: cancel montage while keeping existing release.', inputSchema:obj({id:str('Project slug')},['id']) },
@@ -202,7 +202,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
           args.expected_revision,{assertWorker:()=>{leases.assertWrite(args.id,args.slide_id,actor,args.fence_token);assigned(args.id,args.slide_id,actor)}});
       case 'get_assembly_plan': return assemblyPlans.read(args.id);
       case 'set_assembly_plan': directorOnly(actor);return assemblyPlans.put(args.id,args.plan,args.expected_revision);
-      case 'assemble_video': directorOnly(actor);return assembly.start(args.id,args.scene_ids);
+      case 'assemble_video': directorOnly(actor);return assembly.start(args.id,args.scene_ids,{force:args.force??false});
       case 'cancel_assembly': directorOnly(actor);return assembly.cancel(args.id);
       case 'get_assembly_status': return assembly.get(args.id);
       case 'render_video': directorOnly(actor);return startRender(args.id);
