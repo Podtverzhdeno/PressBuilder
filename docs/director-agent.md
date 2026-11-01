@@ -61,6 +61,7 @@ Do not send web credentials to an untrusted scene agent. POST must be made to th
 | POST /api/decks/:id/director/plan | Create a draft with web auth |
 | POST /api/decks/:id/director/approve | Explicitly approve the current draft with web auth, confirm: APPROVE |
 | POST /api/decks/:id/director/replan/:scene | Web-editor-only revision of exactly one blocked/review scene. Requires plan and task revisions. |
+| POST /api/decks/:id/director/signoff | Web-editor-only final RELEASE after six accepted scene tasks, evidence, P05 assembly PASS, existing MP4, correct job and SHA-256 |
 | MCP get_scene_task | Read the published instructions for one scene |
 | MCP set_scene_checkpoint | Record an independently verified result, with evidence |
 
@@ -80,14 +81,30 @@ Example HTTP replan after inspecting the current plan and task revisions:
 
 Every scene has six uncompleted checkpoints: storyboard, assets, animation, render, technical QA, human review. A dependency may refer only to an earlier scene, so the dependency graph is acyclic. Other scenes are independently assignable. Progress is derived from actual tasks and is not an execution log.
 
+## Final delivery / human sign-off
+
+The P05 assembler runs separately: after six individual scenes are marked done, actually rendered, and passed technical QA, the director requests assemble_video with all six scene IDs. Wait for get_assembly_status to return completed. This does **not** automatically sign off the video.
+
+A human reviewer checks the assembled output, then sends:
+
+~~~json
+{
+  "expected_plan_revision": 2,
+  "assembly_job_id": "actual-job-id-from-get_assembly_status",
+  "confirm": "RELEASE"
+}
+~~~
+
+to POST /api/decks/:id/director/signoff with web-editor credentials. Sign-off rejects missing or mismatching MP4 bytes, checksum, assembly job, project, scene order, incomplete checkpoints or absent render/QA/human-review evidence. It records a release receipt (SHA-256, size, mtime, plan/job IDs). Reading a release later reports artifact_missing/artifact_changed if file metadata no longer agrees with the receipt. This is a human QA-to-release gate, **not** autonomous creative review.
+
 ## Not implemented
 
 - No external LLM calls, creative evaluation, or actual autonomous agent process spawning.
 - Director does not invent or overwrite a P04 style contract; style enforcement follows the currently configured P04 enforce flag.
 - No reliable worker leasing or authentication per agent (P06 pending).
 - No **automatic** agent retry, worker scheduler, cost/time budgets or event-sourced orchestration (P10.3/P10.4); only bounded, manual scene-specific replanning is implemented.
-- No automatic QA-to-signoff/release gate or deterministic final MP4 assembly (P05/P10.5).
-- No full six-render failure-injection end-to-end test (P10.6). Integration tests validate plan, authorization, task isolation and conflict rejection, **not final video output**.
+- No automatic progression from QA to human review and final release: P05 assembly and P10 final sign-off are explicit, separately invoked operations. P05 only supports hard cuts.
+- No full six-real-render failure-injection E2E (P10.6). Planning/replan integration and release-manifest boundary tests pass independently; the sign-off unit fixture uses synthetic bytes and does **not** assert actual MP4 codec correctness. Real MP4 validation is P05's responsibility.
 
 ## Verification
 
