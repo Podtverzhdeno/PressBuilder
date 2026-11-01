@@ -69,7 +69,7 @@ function fixture(){
        cue_id:'c01',start_us:i*1_000_000+600_000,end_us:i*1_000_000+900_000})),
      beats:[],policy:{min_shot_frames:6,max_cuts_per_10s:10,max_cuts:10}};
  }
- return {root,id,projectRoot,project,musicRoot,catalog,asset,rights,preview,manifest,
+ return {root,id,projectRoot,project,musicRoot,catalog,asset,deck,rights,preview,manifest,
    music:{licensed:true,source_sha256:sha(music),license_ref:license},
    close(){fs.rmSync(root,{recursive:true,force:true})}};
 }
@@ -119,11 +119,7 @@ test('P15 fail-closed on forged SHA and malformed audio span',()=>{
 test('P15 real decode unavailable yields REVIEW without any cuts',()=>{
  const x=fixture();try{
    const m=x.manifest();
-   const fault=rhythmPreviewService({root:x.projectRoot,getDeck:()=>({
-     id:x.id,format:{fps:24,height:1080},audio:{file:'voice.wav'},target:6,
-     slides:Array.from({length:6},(_,i)=>({id:'s0'+(i+1),
-       cues:[{id:'c01',say:'synthetic demonstration '+i,dur:1}]}))
-   }),enabled:true,audioEvidenceEnabled:true,
+   const fault=rhythmPreviewService({root:x.projectRoot,getDeck:()=>x.deck,enabled:true,audioEvidenceEnabled:true,
    audioInspector:()=>{throw Object.assign(new Error('decoder missing'),
      {code:'AUDIO_DECODE_UNAVAILABLE'})}});
    // The two schedules might differ in decorative slide defaults. Use the
@@ -148,12 +144,15 @@ test('P15 trusted music catalog verifies actual bytes and project scope',()=>{
      ...x.music,source_sha256:'d'.repeat(64)}));
    const withBeat=x.manifest();
    withBeat.beats=[{frame:35}];withBeat.music=x.music;
-   const result=x.preview.preview(x.id,withBeat);
+   // Rights attestation is independent of FFmpeg availability on host CI.
+   const rightsOnly=rhythmPreviewService({root:x.projectRoot,getDeck:()=>x.deck,
+     enabled:true,audioEvidenceEnabled:false,rightsVerifier:x.rights});
+   const result=rightsOnly.preview(x.id,withBeat);
    assert.equal(result.status,'READY_FOR_REVIEW');
    assert.equal(result.provenance.music_rights_verified,true);
    fs.appendFileSync(path.join(x.musicRoot,'beat.wav'),Buffer.from('tamper'));
    bad('MUSIC_SOURCE_SHA_MISMATCH',()=>x.rights.verify(x.id,x.music));
-   const review=x.preview.preview(x.id,withBeat);
+   const review=rightsOnly.preview(x.id,withBeat);
    assert.equal(review.status,'REVIEW');
    assert.ok(review.issues.includes('MUSIC_SOURCE_SHA_MISMATCH'));
    assert.deepEqual(review.cuts,[]);
@@ -166,11 +165,7 @@ test('P15 license expiry blocks beats, even if caller says licensed:true',()=>{
      now:()=>new Date('2031-01-01T00:00:00Z')});
    bad('MUSIC_RIGHTS_EXPIRED',()=>expired.verify(x.id,x.music));
    const noCatalog=rhythmPreviewService({
-     root:x.projectRoot,getDeck:()=>({id:x.id,format:{fps:24,height:1080},
-       audio:{file:'voice.wav'},target:6,
-       slides:Array.from({length:6},(_,i)=>({id:'s0'+(i+1),
-         cues:[{id:'c01',say:'synthetic demonstration '+i,dur:1}]}))
-     }),enabled:true
+     root:x.projectRoot,getDeck:()=>x.deck,enabled:true
    });
    const c=noCatalog.context(x.id);
    const manifest={...x.manifest(),alignment_revision:c.alignment_revision,
