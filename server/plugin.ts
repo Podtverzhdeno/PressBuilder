@@ -21,6 +21,7 @@ import type { Plugin, ViteDevServer } from 'vite';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
+import { sceneReviewStore } from './scene-review.mjs';
 
 const ROOT = process.cwd();
 const DECKS_DIR = path.join(ROOT, 'src', 'decks');
@@ -67,6 +68,7 @@ const deckFile = (id: string) => path.join(DECKS_DIR, id, 'deck.json');
 const taskStore=sceneTaskStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 const readmeStore=projectReadmeStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 const scene3d=scene3dStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
+const reviews=sceneReviewStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -162,6 +164,36 @@ export function presbuilder(): Plugin {
         }
         return fail(res,405,'method');
       }catch(e) {
+        const status=Number((e as {status?:number})?.status||500);
+        return fail(res,status,e instanceof Error?e.message:String(e));
+      }
+    }
+    const renderInfo=/^([^/]+)\/renders\/([^/]+)$/.exec(rest);
+    if(renderInfo){
+      if(req.method!=='GET')return fail(res,405,'method');
+      return json(res,{id:renderInfo[1],slide_id:renderInfo[2],status:'not_started',
+        note:'Local Vite editor has no independently archived scene render; use cloud render_scene for artifact-linked review.'});
+    }
+    const review=/^([^/]+)\/reviews\/([^/]+)(?:\/([^/]+))?$/.exec(rest);
+    if(review){
+      const id=review[1],scene=review[2],item=review[3];
+      if(!ID_RE.test(id)||!fs.existsSync(deckFile(id)))return fail(res,404,'Ролик не найден');
+      try{
+        if(item){
+          if(req.method==='GET')return json(res,reviews.get(id,scene,item));
+          if(req.method==='PATCH'){
+            const patch=JSON.parse((await readBody(req)).toString('utf8')) as Record<string,unknown>;
+            return json(res,reviews.update(id,scene,item,patch,{id:'owner'}));
+          }
+          return fail(res,405,'method');
+        }
+        if(req.method==='GET')return json(res,reviews.list(id,scene));
+        if(req.method==='POST'){
+          const payload=JSON.parse((await readBody(req)).toString('utf8')) as Record<string,unknown>;
+          return json(res,reviews.create(id,scene,payload,{id:'owner'}));
+        }
+        return fail(res,405,'method');
+      }catch(e){
         const status=Number((e as {status?:number})?.status||500);
         return fail(res,status,e instanceof Error?e.message:String(e));
       }
