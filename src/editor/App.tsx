@@ -163,7 +163,7 @@ export function App() {
               <Icon name="text" size={15} /> README проекта
             </button>
             <button type="button" class="btn" title="3D-объекты и анимация выбранной сцены" onClick={() => setModal('scene3d')}>
-              <Icon name="box" size={15} /> 3D сцена
+              <Icon name="film" size={15} /> 3D сцена
             </button>
             <button type="button" class="btn" title="Задания для агентов и чекпоинты по каждой сцене" onClick={() => setModal('tasks')}>
               <Icon name="check" size={15} /> Задания агентам
