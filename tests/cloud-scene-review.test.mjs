@@ -90,6 +90,12 @@ test('P07 + P06: scoped reviewer/worker MCP permissions and director REST access
     }
     assert.ok(ready,logs);
     assert.equal((await rpc(owner,'create_deck',{id:'demo',title:'Review demo',text:'Part one. Part two.',slide_count:2})).isError,false);
+    const assignedWrong=await rpc(owner,'set_scene_task',{id:'demo',slide_id:'s01',expected_revision:0,assignee:'another-agent'});
+    assert.equal(assignedWrong.isError,false);
+    const deniedClaim=await rpc(worker,'claim_scene',{id:'demo',slide_id:'s01',ttl:100});
+    assert.equal(deniedClaim.isError,true,'Task assignee must match worker credential identity');
+    const assignedRight=await rpc(owner,'set_scene_task',{id:'demo',slide_id:'s01',expected_revision:1,assignee:'worker01'});
+    assert.equal(assignedRight.isError,false);
     const l=await rpc(worker,'claim_scene',{id:'demo',slide_id:'s01',ttl:100});
     assert.equal(l.isError,false,JSON.stringify(l));
     const fence=l.value.fence;
@@ -98,7 +104,7 @@ test('P07 + P06: scoped reviewer/worker MCP permissions and director REST access
     const say=await rpc(worker,'update_cue',{id:'demo',slide_id:'s01',fence_token:fence,cue_id:'c01',say:'Changed narration'});
     assert.equal(say.isError,true);
     const edit=await rpc(worker,'set_scene_task',{id:'demo',slide_id:'s01',fence_token:fence,
-      expected_revision:0,status:'in_progress'});
+      expected_revision:2,status:'in_progress'});
     assert.equal(edit.isError,false,JSON.stringify(edit));
     const renderNoFence=await rpc(worker,'render_scene',{id:'demo',slide_id:'s01'});
     assert.equal(renderNoFence.isError,true,'Workers need an active fencing token to queue renders');
