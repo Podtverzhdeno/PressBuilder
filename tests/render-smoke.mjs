@@ -27,6 +27,12 @@ unwrap(await rpc('tools/call',{name:'set_slide_visuals',arguments:{id,slide_id:f
   {id:'banner',kind:'rect',x:150,y:180,w:1600,h:480,color:'panel',radius:36,effect:'pop',duration:0.3},
   {id:'headline',kind:'text',x:250,y:280,w:1500,text:'MCP VIDEO TEST',size:90,color:'h1',effect:'rise',cue_id:firstCue,duration:0.3}
 ]}}));
+const initialSync=unwrap(await rpc('tools/call',{name:'get_scene_sync',arguments:{id,slide_id:firstSlide}}));
+if(initialSync.revision!==0||!initialSync.timeline.cues.some(c=>c.id===firstCue))throw new Error('Missing P09 cue timebase');
+const savedSync=unwrap(await rpc('tools/call',{name:'set_scene_sync',arguments:{id,slide_id:firstSlide,expected_revision:0,
+  markers:[{id:'core-rise',kind:'animation',anchor:{type:'cue_start',cue_id:firstCue,offset:0},emphasis:0.8},
+           {id:'camera-hit',kind:'camera',anchor:{type:'scene',offset:0.25}}]}}));
+if(savedSync.revision!==1||!savedSync.timeline.events.some(e=>e.id==='core-rise'&&!e.out_of_range))throw new Error('P09 marker not resolved');
 // P01: exercise the actual rendered 3D Scene SDK path, not just persistence.
 const authored=unwrap(await rpc('tools/call',{name:'set_scene_3d',arguments:{
   id,slide_id:firstSlide,expected_revision:0,spec:{
@@ -34,7 +40,7 @@ const authored=unwrap(await rpc('tools/call',{name:'set_scene_3d',arguments:{
     camera:{cx:1070,cy:480,size:230,dist:9,yaw:-.4,pitch:.28,yaw_speed:.7,pitch_speed:.05,zoom_speed:.02},
     objects:[
       {id:'core',mesh:'icosa',pos:[0,0,0],scale:1.7,rotation:[0,0,0],
-       spin:[.25,.9,.13],color:'#40cbff',edge_color:'#b9eeff',wire:true,start:0,fade:.15},
+       spin:[.25,.9,.13],color:'#40cbff',edge_color:'#b9eeff',wire:true,start:0,start_marker:'core-rise',fade:.15},
       {id:'orbit',mesh:'octa',pos:[2,.4,-.5],scale:.6,rotation:[0,0,0],
        spin:[0,-1,0],color:'#ffbc64',edge_color:null,wire:false,start:.2,fade:.15},
     ]
@@ -84,6 +90,13 @@ const versions=unwrap(await rpc('tools/call',{name:'list_scene_versions',argumen
 if(versions.versions.length!==1)throw new Error('P08 immutable render version not recorded');
 const version=versions.versions[0];
 if(version.qa.verdict!=='PASS'||!/^[0-9a-f]{16}$/.test(version.version_id))throw new Error('P08 immutable metadata is invalid');
+const archivedSource=unwrap(await rpc('tools/call',{name:'get_scene_version_source',arguments:{id,slide_id:firstSlide,version_id:version.version_id}}));
+if(archivedSource.fingerprint!==version.source.fingerprint||
+   archivedSource.source?.sync_markers?.length!==2||
+   archivedSource.source?.scene3d?.spec?.objects?.[0]?.start_marker!=='core-rise')
+  throw new Error('P08 source archive does not retain P09 markers');
+console.log('PASS P09 cue-triggered 3D MP4 and immutable source archive');
+
 if(version.frame_evidence?.frames?.length!==3||version.frame_evidence.scope!=='FRAME_HEURISTICS_ONLY')
   throw new Error('P03 real MP4 has no three-frame diagnostic evidence');
 for(const evidence of version.frame_evidence.frames){
