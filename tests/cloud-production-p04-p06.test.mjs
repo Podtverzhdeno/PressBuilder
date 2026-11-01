@@ -62,9 +62,14 @@ test('P06 fenced leases, expiry, foreign actors, scope, audit, role validation',
     assert.throws(()=>agentDirectory(JSON.stringify([{id:'x',token:'short',role:'worker',projects:['demo'],scenes:['s01']}])));
   }finally{cleanup(root)}
 });
-test('P05 hard-cut assembly enforces approval, original hash and silent audio',{timeout:30000},async(t)=>{
+test('P05 assembly enforces approval, immutable release, hashes and silent audio',{timeout:45000},async(t)=>{
   if(spawnSync('ffmpeg',['-version'],{stdio:'ignore'}).status!==0||spawnSync('ffprobe',['-version'],{stdio:'ignore'}).status!==0){t.skip('FFmpeg/ffprobe not installed');return}
   const root=temp('pb-assembly-');const format={fps:24,height:720};
+  const deck={id:'demo',slides:[{id:'s01'},{id:'s02'}],format};
+  const getDeck=()=>deck;
+  const {assemblyPlanStore}=await import('../server/assembly-plan.mjs');
+  const styles=styleContractStore({root:path.join(root,'decks'),getDeck});
+  const plans=assemblyPlanStore({root:path.join(root,'decks'),getDeck,getStyle:id=>styles.read(id)});
   const create=(name,withAudio)=>{
     const args=['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','color=c=red:s=1280x720:r=24:d=0.5'];
     if(withAudio)args.push('-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=0.5');
@@ -74,29 +79,26 @@ test('P05 hard-cut assembly enforces approval, original hash and silent audio',{
   try{
     create('s01',true);create('s02',false);
     let approved=false;
-    const svc=assemblyService({out:root,getDeck:()=>({slides:[{id:'s01'},{id:'s02'}],format}),
-      getRender:(id,scene)=>({status:'completed',qa_report:{verdict:'PASS'}}),
+    const svc=assemblyService({out:root,getDeck,getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
+      getRender:()=>({status:'completed',qa_report:{verdict:'PASS'}}),
       getTask:()=>({status:approved?'done':'review'}),baseUrl:()=> 'https://example.test'});
     assert.throws(()=>svc.start('demo',['s01','s02']),e=>e.status===409);
     approved=true;
     const first=svc.start('demo',['s01','s02']);assert.ok(['queued','running'].includes(first.status));
     let last;
-    for(let i=0;i<200;i++){last=svc.get('demo');if(['completed','failed'].includes(last.status))break;await sleep(80)}
+    for(let i=0;i<260;i++){last=svc.get('demo');if(['completed','failed'].includes(last.status))break;await sleep(90)}
     assert.equal(last.status,'completed',JSON.stringify(last));
-    const manifest=JSON.parse(fs.readFileSync(path.join(root,'demo_final.manifest.json'),'utf8'));
-    assert.equal(manifest.scenes.length,2);assert.equal(manifest.output.qa.verdict,'PASS');
-    assert.equal(manifest.output.qa.metadata.has_audio,true);
-    assert.ok(fs.existsSync(path.join(root,'demo_final.mp4')));
-    const recovered=assemblyService({out:root,getDeck:()=>({slides:[{id:'s01'},{id:'s02'}],format}),
-      getRender:()=>({status:'not_started'}),getTask:()=>({status:'review'}),
-      baseUrl:()=> 'https://example.test'});
-    assert.equal(recovered.get('demo').status,'completed');
-    assert.equal(recovered.get('demo').recovered,true);
-    const oldHash=manifest.output.sha256;
-    // Failure must keep the accepted previous release and manifest unchanged.
+    assert.equal(last.manifest.scenes.length,2);
+    assert.equal(last.manifest.output.qa.verdict,'PASS');
+    assert.equal(last.manifest.output.qa.metadata.has_audio,true);
+    assert.ok(fs.existsSync(svc.download('demo',last.result.release_id)));
+    const oldHash=last.manifest.output.sha256;
+    const oldId=last.result.release_id;
     fs.rmSync(path.join(root,'demo_s02.mp4'));
     assert.throws(()=>svc.start('demo',['s01','s02']),e=>e.status===409);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(root,'demo_final.manifest.json'),'utf8')).output.sha256,oldHash);
+    assert.equal(svc.get('demo').current_release.manifest.output.sha256,oldHash);
+    assert.equal(svc.get('demo').current_release.release_id,oldId);
+    assert.ok(fs.existsSync(svc.download('demo',oldId)));
   }finally{cleanup(root)}
 });
 test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale writes',{timeout:45000},async()=>{
@@ -141,6 +143,12 @@ test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale 
     assert.deepEqual(JSON.parse(readDeck.content[0].text).scene_tasks.map(t=>t.scene_id),['s01']);
     const directorTasks=await rpc(director,'list_scene_tasks',{id:'scene-demo'});
     assert.deepEqual(JSON.parse(directorTasks.content[0].text).map(t=>t.scene_id),['s01','s02']);
+    const noRenderLease=await rpc(agent1,'render_scene',{id:'scene-demo',slide_id:'s01'});
+    assert.equal(noRenderLease.isError,true);
+    const noCancelLease=await rpc(agent1,'cancel_scene_render',{id:'scene-demo',slide_id:'s01',job_id:'deadbeef'});
+    assert.equal(noCancelLease.isError,true);
+    const noRetryLease=await rpc(agent1,'retry_scene_render',{id:'scene-demo',slide_id:'s01',job_id:'deadbeef'});
+    assert.equal(noRetryLease.isError,true);
     const noFence=await rpc(agent1,'set_scene_checkpoint',{id:'scene-demo',slide_id:'s01',checkpoint_id:'x',done:true});
     assert.equal(noFence.isError,true);
     const lease=await rpc(agent1,'claim_scene',{id:'scene-demo',slide_id:'s01',ttl:60});

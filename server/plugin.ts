@@ -21,6 +21,9 @@ import type { Plugin, ViteDevServer } from 'vite';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
+import { styleContractStore,enforceScene3D,enforceVisuals } from './style-contract.mjs';
+import {styleById} from '../src/engine/styles.ts';
+import { assemblyPlanStore } from './assembly-plan.mjs';
 
 const ROOT = process.cwd();
 const DECKS_DIR = path.join(ROOT, 'src', 'decks');
@@ -67,6 +70,8 @@ const deckFile = (id: string) => path.join(DECKS_DIR, id, 'deck.json');
 const taskStore=sceneTaskStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 const readmeStore=projectReadmeStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 const scene3d=scene3dStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
+const styleContracts=styleContractStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
+const assemblyPlans=assemblyPlanStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),getStyle:(id:string)=>styleContracts.read(id)});
 
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -150,6 +155,38 @@ export function presbuilder(): Plugin {
       return fail(res, 405, 'method');
     }
 
+    const style=/^([^/]+)\/style-contract$/.exec(rest);
+    if(style){
+      const id=style[1];
+      if(!ID_RE.test(id)||!fs.existsSync(deckFile(id)))return fail(res,404,'Ролик не найден');
+      try{
+        if(req.method==='GET')return json(res,styleContracts.read(id));
+        if(req.method==='PUT'){
+          const body=JSON.parse((await readBody(req)).toString('utf8'));
+          return json(res,styleContracts.put(id,body?.contract,body?.expected_revision));
+        }
+        return fail(res,405,'method');
+      }catch(e){
+        const status=Number((e as {status?:number})?.status||500);
+        return fail(res,status,e instanceof Error?e.message:String(e));
+      }
+    }
+    const assemblyPlan=/^([^/]+)\/assembly-plan$/.exec(rest);
+    if(assemblyPlan){
+      const id=assemblyPlan[1];
+      if(!ID_RE.test(id)||!fs.existsSync(deckFile(id)))return fail(res,404,'Ролик не найден');
+      try{
+        if(req.method==='GET')return json(res,assemblyPlans.read(id));
+        if(req.method==='PUT'){
+          const body=JSON.parse((await readBody(req)).toString('utf8'));
+          return json(res,assemblyPlans.put(id,body?.plan,body?.expected_revision));
+        }
+        return fail(res,405,'method');
+      }catch(e){
+        const status=Number((e as {status?:number})?.status||500);
+        return fail(res,status,e instanceof Error?e.message:String(e));
+      }
+    }
     const readme=/^([^/]+)\/readme$/.exec(rest);
     if(readme) {
       const id=readme[1];
@@ -180,6 +217,7 @@ export function presbuilder(): Plugin {
           const payload=JSON.parse((await readBody(req)).toString('utf8')) as {
             spec: Parameters<typeof scene3d.put>[2];expected_revision:number
           };
+          enforceScene3D(styleContracts.read(id).contract,payload?.spec,scene);
           const saved=scene3d.put(id,scene,payload?.spec,payload?.expected_revision);
           // Editors can reload scene maps without reloading the entire application.
           vite?.ws.send({type:'custom',event:'pb:scenes3d',data:{id,scene}});
@@ -234,6 +272,15 @@ export function presbuilder(): Plugin {
       if (!fs.existsSync(file)) return fail(res, 404, `Нет ролика «${id}»`);
       const deck = JSON.parse((await readBody(req)).toString('utf8'));
       if (deck.id !== id) return fail(res, 400, 'id не совпадает');
+      try{
+        const contract=styleContracts.read(id).contract;
+        for(const slide of deck.slides??[]){
+          if(slide?.visuals?.length)enforceVisuals(contract,slide.visuals,slide.id,styleById(deck.style).colors);
+        }
+      }catch(e){
+        const status=Number((e as {status?:number})?.status||500);
+        return fail(res,status,e instanceof Error?e.message:String(e));
+      }
       const content = `${JSON.stringify(deck, null, 2)}\n`;
       written.set(id, content);
       writeAtomic(file, content);

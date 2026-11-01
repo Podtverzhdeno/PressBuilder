@@ -1,16 +1,13 @@
 name: PressBuilder Cloud CI
 on:
   push:
-    branches: [main, feat/cloud-mcp-video-editor-20261101, feat/p06-p07-frame-review-ui-20261101]
+    branches: [main, feat/cloud-mcp-video-editor-20261101, feat/p02-p03-production-hardening-20261101]
   pull_request:
     paths:
       - 'server/**'
       - 'tests/**'
       - 'Dockerfile'
       - 'package*.json'
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 jobs:
   cloud:
     runs-on: ubuntu-latest
@@ -29,7 +26,7 @@ jobs:
           tar -tzf out/pressbuilder-mcp-plugin.tar.gz
 
   render-smoke:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/feat/p02-p03-production-hardening-20261101'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

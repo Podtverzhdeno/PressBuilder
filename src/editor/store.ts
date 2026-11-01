@@ -10,6 +10,7 @@ import { assetsReady } from '../engine/assets.ts';
 import { Player } from '../engine/player.ts';
 import { slideAt } from '../engine/schedule.ts';
 import { Timeline, type ObjInfo } from '../engine/timeline.ts';
+import {auditDataText, frameLuminance, type VisualAudit, type FrameLuminance} from '../engine/visual-qa.ts';
 import { setStyle, W } from '../engine/theme.ts';
 import type { DeckData, SceneDef } from '../engine/types.ts';
 import { api, CLIENT_ID, type DeckMeta } from './api.ts';
@@ -425,6 +426,8 @@ declare global {
   interface Window {
     __PB_CLOUD_INFO__?: () => Promise<{ duration: number; slides: Array<{id:string;start:number;dur:number}> }>;
     __PB_CLOUD_FRAME__?: (at: number, height: number) => string;
+    __PB_CLOUD_VISUAL_QA__?: (slideId?:string|null) => VisualAudit;
+    __PB_CLOUD_FRAME_STATS__?: (at:number) => FrameLuminance;
   }
 }
 window.__PB_CLOUD_INFO__ = async () => {
@@ -442,4 +445,18 @@ window.__PB_CLOUD_FRAME__ = (at: number, height: number) => {
   player.seek(at);
   player.draw();
   return player.canvas.toDataURL('image/png').split(',')[1];
+};
+
+/** Read-only production QA hooks. No user-supplied JS is executed. */
+window.__PB_CLOUD_VISUAL_QA__ = (slideId:string|null=null) => {
+  const current=deck.peek();
+  if(!current)throw new Error('Project not loaded');
+  const context=document.createElement('canvas').getContext('2d');
+  if(!context)throw new Error('Canvas context unavailable');
+  return auditDataText(current,context,slideId,[...scenes.peek().keys()]);
+};
+window.__PB_CLOUD_FRAME_STATS__ = (at:number) => {
+  if(!player||!deck.peek())throw new Error('Project not loaded');
+  player.pause();player.seek(at);player.draw();
+  return frameLuminance(player.canvas,at);
 };

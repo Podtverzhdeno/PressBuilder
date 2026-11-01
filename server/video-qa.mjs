@@ -68,3 +68,43 @@ export function inspectMp4(file,expected={}){
     return {verdict:'FAIL',issues:[issue('FFPROBE_JSON','Invalid ffprobe JSON')],metadata:null,scope:'TECHNICAL_ONLY'};
   }
 }
+
+/**
+ * Merge evidence from browser-rendered text geometry and sampled video frames
+ * with ffprobe technical checks. REVIEW is intentionally non-blocking: only
+ * deterministic violations and proven all-black output become FAIL.
+ */
+export function mergeVisualQA(technical,visual=null,frames=[]){
+  const issues=[...(technical.issues||[]).map(i=>({...i,severity:'FAIL'}))];
+  if(visual?.issues){
+    for(const item of visual.issues){
+      issues.push({id:item.id,severity:item.severity,message:item.message,
+        slide_id:item.slide_id,object_id:item.object_id,
+        ...(item.metrics?{metrics:item.metrics}:{})});
+    }
+  }
+  const samples=frames.filter(f=>f&&Number.isFinite(f.mean_luma)&&Number.isFinite(f.near_black_fraction));
+  if(samples.length){
+    const fullBlack=samples.every(f=>f.mean_luma<=3 && f.near_black_fraction>=.995);
+    if(fullBlack){
+      issues.push({id:'BLACK_VIDEO',severity:'FAIL',
+        message:'All representative rendered frames are nearly black',frames:samples.map(f=>f.t)});
+    }else{
+      const suspect=samples.filter(f=>f.mean_luma<=5 && f.near_black_fraction>=.99);
+      if(suspect.length){
+        issues.push({id:'POSSIBLE_BLACK_FRAME',severity:'REVIEW',
+          message:'Some sampled frames are nearly black; check whether this is intentional',
+          frames:suspect.map(f=>f.t)});
+      }
+    }
+  }
+  return {
+    ...technical,issues,
+    verdict:issues.some(i=>i.severity==='FAIL')?'FAIL':
+      issues.some(i=>i.severity==='REVIEW')?'REVIEW':'PASS',
+    visual:visual??{scope:'UNAVAILABLE',tested_texts:0,uninspected_scenes:[]},
+    frame_samples:samples,
+    scope:'TECHNICAL_PLUS_SAMPLED_VISUAL',
+    note:'Automated checks detect technical faults and some text-layout issues. Artistic quality and TypeScript-authored scenes still require human review.',
+  };
+}
