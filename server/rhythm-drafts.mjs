@@ -113,6 +113,10 @@ export function rhythmDraftStore({root,getDeck,previewService,now=()=>new Date()
     const previous=fresh.proposal?{
       revision:fresh.revision,status:fresh.status,
       plan_sha256:fresh.proposal.plan_sha256,
+      source_sha256:fresh.proposal.voice_source_sha256,
+      // Bounded cut-frame evidence lets a reviewer compare actual revisions,
+      // rather than only opaque hashes. Never retain raw word/audio payload.
+      cuts:fresh.proposal.cuts.map(c=>({frame:c.frame,reason:c.reason})),
       author_id:fresh.author?.id,
       reviewer_id:fresh.review?.reviewer_id??null
     }:null;
