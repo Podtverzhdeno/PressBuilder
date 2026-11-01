@@ -38,7 +38,7 @@ function validate(camera,objects){
   const ids=new Set();
   const out=objects.map((o,i)=>{
     if(!o||typeof o!=='object'||Array.isArray(o))throw error('Invalid object '+i);
-    keys(o,['id','mesh','pos','scale','rotation','spin','color','edge_color','wire','start','fade']);
+    keys(o,['id','mesh','pos','scale','rotation','spin','color','edge_color','wire','start','start_marker','fade']);
     if(typeof o.id!=='string'||!NAMES.test(o.id)||ids.has(o.id))throw error('Invalid or duplicate object id');
     ids.add(o.id);
     if(!MESHES.has(o.mesh))throw error('Unsupported mesh '+o.mesh);
@@ -46,6 +46,7 @@ function validate(camera,objects){
     const edge=o.edge_color===undefined?null:o.edge_color;
     if(edge!==null&&(typeof edge!=='string'||!COLOR.test(edge)))throw error('Invalid edge_color');
     if(o.wire!==undefined&&typeof o.wire!=='boolean')throw error('wire must be boolean');
+    if(o.start_marker!==undefined&&(typeof o.start_marker!=='string'||!/^[a-zA-Z0-9_-]{1,60}$/.test(o.start_marker)))throw error('Invalid start_marker');
     return {
       id:o.id,mesh:o.mesh,
       pos:vec(o.pos??[0,0,0],'pos',-8,8),
@@ -54,6 +55,7 @@ function validate(camera,objects){
       spin:vec(o.spin??[0,0,0],'spin',-4,4),
       color:o.color,edge_color:edge,wire:o.wire===true,
       start:numeric(o.start??0,'start',0,60),
+      ...(o.start_marker!==undefined?{start_marker:o.start_marker}:{}),
       fade:numeric(o.fade??0.45,'fade',0.05,5),
     };
   });
@@ -73,7 +75,7 @@ export function scene3dStore({root,seedRoot,getDeck}){
     const src=fs.existsSync(file)?file:(seedFile&&fs.existsSync(seedFile)?seedFile:null);
     if(!src)return {id,scene_id:slideId,revision:0,spec:null,updated_at:null};
     const data=JSON.parse(fs.readFileSync(src,'utf8'));
-    const spec=validate(data.spec?.camera,data.spec?.objects);
+    const spec=data.spec===null?null:validate(data.spec?.camera,data.spec?.objects);
     return {id,scene_id:slideId,revision:data.revision,spec,updated_at:data.updated_at};
   }
   function list(id){
@@ -84,10 +86,9 @@ export function scene3dStore({root,seedRoot,getDeck}){
     const {file}=locate(id,slideId);
     const old=read(id,slideId);
     if(!Number.isSafeInteger(expected_revision)||expected_revision!==old.revision)throw error('Scene 3D changed; reload and retry',409);
-    if(!spec||typeof spec!=='object'||Array.isArray(spec))throw error('Missing scene 3D specification');
-    keys(spec,['version','camera','objects']);
-    if(spec.version!==1)throw error('Only scene3d spec version 1 is supported');
-    const checked=validate(spec.camera,spec.objects);
+    if(spec!==null&&(!spec||typeof spec!=='object'||Array.isArray(spec)))throw error('Invalid scene 3D specification');
+    if(spec!==null){keys(spec,['version','camera','objects']);if(spec.version!==1)throw error('Only scene3d spec version 1 is supported')}
+    const checked=spec===null?null:validate(spec.camera,spec.objects);
     const next={id,scene_id:slideId,revision:old.revision+1,spec:checked,updated_at:new Date().toISOString()};
     fs.mkdirSync(path.dirname(file),{recursive:true});
     const tmp=file+'.'+process.pid+'.'+Math.random().toString(36).slice(2)+'.tmp';
