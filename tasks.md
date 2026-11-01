@@ -133,7 +133,7 @@
 
 - [ ] **P08.1** Immutable `scene_revision` c SHA-256 исходников/ассетов/параметров, manifest с provenance.
 - [ ] **P08.2** Immutable MP4 и approved pointer реализованы; превью/PNG ещё нет. Отдельный файл новой версии не перезаписывается при повторном рендере.
-- [ ] **P08.3** MCP `list_scene_versions`, `save_scene_version`, `approve_scene_version`, `restore_scene_version`, `compare_scene_versions` и audit trail реализованы; настоящий per-agent ACL ещё отсутствует.
+- [ ] **P08.3** MCP `list_scene_versions`, `save_scene_version`, `restore_scene_version`, `compare_scene_versions` и audit trail реализованы; approve — только через HTTP Basic оператора, per-agent ACL ещё отсутствует.
 - [ ] **P08.4** Быстрое сравнение V1/V2 (таймкод, текст, 3 контрольных кадра); ретеншн и GC под лимиты storage.
 - [x] **P08.5 (модульный MVP)** Тест rollback, stale render, сохранности прежнего MP4 и изоляции двух сцен. Тест двух независимых HTTP writer processes ещё нужен.
 - **DoD:** восстановление принятого ролика без повторного вычисления и без потери истории решений.
