@@ -20,7 +20,7 @@
 |---|---|---:|---|---|---|
 | P01 | 3D Scene SDK и публикация через MCP | 10.0 | Очень высокая | Существующий wire3d, Canvas, MCP | **IN PROGRESS** |
 | P02 | Независимый рендер + очередь | 9.8 | Высокая | P01: scene-scoped вход | **IN PROGRESS — FIFO MVP** |
-| P03 | Автоматический Video QA | 9.7 | Средняя | P02: отдельные MP4/кадры | BACKLOG |
+| P03 | Автоматический Video QA | 9.7 | Средняя | P02: отдельные MP4/кадры | **IN PROGRESS — ffprobe MVP** |
 | P04 | Машинный style contract | 9.5 | Средняя | P01 + P03 | BACKLOG |
 | P05 | Автоматическая сборка/переходы | 9.4 | Высокая | P02 + P04 | BACKLOG |
 | P06 | Scene ownership/leases/ACL | 9.3 | Средняя | MCP identity + хранилище | BACKLOG |
@@ -73,7 +73,7 @@
 - [ ] **P03.2** Проверка формата (ffprobe), чёрных/битых кадров, резких скачков яркости, отсутствия звука при обязательной озвучке.
 - [ ] **P03.3** Проверка геометрии: текст вне safe area, наложения крупных текстовых bbox, недопустимый horizontal compression, отсутствующие требуемые элементы.
 - [ ] **P03.4** Регрессионные снимки / golden images с порогами для предсказуемых сцен; отчёты без ложного «художественного балла».
-- [ ] **P03.5** MCP `get_scene_qa_report`, вердикты PASS/REVIEW/FAIL и evidence (кадр+тайм-код+правило).
+- [x] **P03.5** MCP `get_scene_qa_report`, вердикты PASS/REVIEW/FAIL и evidence (кадр+тайм-код+правило).
 - [ ] **P03.6** Тестовые дефекты: намеренно обрезанный заголовок, полностью чёрный кадр и некорректный FPS должны ловиться; живые сцены не должны массово давать false positive.
 - **DoD:** автоматические *технические* проверки работают без ручного просмотра; художественная приёмка остаётся за человеком.
 - **Риски:** без контроля false positives QA станет блокировать хорошие анимации.
@@ -175,4 +175,8 @@
 | 2026-11-01 | P01 | Production Docker render-smoke опубликованной через MCP 3D-сцены. | PR GitHub Actions `render-smoke` **SUCCESS** на `5d5e69489` (workflow 41263654563); H.264 MP4 создан и скачан. | P01 MVP MP4 VERIFIED; GLB/production SDK остаётся открытым |
 | 2026-11-01 | P02 | FIFO worker, MCP `render_scene` и `get_scene_render_status`, точная нарезка по `slide.start/dur`, отдельный MP4 и смещение аудио. | `npm run build` и `npm run test:cloud` PASS на `7142fb588`; Docker PR smoke с полной/отдельной сценой запущен; queue persistence/cancel/pool отсутствуют. | P02 MVP IN PROGRESS |
 
-**Следующая обязательная работа:** дождаться и зафиксировать результат PR Docker smoke для P02; затем P02.3–P02.4 (worker pool, восстановление после рестарта, cancel/retry). Продолжить P01.5 (проверенный GLB/asset pipeline) и UX визуального редактора перед полной production-приёмкой. P03–P10 пока BACKLOG; не заявлять их реализацию.
+| 2026-11-01 | P02 | Docker smoke одновременно поставил в очередь рендер полного проекта и отдельной 3D-сцены; оба MP4 скачаны. | GitHub Actions PR `render-smoke` **SUCCESS** на `7142fb5880` (workflow 41263883464). | P02 FIFO MP4 VERIFIED; полный DoD не достигнут |
+| 2026-11-01 | P02 | Файловая персистентность job состояния в `/data/render-jobs`, восстановление queued/running после рестарта (макс. 2 попытки). | Код `e6eac70eff`; требуется отдельный restart/crash-test перед отметкой P02.4 как done. | P02 PERSISTENCE IMPLEMENTED / RESTART NOT YET VERIFIED |
+| 2026-11-01 | P03 | `server/video-qa.mjs`, ffprobe отчёты QA и MCP `get_scene_qa_report` / `get_video_qa_report`, синтетические PASS/FAIL тесты. | `tests/cloud-video-qa.test.mjs`, расширение Docker smoke; результат последнего CI ещё должен быть проверен. | P03 TECHNICAL QA MVP IN PROGRESS |
+
+**Следующая обязательная работа:** проверить CI технического QA P03, отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P10 пока BACKLOG.
