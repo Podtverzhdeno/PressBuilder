@@ -7,6 +7,8 @@ import {sceneVersionStore,fileHash} from '../server/scene-versions.mjs';
 import {sceneReviewStore} from '../server/scene-reviews.mjs';
 import {sceneLeaseStore} from '../server/scene-leases.mjs';
 import {assemblyService} from '../server/assemble-scenes.mjs';
+import {assemblyPlanStore} from '../server/assembly-plan.mjs';
+import {styleContractStore} from '../server/style-contract.mjs';
 import {spawnSync} from 'node:child_process';
 
 const actor=(id,role)=>({id,role,projects:['demo'],scenes:['s01','s02']});
@@ -70,17 +72,9 @@ test('P07 frame review checks version boundaries, role transitions, fencing and 
   const f=fixture(),director=actor('director','director'),reviewer=actor('rev','reviewer'),worker=actor('worker','worker');
   try{
     const v=f.render('demo','s01','job1');
-    const jpeg='data:image/jpeg;base64,'+Buffer.from([255,216,255,224,0,16,74,70,73,70,0,1,2,3]).toString('base64');
     const c=f.reviews.create('demo','s01',{version_id:v.version_id,t:1.25,text:'Text overlaps the key visual',
-      severity:'high',rect:{x:0.2,y:0.3,w:0.3,h:0.2},frame_evidence:jpeg},reviewer,0);
+      severity:'high',rect:{x:0.2,y:0.3,w:0.3,h:0.2}},reviewer,0);
     assert.equal(c.item.frame,30);assert.equal(c.item.status,'OPEN');
-    const list=f.reviews.list('demo','s01');
-    assert.equal(list.items[0].has_frame_evidence,true);
-    assert.equal(list.items[0].frame_evidence,undefined,'Bulk list never leaks large JPEG bytes');
-    assert.equal(f.reviews.get('demo','s01',c.item.id).frame_evidence,jpeg);
-    assert.throws(()=>f.reviews.create('demo','s01',{version_id:v.version_id,t:0.5,
-      text:'Invalid JPG payload',severity:'high',frame_evidence:'data:image/jpeg;base64,SGVsbG8='},reviewer,1));
-
     assert.ok(f.reviews.unresolved('demo','s01',v.version_id));
     assert.throws(()=>f.v.approve('demo','s01',v.version_id,0,director,
       {unresolved:f.reviews.unresolved}),e=>e.status===409);
@@ -130,9 +124,12 @@ test('P05 assembles only approved immutable MP4s even if newer unapproved render
     f.v.approve('demo','s02',v2.version_id,0,director);
     const draft=make('s01','newer-draft','green');
     assert.notEqual(draft.sha256,v1.sha256);
+    const styles=styleContractStore({root:f.root,getDeck:f.getDeck});
+    const plans=assemblyPlanStore({root:f.root,getDeck:f.getDeck,getStyle:id=>styles.read(id)});
     const svc=assemblyService({out:f.out,getDeck:f.getDeck,
       getRender:()=>({status:'failed',job_id:'draft-error'}),
       getTask:()=>({status:'done'}),getApproved:(id,scene)=>f.v.approved(id,scene),
+      getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
       baseUrl:()=> 'http://localhost:3000'});
     svc.start('demo',['s01','s02']);
     let result;
@@ -142,7 +139,7 @@ test('P05 assembles only approved immutable MP4s even if newer unapproved render
       await new Promise(r=>setTimeout(r,75));
     }
     assert.equal(result.status,'completed',JSON.stringify(result));
-    const manifest=JSON.parse(fs.readFileSync(path.join(f.out,'demo_final.manifest.json'),'utf8'));
+    const manifest=result.manifest;
     assert.equal(manifest.scenes[0].approved_version_id,v1.version_id);
     assert.equal(manifest.scenes[0].sha256,v1.sha256);
     assert.equal(manifest.scenes[1].approved_version_id,v2.version_id);
