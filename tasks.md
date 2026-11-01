@@ -21,9 +21,9 @@
 | P01 | 3D Scene SDK и публикация через MCP | 10.0 | Очень высокая | Существующий wire3d, Canvas, MCP | **IN PROGRESS** |
 | P02 | Независимый рендер + очередь | 9.8 | Высокая | P01: scene-scoped вход | **IN PROGRESS — FIFO MVP** |
 | P03 | Автоматический Video QA | 9.7 | Средняя | P02: отдельные MP4/кадры | **IN PROGRESS — ffprobe MVP** |
-| P04 | Машинный style contract | 9.5 | Средняя | P01 + P03 | BACKLOG |
-| P05 | Автоматическая сборка/переходы | 9.4 | Высокая | P02 + P04 | BACKLOG |
-| P06 | Scene ownership/leases/ACL | 9.3 | Средняя | MCP identity + хранилище | BACKLOG |
+| P04 | Машинный style contract | 9.5 | Средняя | P01 + P03 | **IN PROGRESS — project contract MVP** |
+| P05 | Автоматическая сборка/переходы | 9.4 | Высокая | P02 + P04 | **IN PROGRESS — hard-cut MVP** |
+| P06 | Scene ownership/leases/ACL | 9.3 | Средняя | MCP identity + хранилище | **IN PROGRESS — scoped leases MVP** |
 | P07 | Покадровые комментарии и ревью | 9.1 | Средняя | P02 + P03 | BACKLOG |
 | P08 | Версии сцен, артефактов, rollback | 9.0 | Средняя | P01 + P02 | BACKLOG |
 | P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | BACKLOG |
@@ -83,10 +83,10 @@
 
 **Проблема:** README в свободной форме не гарантирует единый стиль у 6 агентов.
 
-- [ ] **P04.1** `style-contract.json`: schemaVersion, палитра, типографика, safe areas, камера/углы, графическая плотность, параметры motion, переходы, text limits.
-- [ ] **P04.2** Валидатор JSON Schema; фиксация версии договора и наследование глобальный→проект→сцена без незаметного нарушения must-have.
-- [ ] **P04.3** MCP `get_style_contract`; редактор для правки с предпросмотром.
-- [ ] **P04.4** Машинные QA-правила: запрет растянутого текста, запрет вылета важных элементов, проверка названий шрифтов и допустимых цветов.
+- [x] **P04.1 (MVP project-level)** `style-contract.json`: schemaVersion, палитра, типографика, safe areas, камера/углы, графическая плотность, параметры motion, переходы, text limits.
+- [ ] **P04.2** Валидатор JSON Schema (выполнена строгая ручная проверка структуры, но стандартный JSON Schema engine и наследование ещё не реализованы); фиксация версии договора и наследование глобальный→проект→сцена без незаметного нарушения must-have.
+- [ ] **P04.3 (MCP get/set реализован; UI открыт)** MCP `get_style_contract`; редактор для правки с предпросмотром.
+- [ ] **P04.4 (частично: palette/camera/текстовая точка привязки/шрифт/размер)** Машинные QA-правила: запрет растянутого текста, запрет вылета важных элементов, проверка названий шрифтов и допустимых цветов.
 - [ ] **P04.5** Проверить контракт на 6 разных композиций, включая разные палитры/эффекты в пределах согласованных допусков.
 - **DoD:** разные сцены выглядят единым роликом без запрета на творческую вариативность.
 - **Риски:** чрезмерно жёсткий контракт превращает креатив в шаблон.
@@ -98,8 +98,8 @@
 
 - [ ] **P05.1** Для каждой сцены `entry_state/exit_state`: положение камеры, основной объект, фон, доминирующий цвет, скорость, направление движения.
 - [ ] **P05.2** Виды transition: hard-cut/match-cut/crossfade/morph-like; согласование длительности и стыка реплик.
-- [ ] **P05.3** Детерминированная сборка принятого набора сцен с одинаковым FPS, resolution, pixel format, audio sample rate.
-- [ ] **P05.4** Атомарный выпуск `final.mp4` плюс manifest/checksums; отмена выпуска не портит предыдущую версию.
+- [x] **P05.3 (hard-cut MVP)** Детерминированная сборка принятого набора сцен с одинаковым FPS, resolution, pixel format, audio sample rate.
+- [ ] **P05.4 (частично)** Атомарная замена `final.mp4` после QA и manifest/checksums реализованы, но нет транзакционной атомарности пары manifest+MP4 и безопасной отмены во время сборки.
 - [ ] **P05.5** Тесты: замена только s03, отмена после 50% сборки, несовпадающий FPS, сцена без звука, длинный переход.
 - **DoD:** coordinator собирает единый ролик из независимо принятых артефактов без ручной нарезки.
 - **Риски:** match-cut требует содержательных метаданных и ручной коррекции по композиции.
@@ -109,10 +109,10 @@
 
 **Проблема:** `assignee` сегодня информационная строка, а MCP-токен один; имена агентов не ограничивают запись.
 
-- [ ] **P06.1** Agent identity, roles `viewer/worker/reviewer/director` с привязкой к issuer/principal.
-- [ ] **P06.2** `claim_scene/renew_lease/release_scene`: lease TTL, fencing token, heartbeat, replay protection.
-- [ ] **P06.3** Ограничить запись на сцену (не только ТЗ) серверной проверкой прав.
-- [ ] **P06.4** Аудит: actor, project, scene, revision, timestamp, действие, trace ID.
+- [ ] **P06.1 (MVP: отдельные bearer keys, scoped roles; issuer/principal ещё нет)** Agent identity, roles `viewer/worker/reviewer/director` с привязкой к issuer/principal.
+- [x] **P06.2 (single-process MVP)** `claim_scene/renew_lease/release_scene`: lease TTL, fencing token, heartbeat, replay protection.
+- [x] **P06.3 (MCP scoped worker; web director bypass)** Ограничить запись на сцену (не только ТЗ) серверной проверкой прав.
+- [x] **P06.4 (JSONL MVP)** Аудит: actor, project, scene, revision, timestamp, действие, trace ID.
 - [ ] **P06.5** Testcases: две одновременные записи, истёкшая аренда, чужой токен, владелец сменился во время рендера.
 - **DoD:** чужой агент физически не может переписать чужую сцену/чекпоинт; администратор может безопасно переназначить.
 - **Риски:** при общих MCP-учётных данных невозможно доказать identity без новой аутентификации.
@@ -179,4 +179,13 @@
 | 2026-11-01 | P02 | Файловая персистентность job состояния в `/data/render-jobs`, восстановление queued/running после рестарта (макс. 2 попытки). | Код `e6eac70eff`; требуется отдельный restart/crash-test перед отметкой P02.4 как done. | P02 PERSISTENCE IMPLEMENTED / RESTART NOT YET VERIFIED |
 | 2026-11-01 | P03 | `server/video-qa.mjs`, ffprobe отчёты QA и MCP `get_scene_qa_report` / `get_video_qa_report`, синтетические PASS/FAIL тесты. | CI `cloud` SUCCESS на `f683600088`; PR Docker `render-smoke` SUCCESS на `ef1925ed26` (workflow 41264142281): оба H.264 MP4 отрендерены, скачаны и прошли ffprobe QA. | P03 TECHNICAL QA VERIFIED; visual QA backlog |
 
-**Следующая обязательная работа:** отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P10 пока BACKLOG.
+| 2026-11-01 | P04–P06 | Реализованы валидируемый project style contract, hard-cut FFmpeg assembly из одобренных сцен, scoped bearer tokens, fenced leases и журнал аудита. | `server/style-contract.mjs`, `server/assemble-scenes.mjs`, `server/scene-leases.mjs`, `tests/cloud-production-p04-p06.test.mjs`. GitHub Actions cloud SUCCESS на `28d589a3` (повторные обновления документации/CI проверить). | **MVP IN PROGRESS**; полный DoD ещё не закрыт |
+
+**Следующая обязательная работа:** отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P06 выполняются на уровне MVP, P07–P10 остаются BACKLOG. Для P04 требуется редактор/реальная bbox-проверка и inheritance, для P05 — переходы/immutable artifacts, для P06 — распределённые транзакционные leases и rotation токенов.
+
+
+### P04–P06: пределы реализованного среза
+
+- **P04:** проектный контракт хранится отдельно, default `enforce:false` сохраняет совместимость. Поддержаны MCP get/set и ограниченная проверка новых 3D/2D-публикаций; без schema-engine, scene overrides и реального визуального QA.
+- **P05:** только детерминированный hard-cut H.264/AAC (нужны статус задачи `done`, QA PASS и сцены в порядке проекта). Нет crossfade/match cut, durable jobs или immutable аудита каждого рендера.
+- **P06:** отдельные scoped bearer keys для workers/reviewers/viewers, fenced TTL lease и аудит. Общий MCP_API_KEY/OAuth/Basic — **директор**, а не отдельный агент. Вся модель рассчитана на один процесс и не защищает от злоупотребления директором. См. [docs/production-p04-p06.md](docs/production-p04-p06.md).
