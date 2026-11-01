@@ -15,6 +15,9 @@ import { sceneTaskStore } from './scene-tasks.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 import { inspectMp4 } from './video-qa.mjs';
+import {styleContractStore,enforceScene3D} from './style-contract.mjs';
+import {sceneLeaseStore,agentDirectory} from './scene-leases.mjs';
+import {assemblyService} from './assemble-scenes.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = '0.0.0.0';
@@ -31,6 +34,10 @@ fs.mkdirSync(OUT, {recursive:true});
 const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
+const styles=styleContractStore({root:DECKS,getDeck});
+const leases=sceneLeaseStore({root:DECKS,getDeck});
+const agents=agentDirectory();
+const director={id:'web-director',role:'director'};
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
@@ -178,6 +185,38 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const styleMatch=/^\/api\/decks\/([^/]+)\/style-contract$/.exec(p);
+  if(styleMatch){
+    const id=deckId(escaped(styleMatch[1]));
+    if(method==='GET')return json(res,200,styles.read(id));
+    if(method==='PUT'){
+      const body=await readJson(req);
+      return json(res,200,styles.put(id,body?.contract,body?.expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const leaseMatch=/^\/api\/decks\/([^/]+)\/leases\/([^/]+)$/.exec(p);
+  if(leaseMatch){
+    const id=deckId(escaped(leaseMatch[1])),scene=escaped(leaseMatch[2]);
+    if(method==='GET')return json(res,200,leases.read(id,scene));
+    if(method==='POST'){
+      const body=await readJson(req);
+      if(body?.action==='claim')return json(res,200,leases.claim(id,scene,director,body?.ttl??300));
+      if(body?.action==='release')return json(res,200,leases.release(id,scene,director,body?.fence_token));
+      throw new UserError('Unknown lease action');
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const assembleMatch=/^\/api\/decks\/([^/]+)\/assemble$/.exec(p);
+  if(assembleMatch){
+    const id=deckId(escaped(assembleMatch[1]));
+    if(method==='GET')return json(res,200,assembly.get(id));
+    if(method==='POST'){
+      const body=await readJson(req);
+      return json(res,202,assembly.start(id,body?.scene_ids));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const scene3dMatch=/^\/api\/decks\/([^/]+)\/scene3d(?:\/([^/]+))?$/.exec(p);
   if(scene3dMatch){
     const id=deckId(escaped(scene3dMatch[1]));
@@ -189,7 +228,10 @@ async function api(req,res,url) {
     if(method==='GET')return json(res,200,scene3d.read(id,slideId));
     if(method==='PUT'){
       const payload=await readJson(req);
-      return json(res,200,scene3d.put(id,slideId,payload?.spec,payload?.expected_revision));
+      enforceScene3D(styles.read(id).contract,payload?.spec);
+      const saved=scene3d.put(id,slideId,payload?.spec,payload?.expected_revision);
+      leases.logWrite(id,slideId,director,saved.revision,'write_3d');
+      return json(res,200,saved);
     }
     throw new UserError('Method not allowed',405);
   }
@@ -381,7 +423,8 @@ for(const file of fs.readdirSync(JOBS_DIR).filter(n=>/^[0-9a-f]{64}\.json$/.test
     }
   }catch(e){console.warn('Invalid persisted render job:',file,String(e))}
 }
-const mcp=makeMcp({startRender,getRender,baseUrl});
+const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),baseUrl});
+const mcp=makeMcp({startRender,getRender,baseUrl,assembly});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
@@ -390,11 +433,12 @@ const server=http.createServer(async(req,res)=>{
     if(oauth.enabled && oauth.canHandle(p))return await oauth.handle(req,res,url);
     if(p==='/mcp'){
       const bearer=String(req.headers.authorization||'').startsWith('Bearer ') ? String(req.headers.authorization).slice(7) : '';
-      if(!authMcp(req) && !oauth.verifyToken(bearer))return send(res,401,{error:'Unauthorized'},'application/json; charset=utf-8',
+      const actor=authMcp(req)||oauth.verifyToken(bearer)?{id:'mcp-director',role:'director'}:agents.authenticate(bearer);
+      if(!actor)return send(res,401,{error:'Unauthorized'},'application/json; charset=utf-8',
         {'WWW-Authenticate':oauth.enabled?oauth.challenge:'Bearer realm="PressBuilder MCP"'});
       if(req.method!=='POST')return json(res,405,{error:'Streamable HTTP supports POST' });
       const msg=await readJson(req);
-      const reply=await mcp(msg);
+      const reply=await mcp(msg,actor);
       if(reply===null){res.writeHead(202);res.end();return}
       return json(res,200,reply);
     }
@@ -411,7 +455,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/out/')){
       const name=escaped(p.slice('/out/'.length));
-      if(!/^[a-z0-9][a-z0-9_-]{0,40}\.mp4$/.test(name))throw new UserError('Invalid filename');
+      if(!/^[a-z0-9][a-z0-9_-]{0,100}\.mp4$/.test(name))throw new UserError('Invalid filename');
       const file=inside(OUT,name);
       if(!file || !fs.existsSync(file))throw new UserError('Video not found',404);
       return fileResponse(req,res,file);
