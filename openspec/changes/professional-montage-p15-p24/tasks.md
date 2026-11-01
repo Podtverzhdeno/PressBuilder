@@ -1,6 +1,6 @@
 # OpenSpec Tasks — Professional Montage P15–P24
 
-All 60 checkboxes are TODO; completion evidence lives in SDD tasks and the versioned JSON registry.
+All 60 checkboxes remain unchecked until independent acceptance. P15-C01 and P15-C02 have CI-backed TESTED status in SDD; remaining 58 are TODO.
 
 ## Apply checklist
 
