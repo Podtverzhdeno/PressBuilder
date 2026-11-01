@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P15-C01 and P15-C02 are TESTED by cloud CI (run 41338415912; review pending). P15-C03 is IN_PROGRESS with read-only Studio+MCP+REST preview tested by cloud CI run 41340395952 (117 tests, 103 pass, 14 skipped); other 57 checkpoints TODO. No P15 feature is deployed or approved for production.
+Progress: P15-C01 and P15-C02 are TESTED by cloud CI (run 41338415912; review pending). P15-C03 is IN_PROGRESS with read-only Studio+MCP+REST preview tested by cloud CI run 41340562286 (117 tests, 103 pass, 14 skipped; Docker smoke PASS); other 57 checkpoints TODO. No P15 feature is deployed or approved for production.
 
 ## Evidence and progression rules
 
