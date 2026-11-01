@@ -221,7 +221,7 @@ export function directorDispatchStore({
     // if interrupted, the task state is authoritative for human review.
     sceneTasks.put(id,scene,{status:nextStatus},task.revision);
     persist(id,scene,updated);
-    event(id,scene,actor,kind,updated);
+    event(id,scene,actor,updated.state,updated);
     return {job:updated,scene_status:nextStatus};
   }
   function submit(id,scene,actor,args){return outcome(id,scene,actor,args,'submit')}
