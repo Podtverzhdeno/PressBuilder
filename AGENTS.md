@@ -61,6 +61,21 @@ src/decks/<id>/voice.mp3      озвучка (кнопка «Добавить з
 
 API, лимиты и пример: [docs/scene3d-sdk.md](docs/scene3d-sdk.md). Не объявляй сцену выполненной без фактического предпросмотра и рендера MP4.
 
+## P04–P06 — стиль, самостоятельный рендер и владение сценой (MVP)
+
+`get_project_context` теперь возвращает также `style_contract`. Перед публикацией 3D/2D-графики проверь `style_contract.contract.enforce`, допустимую палитру, шрифты и safe area. Нельзя отключать enforce самому: `set_style_contract` разрешён только директору.
+
+Агент-исполнитель должен подключаться **с отдельным scoped bearer token**, выданным координатором в `PB_AGENT_KEYS_JSON`. Не подключай шесть агентов одним `MCP_API_KEY` — это директорский секрет с расширенными правами. Сценовые инструменты сначала сверяют область доступа, затем аренду. Последовательность:
+
+1. `get_project_context` → `get_scene_task` → `get_scene_3d`.
+2. `claim_scene({id,slide_id,ttl:300})` → получи `fence`.
+3. В каждую запись сцены (`set_scene_3d`, `set_slide_visuals`, `set_scene_task`, `set_scene_checkpoint`, `update_cue/slide/object`) передавай `fence_token:fence`. Следи за сроком аренды и `renew_scene_lease`.
+4. После проверки и выпуска `release_scene`. Директор вправе принудительно переназначить сцену, что делает старый токен недействительным.
+
+Когда все независимые рендеры завершены и статусы заданий `done`, только директор вызывает `assemble_video({id,scene_ids:[...]})`, затем `get_assembly_status`. Сейчас поддерживается **только hard-cut** без художественных переходов и immutable artifacts. Не считай технический PASS визуальной приёмкой.
+
+Подробно: [docs/production-p04-p06.md](docs/production-p04-p06.md).
+
 ## Команды
 
 ```
