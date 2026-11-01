@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15 C01/C02 TESTED; C03/C04/C05 IN_PROGRESS. P16 C01/C02 TESTED; C03/C04 IN_PROGRESS. P17 C01/C02 TESTED on current hardened data-only planner (160/160 Docker, real MP4 regression); independent reviewer and P08/P03 source attestation pending; P17 C03–C06 and P18–P24 TODO. No P17 publishing.",
+  "notice": "P15 C01/C02 TESTED, C03-C05 IN_PROGRESS; P16 C01/C02 TESTED, C03/C04 IN_PROGRESS. P17 C01/C02 TESTED, C03/C04 IN_PROGRESS as feature-flagged, read-only exact P08 boundary evidence; C05/C06 TODO. P18-P24 TODO. No media release authorization.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -674,7 +674,7 @@
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "MCP + REST + Studio preview",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P17-C02"
@@ -698,7 +698,7 @@
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Read-only authenticated MCP/REST exact P08 MP4 boundary SHA verified in code. Studio compare, proof of camera/motion/audio, independent security review and current-head CI are still required. Publication remains forbidden.",
       "accepted_release": null,
       "release_eligible": false
     },
@@ -707,7 +707,7 @@
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "Negative and regression suite",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P17-C03"
@@ -731,7 +731,7 @@
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Real FFmpeg and negative source/approval tests introduced; multi-process backpressure, corruption during decoding, race tests, independent security reviewer and full media acceptance remain pending.",
       "accepted_release": null,
       "release_eligible": false
     },
