@@ -145,6 +145,26 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
                   width:(rect.w*100)+'%',height:(rect.h*100)+'%'}} />}
               </div>
               <p class="task-readme-help">{active.fps} FPS · {active.duration.toFixed(2)} с · SHA-256: {active.sha256.slice(0,16)}…</p>
+              {active.frame_evidence&&<div style={{marginTop:'12px'}}>
+                <strong>Три архивных контрольных кадра</strong>
+                <p class="task-readme-help">Нажми на кадр, чтобы открыть его время в видеоплеере. Автоматические признаки — только подсказки для ревьюера.</p>
+                <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                  {active.frame_evidence.frames.map(frame=><button type="button" key={frame.index}
+                    class="btn" title={frame.warnings.join(', ')||'Автоматических предупреждений нет'}
+                    style={{display:'block',padding:'5px',width:'min(31%,190px)',minWidth:'130px'}}
+                    onClick={()=>{
+                      if(videoRef.current){videoRef.current.pause();videoRef.current.currentTime=frame.t;}
+                      setStamp(frame.t);setRect(null);
+                    }}>
+                    <img src={'/'+frame.file} alt={'Архивный кадр '+frame.frame}
+                      style={{width:'100%',aspectRatio:'16/9',objectFit:'contain',display:'block'}} />
+                    <small>{frame.t.toFixed(2)} с · {frame.warnings.length?frame.warnings.join(', '):'без предупреждений'}</small>
+                  </button>)}
+                </div>
+                {!!active.frame_evidence.warnings.length&&<p class="task-readme-help">
+                  Диагностика: {active.frame_evidence.warnings.join(', ')}. Статичный или тёмный кадр может быть намеренным.
+                </p>}
+              </div>}
               <div class="task-row">
                 <label>Приоритет
                   <select value={issueSeverity} onChange={e=>setIssueSeverity(e.currentTarget.value as SceneReviewItem['severity'])}>
