@@ -14,6 +14,7 @@ const obj = (properties, required=[]) => ({ type:'object', properties, required,
 const str = (description) => ({ type:'string', description });
 const num = (description) => ({ type:'number', description });
 const nilNum = (description) => ({ oneOf:[{ type:'number' },{ type:'null' }], description });
+const LEASE_WRITES=new Set(['set_scene_task','set_scene_checkpoint','set_scene_3d','set_slide_visuals','update_cue','update_slide','update_object','render_scene']);
 export const TOOLS = [
  { name:'list_decks', description:'START HERE if the user did not give a project ID. List all PressBuilder video projects, then call get_project_context for the chosen project and get_scene_task before editing a scene.', inputSchema:obj({}) },
  { name:'get_deck', description:'Read project slides, narration, timing, project README and scene task status. For a new agent use get_project_context first, followed by get_scene_task for your assigned scene.', inputSchema:obj({id:str('Project slug')},['id']) },
@@ -48,7 +49,13 @@ export const TOOLS = [
  { name:'create_scene_review_item', description:'Reviewer/director: mark a concrete frame of the CURRENT COMPLETED scene render (job_id). Supply seconds, fps, frame=round(t*fps), text, optional normalized rectangle and JPEG thumbnail.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),render_revision:str('Completed render job_id'),t:num('Seconds within the scene clip'),fps:{type:'integer',minimum:1,maximum:120},frame:{type:'integer',minimum:0},severity:{type:'string',enum:['minor','major','blocker']},text:str('Concrete issue'),region:obj({x:num('0..1'),y:num('0..1'),w:num('0..1'),h:num('0..1')},['x','y','w','h']),frame_evidence:str('Optional data:image/jpeg;base64,...; <=130 KB')},['id','slide_id','render_revision','t','fps','frame','severity','text']) },
  { name:'update_scene_review_item', description:'Worker with lease: OPEN/REOPENED -> FIXED with evidence note. Reviewer/director: FIXED -> VERIFIED or REOPENED, VERIFIED -> REOPENED. Requires expected_revision; history is immutable.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),item_id:str('Review UUID'),status:{type:'string',enum:['FIXED','VERIFIED','REOPENED']},note:str('Required explanation or verification evidence'),expected_revision:{type:'integer',minimum:1},lease_token:str('Required for worker'),fencing_token:{type:'integer',minimum:1}},['id','slide_id','item_id','status','note','expected_revision']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
-].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
+].map(tool=>({...tool,
+  inputSchema:LEASE_WRITES.has(tool.name)?{...tool.inputSchema,properties:{...tool.inputSchema.properties,
+    lease_token:str('Required secret from claim_scene for worker role'),
+    fencing_token:{type:'integer',minimum:1,description:'Required monotonically increasing claim fence for worker role'}
+  }}:tool.inputSchema,
+  securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]
+}));
 const directorTools=new Set(['create_deck','update_deck','update_project_readme','reorder_slides','render_video']);
 const sceneWriteTools=new Set(['set_scene_task','set_scene_checkpoint','set_scene_3d','set_slide_visuals','update_cue','update_slide','update_object','render_scene']);
 const sceneAuditTools=new Set([...sceneWriteTools,'create_scene_review_item','update_scene_review_item']);
