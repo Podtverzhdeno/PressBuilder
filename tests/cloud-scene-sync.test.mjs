@@ -125,3 +125,49 @@ test('P09 MCP write guarded by P06 fenced scene lease and per-agent scope',{time
     fs.rmSync(root,{recursive:true,force:true});
   }
 });
+
+test('P08 source rollback restores P09 cue markers together with slide and 3D without touching another scene',()=>{
+  const f=setup();
+  try{
+    f.sync.put('demo','s01',[beat],0);
+    const spec={version:1,camera:{},objects:[{id:'core',mesh:'cube',color:'#aabbcc',start_marker:'beat-1'}]};
+    f.three.put('demo','s01',spec,0);
+    const v=sceneVersionStore({
+      root:f.root,out:f.out,getDeck:f.getDeck,staticRoot:path.join(f.root,'empty-build'),
+      getScene3D:(id,scene)=>f.three.read(id,scene),
+      getStyle:()=>({revision:0,contract:{enforce:false}}),
+      getSceneSync:(id,scene)=>f.sync.read(id,scene),
+      restoreScene3D:(id,scene,source,rev)=>f.three.restore(id,scene,source,rev),
+      restoreSlide:(id,scene,slide)=>{
+        const d=f.getDeck(id),index=d.slides.findIndex(x=>x.id===scene);
+        assert.ok(index>=0);d.slides[index]=slide;f.setDeck(d);
+      },
+      restoreSceneSync:(id,scene,markers,rev)=>f.sync.put(id,scene,markers,rev)
+    });
+    const original=v.source('demo','s01');
+    const job='archive-scene',vid=v.versionId(job),file=path.join(f.out,'demo_s01_v'+vid+'.mp4');
+    fs.writeFileSync(file,Buffer.alloc(2048,42));
+    v.capture({id:'demo',scene:'s01',jobId:job,file,expectedSource:original,
+      rendered:{duration:5,fps:24,height:720},qa:{verdict:'PASS'}});
+    assert.deepEqual(v.readSource('demo','s01',vid).source.sync_markers,[beat]);
+    const updatedSheet=[{id:'future-beat',kind:'beat',anchor:{type:'scene',offset:.2}}];
+    f.sync.put('demo','s01',updatedSheet,1);
+    f.three.put('demo','s01',{...spec,objects:[{...spec.objects[0],start_marker:'future-beat'}]},1);
+    const changed=f.getDeck('demo');changed.slides[0].label='Edited';f.setDeck(changed);
+    const current=v.source('demo','s01'),actor={id:'director',role:'director'};
+    assert.notEqual(current.fingerprint,original.fingerprint);
+    assert.throws(()=>v.restoreSource('demo','s01',vid,'outdated',current.scene3d_revision,actor),
+      e=>e.status===409);
+    const restored=v.restoreSource('demo','s01',vid,current.fingerprint,current.scene3d_revision,actor);
+    assert.equal(restored.ok,true);
+    assert.equal(f.getDeck('demo').slides[0].label,'First');
+    assert.equal(f.getDeck('demo').slides[1].label,'Second');
+    assert.deepEqual(f.sync.read('demo','s01').markers,[beat]);
+    assert.equal(f.sync.read('demo','s02').revision,0);
+    assert.equal(f.three.read('demo','s01').spec.objects[0].start_marker,'beat-1');
+    const globalChange=f.getDeck('demo');globalChange.target=9;f.setDeck(globalChange);
+    const after=v.source('demo','s01');
+    assert.throws(()=>v.restoreSource('demo','s01',vid,after.fingerprint,after.scene3d_revision,actor),
+      e=>e.status===409,'Global retiming must block isolated source restore');
+  }finally{f.cleanup()}
+});
