@@ -49,15 +49,17 @@ export function sceneVersionStore({root,outDir,getDeck,putDeck,scene3d,syncStore
       if(!fs.existsSync(f))fail('Referenced narration file is missing',409);
       voice={filename:audio.file,sha256:digestFile(f),offset:audio.offset||0,volume:audio.volume??1};
     }
+    const sync=syncStore.read(id,sid);
+    if(sync.validation_error)fail('Fix orphaned audio/motion markers first: '+sync.validation_error,409);
+    const three=scene3d.read(id,sid).spec;
+    const usable=new Set(sync.timeline.events.filter(e=>!e.out_of_range).map(e=>e.id));
+    for(const o of three?.objects||[])if(o.start_marker&&!usable.has(o.start_marker))
+      fail('3D object '+o.id+' references absent/out-of-range sync marker '+o.start_marker,409);
     const snapshot={
       schema:1,
       slide:structuredClone(deck.slides[index]),
-      scene3d:structuredClone(scene3d.read(id,sid).spec),
-      sync_markers:structuredClone((()=>{
-        const sync=syncStore.read(id,sid);
-        if(sync.validation_error)fail('Fix orphaned audio/motion markers first: '+sync.validation_error,409);
-        return sync.markers;
-      })()),
+      scene3d:structuredClone(three),
+      sync_markers:structuredClone(sync.markers),
       render_context:{style:deck.style||'terevo',format:deck.format,
         clip_start:sc.start,clip_duration:sc.dur,project_target:deck.target,
         lead:deck.lead??null,tail:deck.tail??null,voice,
