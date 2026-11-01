@@ -53,6 +53,9 @@ test('OAuth consent survives server restart and can only be approved once', {tim
     launch();await ready();
     const response=await fetch(base+'/oauth/authorize?'+params,{headers:{Authorization:user}});
     assert.equal(response.status,200);
+    const policy=response.headers.get('content-security-policy');
+    assert.match(policy,/form-action 'self' https:\/\/chatgpt\.com;/,'Chrome must be allowed to follow OAuth callback after 303');
+    assert.match(policy,/frame-ancestors 'none'/);
     const page=await response.text();
     const nonce=/name="csrf" value="([^"]+)"/.exec(page)?.[1];assert.ok(nonce);
     assert.ok(fs.existsSync(path.join(dir,'oauth-consents',nonce+'.json')),'Pending approval must be persisted before returning the form');
