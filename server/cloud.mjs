@@ -18,6 +18,9 @@ import { inspectMp4 } from './video-qa.mjs';
 import {styleContractStore,enforceScene3D} from './style-contract.mjs';
 import {sceneLeaseStore,agentDirectory} from './scene-leases.mjs';
 import {assemblyService} from './assemble-scenes.mjs';
+import {sceneVersionStore} from './scene-versions.mjs';
+import {sceneReviewStore} from './scene-reviews.mjs';
+import {randomUUID} from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = '0.0.0.0';
@@ -38,6 +41,9 @@ const styles=styleContractStore({root:DECKS,getDeck});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
+const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scene)=>scene3d.read(id,scene),
+  getStyle:id=>styles.read(id)});
+const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
@@ -217,6 +223,32 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const versionMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)(?:\/([^/]+))?$/.exec(p);
+  if(versionMatch){
+    const id=deckId(escaped(versionMatch[1])),scene=deckId(escaped(versionMatch[2])),action=versionMatch[3]||'';
+    if(method==='GET'&&!action)return json(res,200,{versions:versions.list(id,scene),approved:versions.pointer(id,scene)});
+    if(method==='POST'&&(action==='approve'||action==='restore')){
+      const body=await readJson(req);
+      if(action==='approve'&&sceneTasks.read(id,scene).status!=='done')throw new UserError('Scene must be marked done before approval',409);
+      const fn=action==='restore'?versions.restore:versions.approve;
+      return json(res,200,fn(id,scene,body?.version_id,body?.expected_revision,director,{unresolved:reviews.unresolved}));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const reviewMatch=/^\/api\/decks\/([^/]+)\/reviews\/([^/]+)(?:\/([^/]+))?$/.exec(p);
+  if(reviewMatch){
+    const id=deckId(escaped(reviewMatch[1])),scene=deckId(escaped(reviewMatch[2])),itemId=reviewMatch[3]||'';
+    if(method==='GET'&&!itemId)return json(res,200,reviews.read(id,scene));
+    if(method==='POST'&&!itemId){
+      const body=await readJson(req);
+      return json(res,200,reviews.create(id,scene,body?.item,director,body?.expected_revision));
+    }
+    if(method==='PATCH'&&itemId){
+      const body=await readJson(req);
+      return json(res,200,reviews.transition(id,scene,escaped(itemId),body?.status,body?.note,director,body?.expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const scene3dMatch=/^\/api\/decks\/([^/]+)\/scene3d(?:\/([^/]+))?$/.exec(p);
   if(scene3dMatch){
     const id=deckId(escaped(scene3dMatch[1]));
@@ -357,20 +389,31 @@ async function workQueue(){
       j.status='running';
       j.startedAt=new Date().toISOString();
       persistJob(j);
+      let draftFile=null;
       try {
+        const snapshot=slideId?versions.source(id,slideId):null;
+        const versionId=slideId?versions.versionId(j.job_id):null;
+        const outputName=slideId?id+'_'+slideId+'_v'+versionId:null;
         const rendered=await renderWithChrome({id,slideId,port:PORT,username:WEB_USER,password:WEB_PASS,
+          outputNameOverride:outputName,
           timeoutMs:900000,onProgress:p=>{
             const percent=Math.round(p*100);
             if(Math.floor(percent/10)!==Math.floor((j.progress||0)/10)){
               j.progress=percent;persistJob(j);
             }else j.progress=percent;
           }});
-        const name=slideId?id+'_'+slideId:id;
+        const name=outputName||id;
         const file=path.join(OUT,name+'.mp4');
+        draftFile=slideId?file:null;
         if(!fs.existsSync(file))throw new Error('Video was not produced');
         j.qa_report=inspectMp4(file,{fps:rendered.fps,height:rendered.height,duration:rendered.duration});
         if(j.qa_report.verdict==='FAIL'){
           throw new Error('Technical video QA failed: '+j.qa_report.issues.map(x=>x.id).join(', '));
+        }
+        if(slideId){
+          const version=versions.capture({id,scene:slideId,jobId:j.job_id,file,rendered,qa:j.qa_report,expectedSource:snapshot});
+          versions.publishPreview(id,slideId,version);
+          j.version_id=version.version_id;
         }
         j.status='completed';
         j.result={file:'out/'+name+'.mp4',size:fs.statSync(file).size,
@@ -378,6 +421,7 @@ async function workQueue(){
       }catch(e){
         j.status='failed';
         j.error=e instanceof Error?e.message:String(e);
+        if(draftFile)fs.rmSync(draftFile,{force:true});
       }finally{j.finishedAt=new Date().toISOString();persistJob(j)}
     }
   }finally{workerActive=false}
@@ -392,7 +436,7 @@ function startRender(id,slideId=null){
   const previous=jobs.get(key);
   if(previous&&['queued','running'].includes(previous.status))return {...previous};
   if(renderQueue.length>=50)throw new UserError('Render queue full (50 pending jobs)',429);
-  const j={id,...(slideId?{slide_id:slideId}:{}),job_id:key+'-'+Date.now(),
+  const j={id,...(slideId?{slide_id:slideId}:{}),job_id:key+'-'+randomUUID(),
     status:'queued',queuedAt:new Date().toISOString(),progress:0};
   jobs.set(key,j);
   persistJob(j);
@@ -423,8 +467,9 @@ for(const file of fs.readdirSync(JOBS_DIR).filter(n=>/^[0-9a-f]{64}\.json$/.test
     }
   }catch(e){console.warn('Invalid persisted render job:',file,String(e))}
 }
-const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),baseUrl});
-const mcp=makeMcp({startRender,getRender,baseUrl,assembly});
+const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),
+  getApproved:(id,scene)=>versions.approved(id,scene),baseUrl});
+const mcp=makeMcp({startRender,getRender,baseUrl,assembly,versions,reviews});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
@@ -455,7 +500,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/out/')){
       const name=escaped(p.slice('/out/'.length));
-      if(!/^[a-z0-9][a-z0-9_-]{0,100}\.mp4$/.test(name))throw new UserError('Invalid filename');
+      if(!/^[a-z0-9][a-z0-9_-]{0,125}\.mp4$/.test(name))throw new UserError('Invalid filename');
       const file=inside(OUT,name);
       if(!file || !fs.existsSync(file))throw new UserError('Video not found',404);
       return fileResponse(req,res,file);
