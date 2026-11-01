@@ -99,8 +99,9 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
     const releaseFile=out&&receipt?path.join(out,id+'_final.mp4'):null;
     const stat=releaseFile&&fs.existsSync(releaseFile)?fs.statSync(releaseFile):null;
     const releaseStatus=plan.status==='released'?
-      (!out?'signed_off_unverified':(!stat?'artifact_missing':
-        (stat.size===receipt.size&&stat.mtimeMs===receipt.mtime_ms?'signed_off':'artifact_changed'))):
+      (!out?'signed_off_unverified':(!stat||!stat.isFile()?'artifact_missing':
+        (stat.size===receipt.size&&hashFile(releaseFile)===receipt.sha256?
+          'signed_off':'artifact_changed'))):
       'manual_review_required';
     const taskById=new Map(tasks.map(t=>[t.scene_id,t]));
     const plannedById=new Map((plan.scenes||[]).map(s=>[s.scene_id,s]));
