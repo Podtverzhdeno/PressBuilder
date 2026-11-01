@@ -60,6 +60,10 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "P06",
+        "P10"
       ]
     },
     {
@@ -98,6 +102,11 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "P02",
+        "P05",
+        "P08"
       ]
     },
     {
@@ -136,6 +145,9 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "P03"
       ]
     },
     {
@@ -175,6 +187,11 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "P03",
+        "P05",
+        "P08"
       ]
     },
     {
@@ -212,7 +229,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M42",
@@ -249,7 +267,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M41",
@@ -287,6 +306,11 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "M01",
+        "M47",
+        "M50"
       ]
     },
     {
@@ -324,7 +348,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M32",
@@ -362,6 +387,9 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "P08"
       ]
     },
     {
@@ -399,7 +427,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M05",
@@ -436,6 +465,10 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "M01",
+        "M50"
       ]
     },
     {
@@ -474,7 +507,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M11",
@@ -511,7 +545,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M52",
@@ -548,7 +583,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M01",
@@ -587,6 +623,10 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "P05",
+        "P08"
       ]
     },
     {
@@ -624,7 +664,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M24",
@@ -662,6 +703,10 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "M21",
+        "M26"
       ]
     },
     {
@@ -700,7 +745,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M44",
@@ -738,6 +784,9 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "M50"
       ]
     },
     {
@@ -776,7 +825,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M39",
@@ -813,7 +863,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M03",
@@ -852,6 +903,11 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "M01",
+        "M11",
+        "M31"
       ]
     },
     {
@@ -889,6 +945,10 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "M11",
+        "M26"
       ]
     },
     {
@@ -927,7 +987,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M15",
@@ -964,6 +1025,9 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "M11"
       ]
     },
     {
@@ -1002,7 +1066,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M45",
@@ -1039,7 +1104,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M47",
@@ -1077,6 +1143,10 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "P02",
+        "P08"
       ]
     },
     {
@@ -1115,7 +1185,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M48",
@@ -1153,7 +1224,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M22",
@@ -1189,7 +1261,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M27",
@@ -1226,7 +1299,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M12",
@@ -1263,7 +1337,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M29",
@@ -1300,7 +1375,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M46",
@@ -1337,7 +1413,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M31",
@@ -1376,7 +1453,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M04",
@@ -1413,7 +1491,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M09",
@@ -1450,7 +1529,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M43",
@@ -1487,7 +1567,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M49",
@@ -1524,7 +1605,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M14",
@@ -1560,7 +1642,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M34",
@@ -1597,6 +1680,9 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "M32"
       ]
     },
     {
@@ -1634,7 +1720,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M02",
@@ -1672,7 +1759,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M33",
@@ -1708,7 +1796,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M38",
@@ -1745,7 +1834,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M06",
@@ -1783,7 +1873,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M23",
@@ -1820,7 +1911,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M53",
@@ -1857,7 +1949,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M57",
@@ -1894,7 +1987,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M60",
@@ -1931,6 +2025,9 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
+      ],
+      "recommended_predecessors": [
+        "M01"
       ]
     },
     {
@@ -1967,7 +2064,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M19",
@@ -2003,7 +2101,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M35",
@@ -2040,7 +2139,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M37",
@@ -2077,7 +2177,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M10",
@@ -2114,7 +2215,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M30",
@@ -2150,7 +2252,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M25",
@@ -2187,7 +2290,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M28",
@@ -2224,7 +2328,8 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     },
     {
       "id": "M36",
@@ -2261,7 +2366,9 @@
         "negative/security + real-media test",
         "independent human artistic approval",
         "rollback + canary"
-      ]
+      ],
+      "recommended_predecessors": []
     }
-  ]
+  ],
+  "dependency_semantics": "depends_on lists integration interfaces (existing or planned Pxx); it is NOT a claim that unfinished P19-P24 must be complete before W0 work starts. Stage gates require verified inputs at each slice."
 }
