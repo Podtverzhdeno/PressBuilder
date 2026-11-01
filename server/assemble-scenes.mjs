@@ -17,6 +17,8 @@ function sha256(file){
   return h.digest('hex');
 }
 const round=n=>Number(n.toFixed(5));
+const ENCODER_PROFILE='h264-libx264-veryfast-crf20-aac192-v1';
+const digest=obj=>createHash('sha256').update(JSON.stringify(obj)).digest('hex');
 function writeAtomic(file,obj){
   fs.mkdirSync(path.dirname(file),{recursive:true});
   const tmp=file+'.'+randomUUID()+'.tmp';
@@ -146,6 +148,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     return {...j};
   }
   function start(id,scene_ids){
+    const requestedAt=Date.now();
     const deck=getDeck(id);
     if(!Array.isArray(scene_ids)||scene_ids.length<2||scene_ids.length>12||
         new Set(scene_ids).size!==scene_ids.length||
@@ -169,8 +172,8 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     const style=getStyle(id);
     // Revisions alone are insufficient if persisted JSON is modified without
     // a revision bump. Freeze both actual policies as part of the render job.
-    const planHash=createHash('sha256').update(JSON.stringify(plan)).digest('hex');
-    const styleHash=createHash('sha256').update(JSON.stringify(style.contract)).digest('hex');
+    const planHash=digest(plan);
+    const styleHash=digest(style.contract);
     // Assemble only after every scene is explicitly accepted and has passed technical QA.
     const inputs=scene_ids.map(scene=>{
       if(getTask(id,scene).status!=='done')throw bad('Scene not approved: '+scene,409);
@@ -204,9 +207,39 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     }
     const target=inputs.reduce((n,v)=>n+v.duration,0)-boundaries.reduce((n,v)=>n+(v.type==='crossfade'?v.duration:0),0);
     if(target>600)throw bad('Assembly exceeds 10 minutes',413);
+    const preparedAt=Date.now();
+    // Fail closed: all approvals, reviews, real inputs and QA above were checked.
+    // Only the checksum-verified active release may be reused, never draft output.
+    const previous=current(id),manifest=previous?.manifest;
+    const matches=manifest?.encoder_profile===ENCODER_PROFILE&&
+      manifest.target_fps===fps&&manifest.target_height===height&&
+      manifest.plan_revision===planRecord.revision&&manifest.plan_sha256===planHash&&
+      manifest.style_revision===style.revision&&manifest.style_sha256===styleHash&&
+      manifest.scenes?.length===inputs.length&&
+      inputs.every((x,i)=>{
+        const m=manifest.scenes[i],edge=boundaries[i]??{type:'hard-cut',duration:0};
+        return m.id===x.scene&&m.sha256===x.source_sha256&&
+          m.duration===x.duration&&m.has_audio===x.has_audio&&
+          m.approved_version_id===x.approved_version_id&&
+          m.approved_revision===x.approved_revision&&m.render_job_id===x.render_job_id&&
+          JSON.stringify(m.transition_after)===JSON.stringify(edge);
+      });
+    if(matches){
+      const job={id,job_id:randomUUID(),status:'completed',progress:100,
+        scene_ids:[...scene_ids],created_at:new Date().toISOString(),
+        finished_at:new Date().toISOString(),plan_revision:planRecord.revision,
+        style_revision:style.revision,cache_hit:true,manifest,
+        timings_ms:{prepare:preparedAt-requestedAt,encode:0,qa:0,total:Date.now()-requestedAt},
+        result:{release_id:previous.release_id,size:manifest.output.bytes,
+          download_url:previous.download_url}};
+      saveJob(job);
+      jobs.set(id,job);
+      return {...job};
+    }
     const job={id,job_id:randomUUID(),status:'queued',progress:0,scene_ids:[...scene_ids],
       created_at:new Date().toISOString(),plan_revision:planRecord.revision,
-      style_revision:style.revision};
+      style_revision:style.revision,cache_hit:false,
+      timings_ms:{prepare:preparedAt-requestedAt}};
     saveJob(job);
     jobs.set(id,job);
     assemblySlots++;
@@ -218,6 +251,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       try{
         job.status='running';
         saveJob(job);
+        const snapshotStartedAt=Date.now();
         fs.mkdirSync(work,{recursive:true});
         const sourcePaths=[];
         for(const item of inputs){
@@ -227,6 +261,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
           if(sha256(copy)!==item.source_sha256)throw bad('Scene changed during source snapshot: '+item.scene,409);
           sourcePaths.push(copy);
         }
+        job.timings_ms.snapshot=Date.now()-snapshotStartedAt;
         const args=['-hide_banner','-loglevel','error','-nostats','-stats_period','0.2','-progress','pipe:2','-y'];
         sourcePaths.forEach(p=>args.push('-i',p));
         const silent=new Map();
@@ -271,11 +306,17 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
         args.push('-filter_complex',filters.join(';'),'-map','[v]','-map','[a]',
           '-c:v','libx264','-preset','veryfast','-crf','20','-r',String(fps),'-pix_fmt','yuv420p',
           '-c:a','aac','-ar','48000','-ac','2','-b:a','192k','-movflags','+faststart',mp4);
-        await ffmpegRun(args,{signal:controller.signal,duration:target,onProgress:p=>{job.progress=Math.max(job.progress,p)}});
+        const encodeStartedAt=Date.now();
+        try{
+          await ffmpegRun(args,{signal:controller.signal,duration:target,onProgress:p=>{job.progress=Math.max(job.progress,p)}});
+        }finally{job.timings_ms.encode=Date.now()-encodeStartedAt}
         if(controller.signal.aborted)throw new Error('Assembly cancelled');
+        const qaStartedAt=Date.now();
         const qa=inspectMp4(mp4,{fps,height,duration:target,audio_required:true});
+        job.timings_ms.qa=Date.now()-qaStartedAt;
         if(qa.verdict!=='PASS')throw bad('Output QA failure: '+qa.issues.map(x=>x.id).join(','),422);
         const manifest={schemaVersion:1,project:id,release_id:releaseId,job_id:job.job_id,
+          encoder_profile:ENCODER_PROFILE,target_fps:fps,target_height:height,
           plan_revision:job.plan_revision,style_revision:job.style_revision,
           plan_sha256:planHash,style_sha256:styleHash,
           scenes:inputs.map((x,i)=>({id:x.scene,sha256:x.source_sha256,duration:x.duration,
@@ -325,6 +366,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
         fs.rmSync(work,{recursive:true,force:true});
         if(published&&job.status!=='completed')fs.rmSync(release,{recursive:true,force:true});
         job.finished_at=new Date().toISOString();
+        job.timings_ms.total=Date.now()-requestedAt;
         try{saveJob(job)}catch(err){console.error('Assembly journal write failed',id,err)}
         controllers.delete(id);
         assemblySlots=Math.max(0,assemblySlots-1);

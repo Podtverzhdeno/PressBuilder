@@ -235,3 +235,56 @@ test('P05 refuses stale plan/style policy at publication without changing the ac
     assert.equal(accepted.current('demo').release_id,releaseId);
   }finally{fs.rmSync(root,{recursive:true,force:true})}
 });
+
+
+test('P05 cache: identical inputs reuse QA-verified MP4 without FFmpeg; changed inputs invalidate',{
+  skip:!ready,timeout:100000
+},async()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-assembly-cache-'));
+  const out=path.join(root,'out'),decks=path.join(root,'decks');
+  fs.mkdirSync(out,{recursive:true});
+  const deck={id:'demo',slides:[{id:'s01'},{id:'s02'}],format:{height:720,fps:24}};
+  const getDeck=()=>deck;
+  const styles=styleContractStore({root:decks,getDeck});
+  const plans=assemblyPlanStore({root:decks,getDeck,getStyle:id=>styles.read(id)});
+  const opts={out,getDeck,getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
+    getRender:()=>({status:'completed',qa_report:{verdict:'PASS'}}),
+    getTask:()=>({status:'done'}),baseUrl:()=> 'https://example.test'};
+  const service=assemblyService(opts);
+  const saved=process.env.FFMPEG;
+  try{
+    clip(path.join(out,'demo_s01.mp4'),'red',24,true,0.5);
+    clip(path.join(out,'demo_s02.mp4'),'blue',24,false,0.5);
+    service.start('demo',['s01','s02']);
+    const first=await untilDone(()=>service.get('demo'));
+    assert.equal(first.status,'completed',first.error);
+    assert.equal(first.cache_hit,false);
+    assert.ok(first.timings_ms.encode>=0);
+    const release=first.result.release_id;
+    process.env.FFMPEG='intentionally-missing-ffmpeg';
+    const second=service.start('demo',['s01','s02']);
+    assert.equal(second.status,'completed');
+    assert.equal(second.cache_hit,true);
+    assert.equal(second.timings_ms.encode,0);
+    assert.notEqual(second.job_id,first.job_id);
+    assert.equal(second.result.release_id,release);
+    assert.equal(fs.readdirSync(path.join(out,'releases','demo')).filter(
+      x=>/^[0-9a-f-]{36}$/.test(x)).length,1);
+    const restarted=assemblyService(opts);
+    assert.equal(restarted.get('demo').cache_hit,true);
+    if(saved===undefined)delete process.env.FFMPEG;else process.env.FFMPEG=saved;
+    clip(path.join(out,'demo_s02.mp4'),'green',24,false,0.5);
+    const third=service.start('demo',['s01','s02']);
+    assert.notEqual(third.cache_hit,true);
+    const changed=await untilDone(()=>service.get('demo'));
+    assert.equal(changed.status,'completed',changed.error);
+    assert.notEqual(changed.result.release_id,release);
+    assert.ok(fs.existsSync(service.download('demo',release)));
+    console.log('ASSEMBLY_CACHE_BENCHMARK '+JSON.stringify({
+      cold_total_ms:first.timings_ms.total,cold_encode_ms:first.timings_ms.encode,
+      warm_total_ms:second.timings_ms.total,warm_encode_ms:second.timings_ms.encode}));
+  }finally{
+    if(saved===undefined)delete process.env.FFMPEG;else process.env.FFMPEG=saved;
+    fs.rmSync(root,{recursive:true,force:true});
+  }
+});
