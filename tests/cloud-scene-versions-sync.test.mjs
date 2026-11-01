@@ -120,3 +120,20 @@ test('P08 rollback retains and restores authored cue anchors and cleared 3D defi
     assert.equal(s.three.read('p1','s01').spec,null);
   }finally{s.cleanup()}
 });
+
+test('P09 3D entrance linked to an anchored beat is guarded against missing markers',()=>{
+  const s=setup();
+  try{
+    const spec={version:1,camera:{},objects:[{id:'core',mesh:'cube',color:'#112233',start_marker:'beat-1'}]};
+    const saved=s.three.put('p1','s01',spec,0);
+    assert.equal(saved.spec.objects[0].start_marker,'beat-1');
+    assert.throws(()=>s.versions.source('p1','s01'),e=>e.status===409);
+    s.sync.put('p1','s01',[beat],0);
+    const before=s.versions.source('p1','s01');
+    assert.equal(before.snapshot.scene3d.objects[0].start_marker,'beat-1');
+    const d=s.getDeck('p1');d.slides[0].cues[0].dur=3;s.putDeck('p1',d);
+    const after=s.versions.source('p1','s01');
+    assert.notEqual(after.fingerprint,before.fingerprint);
+    assert.equal(s.sync.read('p1','s01').timeline.events[0].local_time,3.25);
+  }finally{s.cleanup()}
+});
