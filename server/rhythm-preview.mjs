@@ -7,6 +7,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {buildSchedule} from '../src/engine/schedule.ts';
 import {proposeRhythmCuts, RhythmInputError} from './rhythm-plan.mjs';
+import {measureOwnedWavSilence} from './rhythm-audio-silence.mjs';
 
 const PROJECT=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const VOICE=/^voice\.(?:mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/;
@@ -140,5 +141,31 @@ export function rhythmPreviewService({root,getDeck,enabled=false}){
       caller_markers_unverified:true
     },publication_allowed:false};
   }
-  return {context,preview};
+  function measuredSilence(id){
+    const before=context(id);
+    const deck=getDeck(id);
+    const measured=measureOwnedWavSilence({
+      root,id,filename:deck.audio.file,expected_sha256:before.voice_source_sha256
+    });
+    const after=context(id);
+    if(after.voice_source_sha256!==before.voice_source_sha256||
+       after.timebase_revision!==before.timebase_revision)
+      deny('AUDIO_OR_CLOCK_CHANGED',409);
+    const offset=deck.audio.offset??0;
+    const hasAlignedOffset=offset===0;
+    const cues=before.cues;
+    const mapped=measured.silences.map(s=>{
+      // All audio times are measured from source start. Do not guess deck
+      // alignment when there is a nonzero audio offset.
+      const belongs=hasAlignedOffset?
+        cues.filter(c=>s.start_us>=c.start_us&&s.end_us<=c.end_us):[];
+      return {...s,scene_id:belongs.length===1?belongs[0].scene_id:null,
+        cue_id:belongs.length===1?belongs[0].cue_id:null};
+    });
+    return {...measured,silences:mapped,
+      project_id:id,timebase_revision:before.timebase_revision,
+      cue_mapping_verified:hasAlignedOffset,
+      word_alignment_verified:false,publication_allowed:false};
+  }
+  return {context,preview,measuredSilence};
 }
