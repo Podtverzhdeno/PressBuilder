@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pressbuilder.local/schemas/montage/creative-storyboard-request-v1.schema.json",
+  "title": "P16 storyboard proposals from a human-approved six-scene P10 script (read-only)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "expected_plan_revision",
+    "expected_source_sha256"
+  ],
+  "properties": {
+    "expected_plan_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expected_source_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "description": "No instruction text, generated fact, scene order or approval flag is trusted from the caller. Requests only pin already-approved script/plan; narrative alternatives retain exact source cue anchors."
+}

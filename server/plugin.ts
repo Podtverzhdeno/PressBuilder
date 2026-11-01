@@ -27,6 +27,7 @@ import { assemblyPlanStore } from './assembly-plan.mjs';
 import {rhythmPreviewService} from './rhythm-preview.mjs';
 import {musicRightsVerifier} from './rhythm-music-rights.mjs';
 import {rhythmDraftStore} from './rhythm-drafts.mjs';
+import {creativeStoryboardService} from './creative-storyboard.mjs';
 
 const ROOT = process.cwd();
 const DECKS_DIR = path.join(ROOT, 'src', 'decks');
@@ -88,6 +89,23 @@ const rhythmPreview=rhythmPreviewService({root:DECKS_DIR,
 const rhythmDrafts=rhythmDraftStore({root:DECKS_DIR,
   getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),
   previewService:rhythmPreview});
+const creativeStory=creativeStoryboardService({
+  getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),
+  getDirectorPlan:(id:string)=>{
+    if(!ID_RE.test(id))throw new Error('Invalid project ID');
+    const directory=path.join(DECKS_DIR,id,'.director');
+    const stat=fs.lstatSync(directory,{throwIfNoEntry:false});
+    if(!stat)return {id,status:'none'};
+    if(!stat.isDirectory()||stat.isSymbolicLink())throw new Error('Unsafe director plan directory');
+    const file=path.join(directory,'plan.json');
+    const saved=fs.lstatSync(file,{throwIfNoEntry:false});
+    if(!saved)return {id,status:'none'};
+    if(!saved.isFile()||saved.isSymbolicLink()||saved.size>512*1024)
+      throw new Error('Unsafe director plan file');
+    return JSON.parse(fs.readFileSync(file,'utf8'));
+  },
+  enabled:process.env.PB_CREATIVE_STORY_PREVIEW==='1'
+});
 
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -171,6 +189,37 @@ export function presbuilder(): Plugin {
       return fail(res, 405, 'method');
     }
 
+    const creative=/^([^/]+)\/creative\/(context|preview)$/.exec(rest);
+    if(creative){
+      const id=creative[1];
+      if(!ID_RE.test(id)||!fs.existsSync(deckFile(id)))return fail(res,404,'Ролик не найден');
+      try{
+        if(req.method==='GET'&&creative[2]==='context')
+          return json(res,creativeStory.context(id));
+        if(req.method==='POST'&&creative[2]==='preview'){
+          const chunks:Buffer[]=[];let length=0;
+          const raw=await new Promise<Buffer>((resolve,reject)=>{
+            req.on('data',(chunk:Buffer)=>{
+              length+=chunk.length;
+              if(length>8192){
+                reject(Object.assign(new Error('Storyboard manifest too large'),{status:413}));
+                req.destroy();
+              }else chunks.push(chunk);
+            });
+            req.on('end',()=>resolve(Buffer.concat(chunks)));
+            req.on('error',reject);
+          });
+          let body;
+          try{body=JSON.parse(raw.toString('utf8'))}
+          catch{return fail(res,400,'Invalid storyboard manifest')}
+          return json(res,creativeStory.preview(id,body?.manifest));
+        }
+        return fail(res,405,'Method not allowed');
+      }catch(e){
+        const status=Number((e as {status?:number})?.status||500);
+        return fail(res,status,e instanceof Error?e.message:String(e));
+      }
+    }
     const rhythmDraft=/^([^/]+)\/rhythm\/draft$/.exec(rest);
     if(rhythmDraft){
       const id=rhythmDraft[1];
