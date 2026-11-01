@@ -19,7 +19,7 @@
 | ID | Возможность | Полезность /10 | Сложность | Зависимости | Состояние |
 |---|---|---:|---|---|---|
 | P01 | 3D Scene SDK и публикация через MCP | 10.0 | Очень высокая | Существующий wire3d, Canvas, MCP | **IN PROGRESS** |
-| P02 | Независимый рендер + очередь | 9.8 | Высокая | P01: scene-scoped вход | BACKLOG |
+| P02 | Независимый рендер + очередь | 9.8 | Высокая | P01: scene-scoped вход | **IN PROGRESS — FIFO MVP** |
 | P03 | Автоматический Video QA | 9.7 | Средняя | P02: отдельные MP4/кадры | BACKLOG |
 | P04 | Машинный style contract | 9.5 | Средняя | P01 + P03 | BACKLOG |
 | P05 | Автоматическая сборка/переходы | 9.4 | Высокая | P02 + P04 | BACKLOG |
@@ -55,11 +55,11 @@
 
 **Проблема:** серверный `render_video` использует глобальный `busy`; шесть агентов не могут независимо получать MP4 своих сцен.
 
-- [ ] **P02.1** `render_scene({id,slide_id,revision?})`, точный тайм-код начала/конца из расписания; аудио с корректным offset.
-- [ ] **P02.2** Job queue c состояниями `queued/running/completed/failed/cancelled`, идентификатором job_id, лимитом параллелизма, fair scheduling.
+- [x] **P02.1** `render_scene({id,slide_id,revision?})`, точный тайм-код начала/конца из расписания; аудио с корректным offset.
+- [ ] **P02.2** (одноузловая FIFO реализована, долговременная очередь/worker pool не готовы) Job queue c состояниями `queued/running/completed/failed/cancelled`, идентификатором job_id, лимитом параллелизма, fair scheduling.
 - [ ] **P02.3** Несколько workers или ограниченный pool; Railway CPU/RAM измерить нагрузочным экспериментом, не обещать 6 одновременных Chromium на одном сервере.
 - [ ] **P02.4** Тайм-ауты, retries с backoff, отмена, восстановление после перезапуска, контроль повторных задач по content hash.
-- [ ] **P02.5** API `get_scene_render_status`, ссылки на MP4/превью, технические метаданные (codec/fps/duration/bytes).
+- [x] **P02.5** API `get_scene_render_status`, ссылки на MP4/превью, технические метаданные (codec/fps/duration/bytes).
 - [ ] **P02.6** Тест: 6 запросов, 2+ разных сцен, один намеренно плохой job, отсутствие блокировки успешных; перезапуск worker не теряет запись о заданиях.
 - **DoD:** каждый агент может проверить только свою сцену; ошибка одного job не влияет на другие.
 - **Риски:** кодовые сцены зависят от единой timeline, поэтому корректно рассчитывать offsets/фейды; временное хранилище очищать безопасно.
@@ -172,5 +172,7 @@
 | 2026-11-01 | P01 | Анализ существующего wire3d/MCP; выбран безопасный декларативный JSON-MVP без запуска произвольного кода | Анализ: `src/engine/wire3d.ts`, `server/mcp.mjs`, `src/engine/timeline.ts` | IN PROGRESS |
 
 | 2026-11-01 | P01 | P01.1–P01.4 и MVP P01.6: отдельное `.scene3d/sNN.json`, MCP `get_scene_3d` / `set_scene_3d`, безопасная JSON-схема (≤18 мешей), движение камеры/вращения, 3D-редактор и live-reload. | GitHub Actions `cloud` **SUCCESS** на `40cdba10`; `tests/cloud-scene3d.test.mjs` PASS, `npm run build` PASS; job `render-smoke` SKIPPED. | MVP IMPLEMENTED / REAL MP4 NOT YET VERIFIED |
+| 2026-11-01 | P01 | Production Docker render-smoke опубликованной через MCP 3D-сцены. | PR GitHub Actions `render-smoke` **SUCCESS** на `5d5e69489` (workflow 41263654563); H.264 MP4 создан и скачан. | P01 MVP MP4 VERIFIED; GLB/production SDK остаётся открытым |
+| 2026-11-01 | P02 | FIFO worker, MCP `render_scene` и `get_scene_render_status`, точная нарезка по `slide.start/dur`, отдельный MP4 и смещение аудио. | `npm run build` и `npm run test:cloud` PASS на `7142fb588`; Docker PR smoke с полной/отдельной сценой запущен; queue persistence/cancel/pool отсутствуют. | P02 MVP IN PROGRESS |
 
-**Следующая обязательная работа:** реальный MP4 smoke для P01.7, затем поддержка проверенных GLB/ассетов (P01.5) и визуальный конструктор (расширение P01.6). Только после подтверждённого живого рендера — P02. Все P02–P10 пока BACKLOG.
+**Следующая обязательная работа:** дождаться и зафиксировать результат PR Docker smoke для P02; затем P02.3–P02.4 (worker pool, восстановление после рестарта, cancel/retry). Продолжить P01.5 (проверенный GLB/asset pipeline) и UX визуального редактора перед полной production-приёмкой. P03–P10 пока BACKLOG; не заявлять их реализацию.
