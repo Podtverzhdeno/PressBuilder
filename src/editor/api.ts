@@ -19,6 +19,17 @@ export interface RhythmContext {
   cues:Array<{scene_id:string;cue_id:string;start_us:number;end_us:number}>;
   note:string;
 }
+export interface RhythmDraftRecord {
+  schema_version:1;project_id:string;revision:number;
+  status:'empty'|'submitted'|'endorsed_nonpublishable'|'rejected';
+  proposal:null|{plan_sha256:string;voice_source_sha256:string;timebase_revision:string;
+    cuts:Array<{id:string;frame:number;reason:string;cue_id:string|null}>;
+    provenance:{word_alignment_verified:false;music_rights_verified:false}};
+  author:null|{id:string;note:string;at:string};
+  review:null|{reviewer_id:string;decision:'endorse'|'reject';note:string;at:string};
+  source_state:'CURRENT'|'STALE'|'NOT_APPLICABLE';
+  publication_allowed:false;
+}
 export interface RhythmPreview {
   schema_version:number;
   status:'REVIEW'|'READY_FOR_REVIEW';
@@ -125,6 +136,13 @@ const body = (data: unknown): RequestInit => ({
 
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
+  getRhythmDraft: (id:string) =>
+    call<RhythmDraftRecord>(`/api/decks/${encodeURIComponent(id)}/rhythm/draft`),
+  submitRhythmDraft: (id:string,manifest:Record<string,unknown>,
+    expected_revision:number,note:string) =>
+    call<RhythmDraftRecord>(`/api/decks/${encodeURIComponent(id)}/rhythm/draft`,{
+      method:'POST',...body({manifest,expected_revision,note})
+    }),
   getRhythmContext: (id:string) =>
     call<RhythmContext>(`/api/decks/${encodeURIComponent(id)}/rhythm/context`),
   previewRhythm: (id:string,manifest:Record<string,unknown>) =>
