@@ -230,10 +230,10 @@ async function api(req,res,url) {
   if(boundaryMatch){
     const id=deckId(escaped(boundaryMatch[1]));
     if(method==='GET'&&boundaryMatch[2]==='context')
-      return json(res,200,continuity.context(id,url.searchParams.get('left'),url.searchParams.get('right')));
+      return json(res,200,await continuity.context(id,url.searchParams.get('left'),url.searchParams.get('right')));
     if(method==='POST'&&boundaryMatch[2]==='preview'){
       const body=await readJson(req);
-      return json(res,200,continuity.preview(id,body));
+      return json(res,200,await continuity.preview(id,body));
     }
     throw new UserError('Method not allowed',405);
   }
