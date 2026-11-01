@@ -160,6 +160,11 @@ test('P10 signs off only active immutable P05 release with matching job, manifes
     assert.equal(signed.release_receipt.release_id,releaseId);
     assert.equal(signed.release_receipt.file,'out/releases/'+id+'/'+releaseId+'/final.mp4');
     assert.equal(signed.progress.release_status,'signed_off');
+    pointer='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    assert.equal(director.read(id).progress.release_status,'release_superseded',
+      'a newer published P05 release must not inherit human approval of the previous one');
+    pointer=releaseId;
+    assert.equal(director.read(id).progress.release_status,'signed_off');
     fs.writeFileSync(file,corrupted);
     assert.equal(director.read(id).progress.release_status,'artifact_changed');
     fs.writeFileSync(file,correct);
