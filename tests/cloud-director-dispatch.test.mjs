@@ -34,8 +34,8 @@ const setup=()=>{
   const leases=sceneLeaseStore({root,getDeck,now:()=>clock});
   const out=path.join(root,'out');fs.mkdirSync(out,{recursive:true});
   let renders={};
-  const dispatch=()=>directorDispatchStore({
-    root,director,sceneTasks,leases,getRender:(d,s)=>renders[s],out,now:()=>clock,maxClaims:3
+  const dispatch=(versions=null)=>directorDispatchStore({
+    root,director,sceneTasks,leases,getRender:(d,s)=>renders[s],versions,out,now:()=>clock,maxClaims:3
   });
   const actor=scene=>({id:'agent-'+scene.slice(1),role:'worker',projects:[id],scenes:[scene]});
   return {root,id,sceneTasks,leases,plan,out,dispatch,actor,
@@ -142,5 +142,44 @@ test('P10 dispatch: bounded attempts, expired fences, heartbeat and restart repl
     x.sceneTasks.put(id,'s01',{status:'todo'},old.revision);
     assert.equal(svc.claim(id,'s01',agent,{fence_token:fence,
       expected_task_revision:old.revision+1}).job.attempt,1);
+  }finally{x.clean()}
+});
+
+test('P10 dispatch rejects stale immutable P08 source and mismatched render paths',()=>{
+  const x=setup(),id=x.id,agent=x.actor('s01');
+  const fingerprint='a'.repeat(64),version='abcdef0123456789';
+  const file=path.join(x.out,id+'_s01_v'+version+'.mp4');
+  fs.writeFileSync(file,Buffer.from('Test immutable MP4 payload, provenance is independently checked'));
+  let sourceFingerprint='b'.repeat(64);
+  const versions={
+    verified:(project,scene,v)=>{
+      assert.equal(project,id);assert.equal(scene,'s01');assert.equal(v,version);
+      return {absolute_file:file,qa:{verdict:'PASS'},source:{fingerprint}};
+    },
+    source:()=>({fingerprint:sourceFingerprint})
+  };
+  const svc=x.dispatch(versions);
+  try{
+    const lease=x.leases.claim(id,'s01',agent,60);
+    const claimed=svc.claim(id,'s01',agent,{fence_token:lease.fence,expected_task_revision:1});
+    let current=x.sceneTasks.read(id,'s01');
+    x.sceneTasks.put(id,'s01',{checkpoints:current.checkpoints.map(cp=>({
+      ...cp,done:cp.id!=='human_review',
+      note:cp.id!=='human_review'?'Authenticated render evidence':''
+    }))},current.revision);
+    current=x.sceneTasks.read(id,'s01');
+    const args={job_id:claimed.job.job_id,fence_token:lease.fence,
+      expected_task_revision:current.revision};
+    x.setRender('s01',{status:'completed',version_id:version,
+      result:{file:'out/../../outside.mp4'},qa_report:{verdict:'PASS'}});
+    issue(()=>svc.submit(id,'s01',agent,args),409);
+    x.setRender('s01',{status:'completed',version_id:version,
+      result:{file:'out/'+path.basename(file)},qa_report:{verdict:'PASS'}});
+    issue(()=>svc.submit(id,'s01',agent,args),409,
+      'source fingerprint drift must block handoff');
+    sourceFingerprint=fingerprint;
+    const result=svc.submit(id,'s01',agent,args);
+    assert.equal(result.scene_status,'review');
+    assert.equal(x.sceneTasks.read(id,'s01').status,'review');
   }finally{x.clean()}
 });
