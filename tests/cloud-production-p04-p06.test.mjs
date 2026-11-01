@@ -116,6 +116,12 @@ test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale 
     assert.equal(denied.isError,true);
     const foreign=await rpc(agent1,'get_scene_3d',{id:'scene-demo',slide_id:'s02'});
     assert.equal(foreign.isError,true);
+    const outside=await rpc(agent1,'get_project_context',{id:'outside-project'});
+    assert.equal(outside.isError,true);
+    assert.match(outside.content[0].text,/outside agent scope/);
+    const visible=await rpc(agent1,'list_decks',{});
+    assert.equal(visible.isError,false);
+    assert.deepEqual(JSON.parse(visible.content[0].text).map(p=>p.id),['scene-demo']);
     const noFence=await rpc(agent1,'set_scene_checkpoint',{id:'scene-demo',slide_id:'s01',checkpoint_id:'x',done:true});
     assert.equal(noFence.isError,true);
     const lease=await rpc(agent1,'claim_scene',{id:'scene-demo',slide_id:'s01',ttl:60});
