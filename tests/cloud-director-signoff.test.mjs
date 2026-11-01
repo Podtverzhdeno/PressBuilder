@@ -77,6 +77,12 @@ test('Director P10 release boundary: exact six approved tasks, evidence, job and
     assert.equal(released.release_receipt.sha256,sha);
     assert.equal(released.release_receipt.assembly_job_id,'test-job');
     rejectStatus(()=>director.propose(id,{expected_revision:3,goal:'Overwrite'}),409);
+    const original=fs.readFileSync(file);
+    fs.writeFileSync(file,Buffer.alloc(original.length,0x58));
+    assert.equal(director.read(id).progress.release_status,'artifact_changed',
+      'same-sized corrupted MP4 must not be considered verified');
+    fs.writeFileSync(file,original);
+    assert.equal(director.read(id).progress.release_status,'signed_off');
     fs.rmSync(file);
     assert.equal(director.read(id).progress.release_status,'artifact_missing');
   }finally{
