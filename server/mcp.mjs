@@ -43,6 +43,9 @@ export const TOOLS = [
  { name:'release_scene', description:'Release the lease and invalidate old fencing tokens.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','fence_token']) },
  { name:'list_scene_versions', description:'List immutable QA-passing rendered versions of a scene, plus the explicitly approved pointer.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'get_scene_version', description:'Inspect an immutable scene version and protected MP4 download URL.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('16-hex version ID')},['id','slide_id','version_id']) },
+ { name:'get_scene_source_snapshot', description:'Director only: read the immutable declarative scene source, browser bundle and narration provenance of a rendered version.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('Immutable version ID')},['id','slide_id','version_id']) },
+ { name:'restore_scene_source', description:'Director only: restore a versioned slide/cues/visuals and declarative 3D. Refuses if project-wide style, audio or browser bundle differs. Does not change approved MP4; requires optimistic fingerprint and 3D revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('Immutable version ID'),
+ expected_fingerprint:str('Current source SHA-256 fingerprint'),expected_scene3d_revision:{type:'integer',minimum:0}},['id','slide_id','version_id','expected_fingerprint','expected_scene3d_revision']) },
  { name:'approve_scene_version', description:'Director only: approve a QA-pass version after completing its task and verifying all review items. Changes the stable accepted scene MP4.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('16-hex version ID'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','version_id','expected_revision']) },
  { name:'restore_scene_version', description:'Director only: rollback to a historically approved version without rendering. Requires approved pointer revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('Previously approved version'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','version_id','expected_revision']) },
  { name:'list_scene_review_items', description:'Review issues anchored to an immutable MP4 version and precise frame time.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
@@ -126,6 +129,11 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
       case 'get_scene_version': scoped(args.id,args.slide_id,actor);{
         const v=versions.read(args.id,args.slide_id,args.version_id);return {...v,download_url:baseUrl()+'/'+v.file};
       }
+      case 'get_scene_source_snapshot': directorOnly(actor);
+        return versions.readSource(args.id,args.slide_id,args.version_id);
+      case 'restore_scene_source': directorOnly(actor);
+        return versions.restoreSource(args.id,args.slide_id,args.version_id,
+          args.expected_fingerprint,args.expected_scene3d_revision,actor);
       case 'approve_scene_version': directorOnly(actor);
         if(taskStore.read(args.id,args.slide_id).status!=='done')throw new UserError('Scene task is not complete',409);
         return versions.approve(args.id,args.slide_id,args.version_id,args.expected_revision,actor,{unresolved:reviews.unresolved});
