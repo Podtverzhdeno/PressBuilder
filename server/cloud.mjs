@@ -13,6 +13,7 @@ import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { directorStore } from './director.mjs';
+import { directorDispatchStore } from './director-dispatch.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 import { inspectMp4 } from './video-qa.mjs';
@@ -38,6 +39,7 @@ const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','d
 const styles=styleContractStore({root:DECKS,getDeck});
 const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks:sceneTasks,projectReadmes:projectReadmes,styles,getAssembly:()=>assembly,out:OUT});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
+const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,getRender,out:OUT});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
 
@@ -252,6 +254,11 @@ async function api(req,res,url) {
     if(method!=='POST')throw new UserError('Method not allowed',405);
     return json(res,200,directorPlan.replan(
       deckId(escaped(directorReplan[1])),escaped(directorReplan[2]),await readJson(req)));
+  }
+  const dispatchMatch=/^\/api\/decks\/([^/]+)\/director\/work$/.exec(p);
+  if(dispatchMatch){
+    if(method!=='GET')throw new UserError('Method not allowed',405);
+    return json(res,200,dispatch.snapshot(deckId(escaped(dispatchMatch[1])),director));
   }
   const directorSignoff=/^\/api\/decks\/([^/]+)\/director\/signoff$/.exec(p);
   if(directorSignoff){
