@@ -1,7 +1,7 @@
 /** Browser review of immutable scene MP4s. Hosted cloud editor only; local Vite has no cloud render jobs. */
 import {useEffect,useRef,useState} from 'preact/hooks';
 import {api,type SceneRenderVersion,type SceneReviewRecord,type ApprovedScenePointer,
-  type SceneReviewItem,type SceneVersionComparison} from './api.ts';
+  type SceneReviewItem,type SceneVersionComparison,type SceneDraftPreview} from './api.ts';
 import {deck as deckState} from './store.ts';
 
 interface Props{projectId:string;initialSlide?:string;onClose:()=>void}
@@ -17,6 +17,7 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
   const [selected,setSelected]=useState('');
   const [compareFrom,setCompareFrom]=useState('');
   const [comparison,setComparison]=useState<SceneVersionComparison|null>(null);
+  const [preview,setPreview]=useState<SceneDraftPreview|null>(null);
   const [reviews,setReviews]=useState<SceneReviewRecord|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -33,7 +34,7 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
   const unresolved=visible.filter(x=>x.status!=='VERIFIED').length;
   async function refresh(scene:string,keepSelection?:string){
     const [v,r]=await Promise.all([api.getSceneVersions(projectId,scene),api.getSceneReviews(projectId,scene)]);
-    setVersions(v.versions);setApproved(v.approved);setReviews(r);setEvidence(null);
+    setVersions(v.versions);setApproved(v.approved);setReviews(r);setEvidence(null);setPreview(null);
     setComparison(null);setCompareFrom('');
     setSelected(keepSelection&&v.versions.some(x=>x.version_id===keepSelection)
       ?keepSelection:(v.approved.version_id||v.versions.at(-1)?.version_id||''));
@@ -45,11 +46,21 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
       .then(([v,r])=>{
         if(!alive)return;
         setVersions(v.versions);setApproved(v.approved);setReviews(r);
-        setComparison(null);setCompareFrom('');
+        setComparison(null);setCompareFrom('');setPreview(null);
         setSelected(v.approved.version_id||v.versions.at(-1)?.version_id||'');
       }).catch(e=>{if(alive)setError('Версии доступны в облачном редакторе после рендера: '+String(e))});
     return()=>{alive=false};
   },[projectId,slide]);
+  useEffect(()=>{
+    if(!preview||!['queued','running','cancelling'].includes(preview.status))return;
+    let active=true;
+    const timer=setInterval(()=>{
+      void api.getScenePreview(projectId,slide).then(value=>{
+        if(active)setPreview(value);
+      }).catch(e=>{if(active){setError('Ошибка предпросмотра: '+String(e));setPreview(null)}});
+    },750);
+    return()=>{active=false;clearInterval(timer)};
+  },[preview?.status,projectId,slide]);
   async function perform(fn:()=>Promise<void>){
     if(busy)return;
     setBusy(true);setError('');setNotice('');
@@ -85,6 +96,12 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
     await api.transitionSceneReview(projectId,slide,item.id,status,note,reviews.revision);
     setNote('');setNotice('Статус обновлён и сохранён в истории');
     await refresh(slide,selected);
+  });
+  const startPreview=()=>perform(async()=>{
+    setPreview(await api.startScenePreview(projectId,slide));
+  });
+  const cancelPreview=()=>perform(async()=>{
+    setPreview(await api.cancelScenePreview(projectId,slide));
   });
   const compare=()=>perform(async()=>{
     if(!selected||!compareFrom||selected===compareFrom)
@@ -144,7 +161,26 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
             </select>
           </label>
         </div>
-        {!versions.length&&!error&&<p class="task-readme-help">Пока нет сохранённых MP4 этой сцены. Сначала выполни render_scene через MCP.</p>}
+        <section style={{borderBottom:'1px solid #7776',paddingBottom:'12px',marginBottom:'14px'}}>
+          <strong>Быстрый предпросмотр черновика</strong>
+          <p class="task-readme-help">Три настоящих кадра Chromium без MP4 и утверждения версии. Это проверка композиции, не итоговый QA. После изменения исходников предпросмотр устаревает.</p>
+          <div style={{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center'}}>
+            <button type="button" class="btn" disabled={busy||!slide} onClick={startPreview}>Создать предпросмотр (3 кадра)</button>
+            {preview&&['queued','running','cancelling'].includes(preview.status)&&
+              <button class="btn" type="button" disabled={busy||preview.status==='cancelling'} onClick={cancelPreview}>Отменить</button>}
+            {preview&&<small>Статус: {preview.status}{preview.cache_hit?' · из кэша':''}</small>}
+          </div>
+          {preview?.error&&<p class="task-error">{preview.error}</p>}
+          {preview?.status==='completed'&&preview.frames&&
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:'8px',marginTop:'12px'}}>
+              {preview.frames.map(f=><div key={f.index}>
+                <img src={f.url} alt={'Черновой кадр '+(f.index+1)} loading="lazy"
+                  style={{width:'100%',aspectRatio:'16/9',objectFit:'contain',background:'#111'}}/>
+                <small>Кадр {f.index+1}, {f.t.toFixed(2)} с</small>
+              </div>)}
+            </div>}
+        </section>
+        {!versions.length&&!error&&<p class="task-readme-help">Пока нет сохранённых MP4 этой сцены. Можно посмотреть черновые кадры выше или выполнить render_scene через MCP.</p>}
         {active&&<>
           <div style={{display:'flex',gap:'20px',flexWrap:'wrap'}}>
             <section style={{flex:'1 1 500px',minWidth:'280px'}}>
