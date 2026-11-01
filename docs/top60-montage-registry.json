@@ -415,7 +415,31 @@
       ],
       "recommended_predecessors": [
         "P08"
-      ]
+      ],
+      "implementation_slice": {
+        "id": "M32-R01",
+        "status": "IN_PROGRESS",
+        "scope": "P08 approved immutable MP4 source fingerprint + director rights attestation and revocation (proposal-only)",
+        "feature_flag": "PB_MEDIA_CATALOG",
+        "default_enabled": false,
+        "ci_status": "PENDING",
+        "code": [
+          "server/media-catalog.mjs",
+          "schemas/montage/media-catalog-v1.schema.json",
+          "tests/cloud-media-catalog.test.mjs",
+          "tests/cloud-media-catalog-wire.test.mjs"
+        ],
+        "not_yet_proven": [
+          "independent legal/license verification",
+          "imports of photos/music/3D",
+          "rights enforcement inside render/assembly",
+          "full six-scene asset-to-real-MP4 E2E",
+          "human reviewer-separated attestation",
+          "cross-process ACID",
+          "independent security review",
+          "production canary"
+        ]
+      }
     },
     {
       "id": "M54",
