@@ -13,7 +13,7 @@ const allowedRole=(actor)=>actor&&['director','worker'].includes(actor.role);
 const ISO=(ms)=>new Date(ms).toISOString();
 
 export function directorDispatchStore({
-  root,director,sceneTasks,leases,getRender,out,now=()=>Date.now(),
+  root,director,sceneTasks,leases,getRender,versions=null,out,now=()=>Date.now(),
   maxClaims=3
 }){
   if(!Number.isInteger(maxClaims)||maxClaims<1||maxClaims>10)throw new Error('Invalid claim budget');
@@ -207,6 +207,15 @@ export function directorDispatchStore({
       const file=path.join(out||'',asset?path.basename(asset):expected+'.mp4');
       if(!out||!fs.existsSync(file)||!fs.statSync(file).isFile()||fs.statSync(file).size===0)
         fail('Rendered scene MP4 was not found',409);
+      if(versions){
+        if(typeof result.version_id!=='string'||!/^[0-9a-f]{16}$/.test(result.version_id))
+          fail('Scene has no immutable render version',409);
+        const archived=versions.verified(id,scene,result.version_id);
+        const actualSource=versions.source(id,scene);
+        if(archived.absolute_file!==file||archived.qa?.verdict!=='PASS'||
+           archived.source?.fingerprint!==actualSource.fingerprint)
+          fail('Scene source changed after render or immutable QA/version is invalid',409);
+      }
       nextStatus='review'; // Human acceptance is intentionally separate.
     }else{
       if(typeof reason!=='string'||!reason.trim()||reason.length>2000)
