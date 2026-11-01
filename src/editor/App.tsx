@@ -175,7 +175,7 @@ export function App() {
               <Icon name="check" size={15} /> Задания агентам
             </button>
             <button type="button" class="btn" title="P15: серверный черновик ритмических склеек по разметке слов и пауз" onClick={() => setModal('rhythm')}>
-              <Icon name="clock" size={15} /> Ритм монтажа
+              <Icon name="film" size={15} /> Ритм монтажа
             </button>
             <button type="button" class="btn" title="Ревью кадров и версии MP4, доступно в облачном редакторе" onClick={() => setModal('review')}>
               <Icon name="film" size={15} /> Ревью MP4
