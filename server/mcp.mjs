@@ -46,7 +46,7 @@ export const TOOLS = [
  { name:'assemble_video', description:'Director only: assemble 2-12 approved, QA-passing scenes by hard cut.', inputSchema:obj({id:str('Project slug'),scene_ids:{type:'array',minItems:2,maxItems:12,items:{type:'string'}}},['id','scene_ids']) },
  { name:'get_assembly_status', description:'Check status, output URL and integrity manifest of final video.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'render_video', description:'Start a server-side Chromium + WebCodecs + FFmpeg render job for a video. Poll get_render_status. Server rendering uses deterministic Chromium Canvas frames encoded with FFmpeg.', inputSchema:obj({id:str('Project slug')},['id']) },
- { name:'render_scene', description:'Queue an independent MP4 render of one existing scene (not the entire video). Uses the timeline exact start and duration; safe to request while other scene renders are queued. Returns queued/running job details and job_id.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
+ { name:'render_scene', description:'Worker with live fencing lease or director: queue a scene MP4 render. Reviewer/viewer cannot trigger expensive rendering. Uses exact scene offsets; returns job_id.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID'),fence_token:{type:'integer',minimum:1,description:'Current claim fence; required for worker'}},['id','slide_id']) },
  { name:'get_scene_qa_report', description:'Read technical MP4 QA after a scene render: codec, resolution, FPS, duration, audio presence, and detected issues. This is not artistic quality scoring.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'get_video_qa_report', description:'Read technical MP4 QA after a full video render. Validates stream metadata, not artistic composition.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_scene_render_status', description:'Check the independent render job status for one scene and get a direct MP4 download URL when complete.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
@@ -117,7 +117,7 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
       case 'assemble_video': directorOnly(actor);return assembly.start(args.id,args.scene_ids);
       case 'get_assembly_status': return assembly.get(args.id);
       case 'render_video': directorOnly(actor);return startRender(args.id);
-      case 'render_scene': scoped(args.id,args.slide_id,actor);return startRender(args.id,args.slide_id);
+      case 'render_scene': return write(args.id,args.slide_id,actor,args.fence_token,'render_scene',()=>startRender(args.id,args.slide_id));
       case 'get_scene_render_status': scoped(args.id,args.slide_id,actor);return getRender(args.id,args.slide_id);
       case 'get_scene_qa_report': {scoped(args.id,args.slide_id,actor);const r=getRender(args.id,args.slide_id);return {id:args.id,slide_id:args.slide_id,status:r.status,report:r.qa_report||null};}
       case 'get_video_qa_report': {const r=getRender(args.id);return {id:args.id,status:r.status,report:r.qa_report||null};}
