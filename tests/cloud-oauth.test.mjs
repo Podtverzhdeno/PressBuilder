@@ -52,6 +52,7 @@ test('OAuth discovery, consent, confidential client S256 PKCE, audience, refresh
     async function grant(origin='https://chatgpt.com'){
       const consent=await fetch(base+'/oauth/authorize?'+params,{headers:{Authorization:userBasic}});
       assert.equal(consent.status,200);
+      assert.match(consent.headers.get('content-security-policy'),/form-action 'self' https:\/\/chatgpt\.com;/);
       const page=await consent.text();assert.match(page,/Разрешить доступ/);
       const csrf=/name="csrf" value="([^"]+)"/.exec(page)?.[1];assert.ok(csrf);
       const noAuth=await fetch(base+'/oauth/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
