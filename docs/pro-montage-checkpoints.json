@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15-C01 and P15-C02 are TESTED by CI but not accepted; other 58 checkpoints remain TODO. No production feature enabled.",
+  "notice": "P15-C01/C02 TESTED pending independent review, P15-C03 IN_PROGRESS with read-only UI + API tested, remaining 57 TODO. No production rhythm cut publishing.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -105,7 +105,7 @@
       "feature": "P15",
       "capability": "rhythm-engine",
       "name": "MCP + REST + Studio preview",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P15-C02"
@@ -125,13 +125,27 @@
       ],
       "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
       "proposed_test_file": "tests/cloud-rhythm.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "cloud_ci_test",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41340395952",
+          "commit_sha": "91faef4e5375c3e730566540b428a1dc23ba19ec",
+          "command": "npm run build && npm run test:cloud",
+          "exit_code": 0,
+          "tests_total": 117,
+          "tests_passed": 103,
+          "tests_skipped": 14,
+          "artifact_path": "server/rhythm-preview.mjs",
+          "note": "Read-only source-pinned preview, director-only MCP/REST, local Vite route, Studio UI; actual cloud HTTP/MCP wire test passed. Docker real-render smoke pending at initial evidence entry; no P15 production render/approval."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Read-only REST/MCP + Studio preview implemented and cloud-tested. Missing trusted word/music license attestation, persistent revision-CAS, separate reviewer signature, and approved workflow; no C03 acceptance.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "91faef4e5375c3e730566540b428a1dc23ba19ec"
     },
     {
       "id": "P15-C04",
