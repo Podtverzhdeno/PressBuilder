@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15 C01/C02 TESTED; C03/C04/C05 IN_PROGRESS. P16 C01/C02 TESTED; C03/C04 IN_PROGRESS. P17 C01/C02 IN_PROGRESS pending current-head CI after boundary SHA / FPS hardening; P17 C03-C06 TODO; P18-P24 TODO. No approval or publication authorized.",
+  "notice": "P15 C01/C02 TESTED; C03/C04/C05 IN_PROGRESS. P16 C01/C02 TESTED; C03/C04 IN_PROGRESS. P17 C01/C02 TESTED on current hardened data-only planner (160/160 Docker, real MP4 regression); independent reviewer and P08/P03 source attestation pending; P17 C03–C06 and P18–P24 TODO. No P17 publishing.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -556,7 +556,7 @@
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "Contract and threat model",
-      "status": "IN_PROGRESS",
+      "status": "TESTED",
       "owner_hint": "scene-developer",
       "dependencies": [],
       "inputs": "P05/P08 approved scene source and boundary states",
@@ -583,22 +583,37 @@
           "exit_code": 0,
           "artifact_path": "schemas/montage/cinematic-boundary-v1.schema.json",
           "note": "Deterministic frame and source-boundary data-only contract, J/L handle validation and 30000/1001 precise frame times tested on synthetic signed-shaped metadata. Does NOT verify real server-owned P08 approvals, P03 evidence, physical footage or human acceptance."
+        },
+        {
+          "kind": "hardened_frame_sha_cloud_docker_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41350977938",
+          "commit_sha": "d72817ef5a0d252ca0ae73da75453b5330c6e10a",
+          "command": "npm run build && npm run test:cloud (cloud and production Docker); node tests/render-smoke.mjs",
+          "exit_code": 0,
+          "cloud_total": 160,
+          "cloud_passed": 142,
+          "cloud_skipped": 18,
+          "docker_total": 160,
+          "docker_passed": 160,
+          "docker_skipped": 0,
+          "artifact_path": "tests/cloud-cinematic-continuity.test.mjs",
+          "note": "P17 pure bounded transition planner: current-head boundary SHA fingerprint, 24000/1001 timing, static motion and adverse data-only tests. Existing real MP4 regression and older integrations passed; this does NOT attest true P08 approved sources, image hashes from P03, J/L physical audio/media or independent artistic review."
         }
       ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": "Previously tested data-only core extended with exact boundary frame hashes, static-motion semantics and 24000/1001. Re-run Cloud CI and OpenSpec SDD integrity on the new merge commit before marking TESTED; real P08/P03 approval and human review still absent.",
+      "blocked_reason": "P17 data-only contract/core TESTED in CI; independent reviewer approval and verified P08/P03 server-owned source boundary attestation still missing. No public P17 endpoints or release authorization.",
       "accepted_release": null,
       "release_eligible": false,
-      "source_commit_sha": "7a556a04d2fd5f89cae71fb2c46eb8ca8aebb687"
+      "source_commit_sha": "d72817ef5a0d252ca0ae73da75453b5330c6e10a"
     },
     {
       "id": "P17-C02",
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "Bounded functional vertical slice",
-      "status": "IN_PROGRESS",
+      "status": "TESTED",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P17-C01",
@@ -629,15 +644,30 @@
           "exit_code": 0,
           "artifact_path": "tests/cloud-cinematic-continuity.test.mjs",
           "note": "Deterministic frame and source-boundary data-only contract, J/L handle validation and 30000/1001 precise frame times tested on synthetic signed-shaped metadata. Does NOT verify real server-owned P08 approvals, P03 evidence, physical footage or human acceptance."
+        },
+        {
+          "kind": "hardened_frame_sha_cloud_docker_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41350977938",
+          "commit_sha": "d72817ef5a0d252ca0ae73da75453b5330c6e10a",
+          "command": "npm run build && npm run test:cloud (cloud and production Docker); node tests/render-smoke.mjs",
+          "exit_code": 0,
+          "cloud_total": 160,
+          "cloud_passed": 142,
+          "cloud_skipped": 18,
+          "docker_total": 160,
+          "docker_passed": 160,
+          "docker_skipped": 0,
+          "artifact_path": "tests/cloud-cinematic-continuity.test.mjs",
+          "note": "P17 pure bounded transition planner: current-head boundary SHA fingerprint, 24000/1001 timing, static motion and adverse data-only tests. Existing real MP4 regression and older integrations passed; this does NOT attest true P08 approved sources, image hashes from P03, J/L physical audio/media or independent artistic review."
         }
       ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": "Previously tested data-only core extended with exact boundary frame hashes, static-motion semantics and 24000/1001. Re-run Cloud CI and OpenSpec SDD integrity on the new merge commit before marking TESTED; real P08/P03 approval and human review still absent.",
+      "blocked_reason": "P17 data-only contract/core TESTED in CI; independent reviewer approval and verified P08/P03 server-owned source boundary attestation still missing. No public P17 endpoints or release authorization.",
       "accepted_release": null,
       "release_eligible": false,
-      "source_commit_sha": "7a556a04d2fd5f89cae71fb2c46eb8ca8aebb687"
+      "source_commit_sha": "d72817ef5a0d252ca0ae73da75453b5330c6e10a"
     },
     {
       "id": "P17-C03",

@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P17-C01/C02 IN_PROGRESS (data-only core with exact frame SHA; current-head CI pending), P18–P24 TODO. P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
+Progress: P17-C01/C02 TESTED (data-only core; run 41350977938, 160/160 Docker, independent review pending), P18–P24 TODO. P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
 
 ## Evidence and progression rules
 
@@ -192,7 +192,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/cinematic-continui
 
 #### P17-C01 — Contract and threat model
 
-- [ ] P17-C01 — IN_PROGRESS (bounded data-only core and tests; current-head CI / independent review pending). Deliverable: montage/cinematic-continuity-v1.json and JSON Schema.
+- [ ] P17-C01 — TESTED (data-only core: 160/160 Docker PASS on d72817ef5a; P08/P03 attestation, separate reviewer and media acceptance pending). Deliverable: montage/cinematic-continuity-v1.json and JSON Schema.
 - Actions: Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json. Define P05/P08 approved scene source and boundary states; reject prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval.
 - Dependencies: Existing P06/P08/P09 and current OpenSpec.
 - Acceptance: Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.
@@ -204,7 +204,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/cinematic-continui
 
 #### P17-C02 — Bounded functional vertical slice
 
-- [ ] P17-C02 — IN_PROGRESS (bounded data-only core and tests; current-head CI / independent review pending). Deliverable: server/continuity-plan.mjs.
+- [ ] P17-C02 — TESTED (data-only core: 160/160 Docker PASS on d72817ef5a; P08/P03 attestation, separate reviewer and media acceptance pending). Deliverable: server/continuity-plan.mjs.
 - Actions: Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback. Implement: frame-accurate match-action, J-cut and L-cut with separate audio/video handles.
 - Dependencies: P17-C01, P15-C01, P16-C01.
 - Acceptance: Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.
