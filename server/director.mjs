@@ -428,6 +428,16 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
     }
     if(sha256!==verifiedManifest.output.sha256)
       fail('Final MP4 checksum does not match manifest',409);
+    // A newer assembly may replace the current release while the Director
+    // verifies large input files. Recheck the pointer immediately before
+    // publishing the human sign-off, rather than approving a stale release.
+    if(immutable){
+      const latest=svc.current(id);
+      if(latest?.release_id!==releaseId||
+         latest?.manifest?.job_id!==args.assembly_job_id||
+         latest?.manifest?.output?.sha256!==sha256)
+        fail('Active assembly release changed during Director verification',409);
+    }
     const released_at=new Date().toISOString();
     save(planFile(id),{...plan,status:'released',revision:plan.revision+1,
       release_receipt:{file:immutable?'out/releases/'+id+'/'+releaseId+'/final.mp4':
