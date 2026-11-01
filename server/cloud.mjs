@@ -44,7 +44,6 @@ const styles=styleContractStore({root:DECKS,getDeck});
 const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks,projectReadmes,styles,
   getAssembly:()=>assembly,getApproved:(id,scene)=>versions.approved(id,scene),out:OUT});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
-const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,getRender,out:OUT});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
 const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scene)=>scene3d.read(id,scene),
@@ -56,6 +55,7 @@ const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scen
     putDeck(id,deck);
   }});
 const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
+const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,getRender,versions,out:OUT});
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
