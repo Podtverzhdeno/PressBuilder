@@ -108,7 +108,7 @@ async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProg
     fs.rmSync(staging,{force:true});
   }
 }
-export async function renderWithChrome({id,slideId=null,port,username,password,timeoutMs=900000,onProgress}) {
+export async function renderWithChrome({id,slideId=null,port,username,password,timeoutMs=900000,onProgress,outputNameOverride=null}) {
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'pb-render-'));
   const exe=process.env.CHROMIUM_PATH||'/usr/bin/chromium';
   const args=['--headless=new','--no-sandbox','--disable-dev-shm-usage',
@@ -154,7 +154,8 @@ export async function renderWithChrome({id,slideId=null,port,username,password,t
     const clipDuration=scene?.dur??info.duration;
     if(clipDuration<=0||clipDuration>600)throw new Error('Render clip limited to 10 minutes');
     if(!Number.isFinite(clipStart)||clipStart<0)throw new Error('Invalid scene start time');
-    const outputName=slideId?id+'_'+slideId:id;
+    const outputName=outputNameOverride||(slideId?id+'_'+slideId:id);
+    if(!/^[a-z0-9][a-z0-9_-]{0,125}$/.test(outputName))throw new Error('Invalid render output name');
     return await encode(client,{id,outputName,from:clipStart,fps,height,duration:clipDuration,onProgress});
   } finally {
     if(client)try{client.socket.close()}catch{}
