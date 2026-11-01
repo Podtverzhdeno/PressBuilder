@@ -1,0 +1,21 @@
+# PressBuilder OpenSpec project context. This creates a specification workflow only.
+schema: spec-driven
+context: |
+  PressBuilder produces narrated animated videos with Preact/Vite/Canvas/TypeScript,
+  Chromium rendering, FFmpeg assembly, MCP agents, immutable scene/video artifacts,
+  project-scoped reviewer approval and Railway production storage.
+  Node >=22.18; existing cloud tests are node --test tests/cloud-*.test.mjs.
+  P01-P14 exist to varying degrees. Do NOT mark features implemented because docs exist.
+  New professional montage features P15-P24 must preserve safe, approved old releases.
+  Never execute user-controlled code/media as shell; no external retrieval without authorization.
+rules:
+  proposal:
+    - Explicitly separate existing features from proposed work; include rollback.
+  specs:
+    - Use SHALL requirements with WHEN/THEN positive, negative, and regression scenarios.
+    - Do not infer artistic approval from automated QA or caller-supplied statuses.
+  design:
+    - Define FPS/timebase, source authenticity, permissions, resource limits, and migration.
+  tasks:
+    - Each checkpoint needs a unique ID, concrete output, tests, evidence, and prerequisites.
+    - A checkbox is checked only after CI and reviewer evidence exists.
