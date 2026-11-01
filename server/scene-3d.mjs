@@ -73,7 +73,7 @@ export function scene3dStore({root,seedRoot,getDeck}){
     const src=fs.existsSync(file)?file:(seedFile&&fs.existsSync(seedFile)?seedFile:null);
     if(!src)return {id,scene_id:slideId,revision:0,spec:null,updated_at:null};
     const data=JSON.parse(fs.readFileSync(src,'utf8'));
-    const spec=validate(data.spec?.camera,data.spec?.objects);
+    const spec=data.spec===null?null:validate(data.spec?.camera,data.spec?.objects);
     return {id,scene_id:slideId,revision:data.revision,spec,updated_at:data.updated_at};
   }
   function list(id){
@@ -84,10 +84,9 @@ export function scene3dStore({root,seedRoot,getDeck}){
     const {file}=locate(id,slideId);
     const old=read(id,slideId);
     if(!Number.isSafeInteger(expected_revision)||expected_revision!==old.revision)throw error('Scene 3D changed; reload and retry',409);
-    if(!spec||typeof spec!=='object'||Array.isArray(spec))throw error('Missing scene 3D specification');
-    keys(spec,['version','camera','objects']);
-    if(spec.version!==1)throw error('Only scene3d spec version 1 is supported');
-    const checked=validate(spec.camera,spec.objects);
+    if(spec!==null&&(!spec||typeof spec!=='object'||Array.isArray(spec)))throw error('Invalid scene 3D specification');
+    if(spec!==null){keys(spec,['version','camera','objects']);if(spec.version!==1)throw error('Only scene3d spec version 1 is supported')}
+    const checked=spec===null?null:validate(spec.camera,spec.objects);
     const next={id,scene_id:slideId,revision:old.revision+1,spec:checked,updated_at:new Date().toISOString()};
     fs.mkdirSync(path.dirname(file),{recursive:true});
     const tmp=file+'.'+process.pid+'.'+Math.random().toString(36).slice(2)+'.tmp';
