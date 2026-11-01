@@ -29,6 +29,7 @@ test('P07: frame anchoring, durable thumbnail and review state transition histor
     assert.equal(store.list('demo','s01').items[0].frame_evidence,undefined);
     assert.equal(store.list('demo','s02').items.length,0);
     assert.throws(()=>store.create('demo','s01',{...payload,frame:90},reviewer,render),mustStatus(400));
+    assert.throws(()=>store.create('demo','s01',{...payload,fps:25,frame:85},reviewer,render),mustStatus(409));
     assert.throws(()=>store.create('demo','s01',{...payload,render_revision:'stale'},reviewer,render),mustStatus(409));
     assert.throws(()=>store.create('demo','s01',{...payload,region:{x:0.8,y:0.9,w:0.4,h:0.3}},reviewer,render),mustStatus(400));
     const fixed=store.update('demo','s01',item.id,{status:'FIXED',note:'Shifted headline by 80 px',expected_revision:1},worker);
