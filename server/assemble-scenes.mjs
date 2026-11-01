@@ -261,13 +261,17 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
         // Publication is a compare-and-swap boundary. A Director may edit the
         // montage plan, visual policy or scene ordering while FFmpeg is busy.
         // Such an export must fail rather than publish under stale assumptions.
-        const livePlan=getPlan(id),liveStyle=getStyle(id),liveDeck=getDeck(id);
+        const liveDeck=getDeck(id);
+        if(JSON.stringify(liveDeck.slides.map(s=>s.id))!==JSON.stringify(all)||
+           liveDeck.format.fps!==fps||liveDeck.format.height!==height)
+          throw bad('Assembly plan, visual style or scene order changed during render',409);
+        // Check the deck before reading the plan: the plan store may reject
+        // reordered scenes before we can report the stale-publication conflict.
+        const livePlan=getPlan(id),liveStyle=getStyle(id);
         if(livePlan.revision!==job.plan_revision||
            createHash('sha256').update(JSON.stringify(livePlan.plan)).digest('hex')!==planHash||
            liveStyle.revision!==job.style_revision||
-           createHash('sha256').update(JSON.stringify(liveStyle.contract)).digest('hex')!==styleHash||
-           JSON.stringify(liveDeck.slides.map(s=>s.id))!==JSON.stringify(all)||
-           liveDeck.format.fps!==fps||liveDeck.format.height!==height)
+           createHash('sha256').update(JSON.stringify(liveStyle.contract)).digest('hex')!==styleHash)
           throw bad('Assembly plan, visual style or scene order changed during render',409);
         // The approved pointers, not merely the immutable source bytes, must
         // still match this assembly snapshot before the final publication.
