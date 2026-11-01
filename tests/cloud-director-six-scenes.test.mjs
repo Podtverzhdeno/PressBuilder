@@ -55,7 +55,7 @@ test('P10 six real H.264 scenes: review, approved immutable P08 inputs, P05 asse
       const run=spawnSync(ffmpeg,args,{encoding:'utf8',timeout:20000});
       assert.equal(run.status,0,run.stderr);
       assert.ok(fs.statSync(file).size>1000);
-      approved.set(scene,{version_id:version,artifact:{
+      approved.set(scene,{version_id:version,revision:1,artifact:{
         version_id:version,job_id:'render-'+scene,absolute_file:file,
         sha256:sha(file),qa:{verdict:'PASS'}
       }});
