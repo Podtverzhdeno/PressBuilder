@@ -371,11 +371,22 @@ function sourceFingerprint(id,slideId){
   // The compiled render engine must also be pinned across Railway deployments.
   const payload={deck:d,render_engine_build_id:RENDER_ENGINE_BUILD_ID,
     scene3d:slideId?scene3d.read(id,slideId).spec:scene3d.list(id).map(s=>({scene:s.scene_id,spec:s.spec})),
-    style_contract:styles.read(id).contract};
+    style_contract:styles.read(id).contract,
+    // Pin the canonical P08 source snapshot as well as the complete schedule:
+    // future sync/audio/provenance extensions of P08 automatically enter
+    // the queue fingerprint without a second, divergent policy.
+    p08_sources:(slideId?[slideId]:d.slides.map(s=>s.id))
+      .map(scene=>({scene,source:versions.source(id,scene).fingerprint}))};
   const voice=d.audio?.file;
   if(voice&&/^voice\.(?:mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/i.test(voice)){
-    const f=path.join(DECKS,id,voice);
-    if(fs.existsSync(f)){const st=fs.statSync(f);payload.audio={size:st.size,mtime:st.mtimeMs}}
+    const local=path.join(DECKS,id,voice);
+    const seed=path.join(process.cwd(),'src','decks',id,voice);
+    const file=fs.existsSync(local)?local:(fs.existsSync(seed)?seed:null);
+    // Same-size/same-mtime overwrites must also invalidate queued renders.
+    payload.audio=file?{
+      sha256:createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+      size:fs.statSync(file).size,
+    }:{missing:true};
   }
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
