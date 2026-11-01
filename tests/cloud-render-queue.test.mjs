@@ -236,3 +236,28 @@ test('P02 stalled worker fails after hard render deadline, not labelled cancelle
     assert.ok(!fs.existsSync(path.join(f.outputDir,'film_s01.mp4')));
   }finally{f.cleanup()}
 });
+
+
+test('P02/P08 publishes a draft version without replacing approved stable alias',{timeout:12000},async()=>{
+  const f=fixture();
+  try {
+    fs.writeFileSync(path.join(f.outputDir,'film_s01.mp4'),'APPROVED_OLD_VIDEO');
+    const captured=[];
+    const q=create(f,{
+      outputNameForJob:(id,scene,jobId)=>id+'_'+scene+'_v'+jobId,
+      publishScene:async({job,file,qa})=>{
+        captured.push({job_id:job.job_id,file,verdict:qa.verdict});
+        return {version_id:'a1b2c3d4e5f60708'};
+      },
+    });
+    q.start();
+    q.enqueue('film','s01');
+    await until(()=>q.get('film','s01').status==='completed');
+    const done=q.get('film','s01');
+    assert.equal(done.version_id,'a1b2c3d4e5f60708');
+    assert.equal(captured.length,1);
+    assert.equal(captured[0].verdict,'PASS');
+    assert.equal(fs.readFileSync(path.join(f.outputDir,'film_s01.mp4'),'utf8'),'APPROVED_OLD_VIDEO');
+    assert.ok(fs.existsSync(path.join(f.outputDir,done.output_name+'.mp4')));
+  }finally{f.cleanup()}
+});
