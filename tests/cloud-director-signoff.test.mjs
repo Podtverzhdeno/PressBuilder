@@ -146,6 +146,15 @@ test('P10 signs off only active immutable P05 release with matching job, manifes
     workerState={status:'running'};
     rejectStatus(()=>director.signoff(id,args),409);
     workerState={status:'not_started'}; // simulated Railway restart / lost in-memory queue
+    const current=svc.current;
+    let pointerReads=0;
+    svc.current=()=>{
+      pointerReads++;
+      return {...current(),release_id:pointerReads>=2?'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb':releaseId};
+    };
+    rejectStatus(()=>director.signoff(id,args),409);
+    assert.ok(pointerReads>=2,'director must re-check active release just before committing');
+    svc.current=current;
     const signed=director.signoff(id,args);
     assert.equal(signed.status,'released');
     assert.equal(signed.release_receipt.release_id,releaseId);
