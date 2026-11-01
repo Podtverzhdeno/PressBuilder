@@ -1991,3 +1991,27 @@ kbd {
   max-width: 100ch;
 }
 .task-readme-help code { color: var(--h1); }
+
+
+/* P07 — video-frame review and durable annotations */
+.review-window{max-width:1220px;width:min(96vw,1220px);max-height:94vh;overflow-y:auto}
+.review-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,0.8fr);gap:18px;padding:18px;min-height:350px}
+.review-preview,.review-list{min-width:0;display:flex;flex-direction:column;gap:12px}
+.review-frame,.review-archive-frame{position:relative;width:100%;aspect-ratio:16/9;background:#080d17;overflow:hidden;border-radius:8px}
+.review-frame video{width:100%;height:100%;display:block}
+.review-mark-layer{position:absolute;inset:0}
+.review-region{position:absolute;border:2px solid #ffbd57;background:rgba(255,175,40,.13);pointer-events:none;box-sizing:border-box}
+.review-archive-frame img{width:100%;height:100%;object-fit:contain;display:block}
+.review-empty{min-height:180px;display:flex;align-items:center;justify-content:center;padding:22px;text-align:center;background:rgba(127,127,127,.1);border-radius:8px}
+.review-meta{display:flex;gap:8px;flex-direction:column;overflow-wrap:anywhere;font-size:12px;opacity:.75}
+.review-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.review-controls select{padding:8px;border-radius:6px}
+.review-list{max-height:75vh;overflow:auto;padding-right:6px}
+.review-item{padding:10px;text-align:left;border:1px solid rgba(130,142,164,.3);border-radius:8px;background:transparent;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.review-item.is-selected{border-color:#8ebeff;background:rgba(120,160,255,.07)}
+.review-item strong{font-size:13px;font-weight:500;overflow-wrap:anywhere}
+.review-item small{opacity:.65}
+.review-detail{padding:12px;border:1px solid rgba(130,142,164,.32);border-radius:8px;display:flex;flex-direction:column;gap:10px}
+.review-detail h4{margin:0}.review-detail p{margin:0;overflow-wrap:anywhere}
+.review-history{font-size:12px;opacity:.7}
+@media(max-width:850px){.review-grid{grid-template-columns:1fr}.review-list{max-height:40vh}}
