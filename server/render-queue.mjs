@@ -38,7 +38,7 @@ function publishAlias(file,alias) {
 export function makeRenderQueue({
   root,outputDir,resolveDeck,render,inspect,baseUrl,
   fingerprint=()=>null,concurrency=1,maxPending=50,maxRestarts=2,jobTimeoutMs=3600000,
-  outputNameForJob=null,publishScene=null,
+  outputNameForJob=null,publishScene=null,recoverCompleted=null,
   logger=console,autoStart=false
 }){
   if(!Number.isSafeInteger(concurrency)||concurrency!==1)
@@ -118,6 +118,21 @@ export function makeRenderQueue({
         if(j.status==='completed'&&(!j.result?.file||!fs.existsSync(path.join(outputDir,path.basename(j.result.file))))){
           j.status='failed';j.error='Previously rendered file is missing';j.finishedAt=stamp();save(j);
         }else if(j.status==='queued'||j.status==='running'){
+          // Crash window: P08 may have durably recorded the immutable MP4,
+          // while the queue journal still says running. Never re-render onto
+          // that verified artifact; recover the completed result instead.
+          let recovered=null;
+          if(j.slide_id&&recoverCompleted){
+            try{recovered=recoverCompleted(j)}catch(e){
+              logger.warn?.('Unable to recover completed scene version',j.job_id,String(e));
+            }
+          }
+          if(recovered){
+            j.status='completed';j.progress=100;j.finishedAt=j.finishedAt||stamp();
+            j.version_id=recovered.version_id;
+            j.result=recovered.result;
+            save(j);
+          }else{
           j.restartAttempts=(j.restartAttempts||0)+1;
           if(j.restartAttempts>maxRestarts){
             j.status='failed';j.error='Render interrupted by repeated restarts';j.finishedAt=stamp();
@@ -126,6 +141,7 @@ export function makeRenderQueue({
             pending.push(j);
           }
           save(j);
+          }
         }else if(j.status==='cancelling'){
           j.status='cancelled';j.finishedAt=stamp();save(j);
         }
