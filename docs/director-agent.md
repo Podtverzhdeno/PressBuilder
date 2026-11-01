@@ -83,7 +83,7 @@ Every scene has six uncompleted checkpoints: storyboard, assets, animation, rend
 
 ## P10 worker dispatch (pull-based MVP)
 
-Following Director approval, **external workers** can pull their authorized scenes through MCP. The server does not start LLM sessions, shell commands, videos or remote agents on their own.
+Following Director approval, **external workers** can pull their authorized scenes through MCP. The server does not start LLM sessions, shell commands, videos or remote agents on their own. The worker explicitly invokes rendering through its existing MCP render tools.
 
 1. The project owner configures unique P06 worker keys via `PB_AGENT_KEYS_JSON`. Each `id` must match its Director-assigned task name case-insensitively (e.g. `agent-01` ↔ `Agent-01`), with the appropriate project and scene scopes.
 2. The worker calls `get_director_work({id})`. A scene is ready only when every declared dependency is marked `done` by human acceptance.
@@ -117,13 +117,13 @@ A human reviewer checks the assembled output, then sends:
 }
 ~~~
 
-to POST /api/decks/:id/director/signoff with web-editor credentials. Sign-off rejects missing or mismatching final MP4 bytes, any modified/missing source scene MP4 (using P05 manifest SHA-256), assembly job, project, scene order, incomplete checkpoints or absent render/QA/human-review evidence. It records a release receipt (SHA-256, size, mtime, plan/job IDs). Reading a release later reports artifact_missing/artifact_changed if file metadata no longer agrees with the receipt. This is a human QA-to-release gate, **not** autonomous creative review.
+to POST /api/decks/:id/director/signoff with web-editor credentials. Sign-off rejects missing or mismatching final MP4 bytes, any modified/missing immutable approved P08 scene MP4 (using P05 manifest SHA-256), assembly job, project, scene order, incomplete checkpoints or absent render/QA/human-review evidence. It records a release receipt (SHA-256, size, mtime, plan/job IDs). Reading a release later reports artifact_missing/artifact_changed if file metadata no longer agrees with the receipt. This is a human QA-to-release gate, **not** autonomous creative review.
 
 ## Not implemented
 
 - No external LLM calls, creative evaluation, or actual autonomous agent process spawning.
 - Director does not invent or overwrite a P04 style contract; style enforcement follows the currently configured P04 enforce flag.
-- No reliable worker leasing or authentication per agent (P06 pending).
+- P06 provides per-agent bearer keys and single-process fenced leases. Distributed multi-instance fencing and token rotation remain outside this MVP.
 - No automatic spawning of external agents, distributed worker scheduler or monetary cost metering (P10.3/P10.4). A local persistent pull/claim/heartbeat/submission coordination layer is implemented; manual replan still governs failures.
 - No automatic progression from QA to human review and final release: P05 assembly and P10 final sign-off are explicit, separately invoked operations. P05 only supports hard cuts.
 - No full six-real-render failure-injection E2E (P10.6). Planning/replan integration and release-manifest boundary tests pass independently; the sign-off unit fixture uses synthetic bytes and does **not** assert actual MP4 codec correctness. Real MP4 validation is P05's responsibility.
