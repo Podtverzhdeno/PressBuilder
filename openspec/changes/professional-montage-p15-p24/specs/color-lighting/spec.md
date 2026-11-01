@@ -34,9 +34,3 @@ The system SHALL check highlights/clipping, codec/color metadata, accessibility 
 #### Scenario: Rejected or degraded safety and rollout
 - **WHEN** the transform clips highlights beyond policy or causes a round-trip output mismatch
 - **THEN** the build fails technical QA and keeps previous approved version
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P21.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P21, checkpoints P21-C01…P21-C06 and release gate in `specs/002-professional-montage/tasks.md`.
