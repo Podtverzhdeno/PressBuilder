@@ -81,5 +81,5 @@ Docker `render-smoke` checks P01–P14 regression; **until P15-C05 exists it doe
 - `server/cloud.mjs` and `server/mcp.mjs`: Basic-auth REST and director-only MCP, disabled unless `PB_RHYTHM_PREVIEW=1`.
 - `server/plugin.ts`: bounded local Vite development route. `src/editor/RhythmPreviewPanel.tsx` lets the editor paste word/pause JSON and seek to cut candidates without changing the deck.
 - `tests/cloud-rhythm-preview.test.mjs` and `tests/cloud-rhythm-wire.test.mjs`: local voice verification, stale cue/source, repeated cue ID and role-denial integration.
-- Cloud CI run `41340395952` on commit `91faef4e5375c3e730566540b428a1dc23ba19ec`: TypeScript build + 117 tests, 103 pass, 14 skipped, 0 failures. Not proof of any P15 audio analysis, deployment or artistic quality.
+- Cloud CI run `41340562286` on commit `35fd4c0c84264167a5cc8322376f8db04e868bda`: TypeScript build + 117 tests, 103 pass, 14 skipped, 0 failures. Not proof of any P15 audio analysis, deployment or artistic quality.
 - Remaining: authenticated alignment, rights checks, durable CAS review/approval, scene-fenced proposal writes, actual six-scene P15 media/audio E2E and staging canary.
