@@ -6,6 +6,8 @@ import path from 'node:path';
 import {sceneVersionStore,fileHash} from '../server/scene-versions.mjs';
 import {sceneReviewStore} from '../server/scene-reviews.mjs';
 import {sceneLeaseStore} from '../server/scene-leases.mjs';
+import {assemblyService} from '../server/assemble-scenes.mjs';
+import {spawnSync} from 'node:child_process';
 
 const actor=(id,role)=>({id,role,projects:['demo'],scenes:['s01','s02']});
 function fixture(){
@@ -96,5 +98,46 @@ test('P07 frame review checks version boundaries, role transitions, fencing and 
     assert.throws(()=>f.reviews.transition('demo','s01',c.item.id,'FIXED','late',worker,4,
       {assertWorker:()=>f.leases.assertWrite('demo','s01',worker,lease.fence)}),e=>e.status===409);
     assert.equal(f.reviews.read('demo','s01').items.length,1);
+  }finally{f.cleanup()}
+});
+
+test('P05 assembles only approved immutable MP4s even if newer unapproved render exists',{timeout:30000},async(t)=>{
+  if(spawnSync('ffmpeg',['-version'],{stdio:'ignore'}).status!==0||
+     spawnSync('ffprobe',['-version'],{stdio:'ignore'}).status!==0){t.skip('FFmpeg tools not installed');return}
+  const f=fixture(),director=actor('director','director');
+  try{
+    const make=(scene,jobId,color)=>{
+      const target=f.v.versionId(jobId),file=path.join(f.out,'demo_'+scene+'_v'+target+'.mp4');
+      const result=spawnSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','lavfi',
+        '-i','color=c='+color+':s=1280x720:r=24:d=0.5','-t','0.5','-c:v','libx264',
+        '-pix_fmt','yuv420p','-an',file],{timeout:15000,encoding:'utf8'});
+      assert.equal(result.status,0,result.stderr);
+      return f.v.capture({id:'demo',scene,jobId,file,
+        expectedSource:f.v.source('demo',scene),rendered:{fps:24,height:720,duration:0.5},
+        qa:{verdict:'PASS',metadata:{fps:24,height:720,duration:0.5}}});
+    };
+    const v1=make('s01','first-good','red');
+    const v2=make('s02','second-good','blue');
+    f.v.approve('demo','s01',v1.version_id,0,director);
+    f.v.approve('demo','s02',v2.version_id,0,director);
+    const draft=make('s01','newer-draft','green');
+    assert.notEqual(draft.sha256,v1.sha256);
+    const svc=assemblyService({out:f.out,getDeck:f.getDeck,
+      getRender:()=>({status:'failed',job_id:'draft-error'}),
+      getTask:()=>({status:'done'}),getApproved:(id,scene)=>f.v.approved(id,scene),
+      baseUrl:()=> 'http://localhost:3000'});
+    svc.start('demo',['s01','s02']);
+    let result;
+    for(let i=0;i<300;i++){
+      result=svc.get('demo');
+      if(['completed','failed'].includes(result.status))break;
+      await new Promise(r=>setTimeout(r,75));
+    }
+    assert.equal(result.status,'completed',JSON.stringify(result));
+    const manifest=JSON.parse(fs.readFileSync(path.join(f.out,'demo_final.manifest.json'),'utf8'));
+    assert.equal(manifest.scenes[0].approved_version_id,v1.version_id);
+    assert.equal(manifest.scenes[0].sha256,v1.sha256);
+    assert.equal(manifest.scenes[1].approved_version_id,v2.version_id);
+    assert.equal(f.v.approved('demo','s01').artifact.version_id,v1.version_id);
   }finally{f.cleanup()}
 });
