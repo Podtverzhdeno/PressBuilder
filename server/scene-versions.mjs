@@ -41,7 +41,7 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,getScene
     }
     let audioHash=null;
     if(deck.audio?.file){
-      if(!/^voice\\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/.test(deck.audio.file))
+      if(!/^voice\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/.test(deck.audio.file))
         bad('Unsafe voice file reference',400);
       const file=path.join(root,id,deck.audio.file);
       if(!fs.existsSync(file))bad('Narration file is missing',409);
