@@ -137,3 +137,68 @@ test('P09 3D entrance linked to an anchored beat is guarded against missing mark
     assert.equal(s.sync.read('p1','s01').timeline.events[0].local_time,3.25);
   }finally{s.cleanup()}
 });
+
+test('P08/P09 MCP respects P06 project scope, scene lease and director-only rollback',{timeout:45000},async()=>{
+  const {spawn}=await import('node:child_process');
+  const {once}=await import('node:events');
+  const {randomBytes}=await import('node:crypto');
+  const net=await import('node:net');
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pb-sync-mcp-'));
+  const listener=net.createServer();
+  await new Promise(ok=>listener.listen(0,'127.0.0.1',ok));
+  const port=listener.address().port;await new Promise(ok=>listener.close(ok));
+  const base='http://127.0.0.1:'+port;
+  const director=randomBytes(32).toString('hex'),worker=randomBytes(32).toString('hex'),other=randomBytes(32).toString('hex');
+  const child=spawn(process.execPath,['server/cloud.mjs'],{cwd:process.cwd(),stdio:['ignore','pipe','pipe'],
+    env:{...process.env,PORT:String(port),PB_DATA_DIR:dir,MCP_API_KEY:director,PB_WEB_USER:'editor',
+      PB_WEB_PASSWORD:'password-very-strong-123',
+      PB_AGENT_KEYS_JSON:JSON.stringify([{id:'worker01',token:worker,role:'worker',projects:['scoped'],scenes:['s01']},
+        {id:'worker02',token:other,role:'worker',projects:['scoped'],scenes:['s02']}])}});
+  let logs='';child.stdout.on('data',x=>logs+=x);child.stderr.on('data',x=>logs+=x);
+  const rpc=async(token,name,args)=>{
+    const response=await fetch(base+'/mcp',{method:'POST',headers:{
+      Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}})});
+    assert.equal(response.status,200);
+    return (await response.json()).result;
+  };
+  try{
+    let ready=false;
+    for(let i=0;i<100;i++){
+      if(child.exitCode!==null)throw Error(logs);
+      try{if((await fetch(base+'/health')).ok){ready=true;break}}catch{}
+      await new Promise(ok=>setTimeout(ok,120));
+    }
+    assert.equal(ready,true,logs);
+    const created=await rpc(director,'create_deck',{id:'scoped',title:'Scoped',text:'Первый кадр. Второй кадр.',slide_count:2,target:12});
+    assert.equal(created.isError,false,JSON.stringify(created));
+    assert.equal((await rpc(worker,'get_scene_sync',{id:'scoped',slide_id:'s02'})).isError,true);
+    assert.equal((await rpc(other,'get_scene_sync',{id:'scoped',slide_id:'s01'})).isError,true);
+    const mark={id:'start',kind:'animation',anchor:{type:'scene',offset:.2}};
+    assert.equal((await rpc(worker,'set_scene_sync',{id:'scoped',slide_id:'s01',markers:[mark],expected_revision:0})).isError,true);
+    const claimed=await rpc(worker,'claim_scene',{id:'scoped',slide_id:'s01',ttl:60});
+    assert.equal(claimed.isError,false,JSON.stringify(claimed));
+    const fence=JSON.parse(claimed.content[0].text).fence;
+    const written=await rpc(worker,'set_scene_sync',{id:'scoped',slide_id:'s01',fence_token:fence,markers:[mark],expected_revision:0});
+    assert.equal(written.isError,false,JSON.stringify(written));
+    assert.equal(JSON.parse(written.content[0].text).timeline.events[0].local_time,.2);
+    const wrong=await rpc(worker,'set_scene_sync',{id:'scoped',slide_id:'s02',fence_token:fence,markers:[],expected_revision:0});
+    assert.equal(wrong.isError,true);
+    const list=await rpc(worker,'list_scene_versions',{id:'scoped',slide_id:'s01'});
+    assert.equal(list.isError,false,JSON.stringify(list));
+    assert.equal((await rpc(worker,'restore_scene_version',{id:'scoped',slide_id:'s01',version_id:'v-'+'0'.repeat(24),expected_fingerprint:'x'})).isError,true);
+    const saved=await rpc(worker,'save_scene_version',{id:'scoped',slide_id:'s01',fence_token:fence});
+    assert.equal(saved.isError,true,'Cannot archive absent completed video');
+    const released=await rpc(worker,'release_scene',{id:'scoped',slide_id:'s01',fence_token:fence});
+    assert.equal(released.isError,false);
+    const stale=await rpc(worker,'set_scene_sync',{id:'scoped',slide_id:'s01',fence_token:fence,markers:[],expected_revision:1});
+    assert.equal(stale.isError,true,'Stale lease is fenced');
+    const operator=await rpc(director,'get_scene_sync',{id:'scoped',slide_id:'s01'});
+    assert.equal(operator.isError,false);
+    const web=await fetch(base+'/api/decks/scoped/sync/s01');
+    assert.equal(web.status,401,'REST does not expose sync to anonymous users');
+  }finally{
+    if(child.exitCode===null){const done=once(child,'close');child.kill('SIGTERM');await done}
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
