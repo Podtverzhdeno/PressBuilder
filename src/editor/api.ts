@@ -21,6 +21,14 @@ export interface SceneRenderVersion {
 }
 export interface ApprovedScenePointer {revision:number;version_id:string|null;updated_at:string|null}
 export interface SceneVersionList {versions:SceneRenderVersion[];approved:ApprovedScenePointer}
+export interface SceneVersionComparison {
+  project:string;scene_id:string;from_version:string;to_version:string;
+  scope:'PIXEL_DIFFERENCE_ONLY';samples:'P03_RELATIVE_10_50_90';
+  resolution:{width:number;height:number};cache_hit:boolean;
+  mean_absolute_difference:number;note:string;
+  frames:{index:number;from_t:number;to_t:number;mean_absolute_difference:number;
+    changed_fraction:number;before_url:string;after_url:string;difference_url:string}[];
+}
 export interface SceneReviewItem {
   id:string;version_id:string;t:number;frame:number;rect:{x:number;y:number;w:number;h:number}|null;
   text:string;severity:'low'|'medium'|'high'|'blocking';
@@ -87,6 +95,8 @@ export const api = {
     }),
   getSceneVersions: (id:string,scene:string) =>
     call<SceneVersionList>(`/api/decks/${id}/versions/${scene}`),
+  compareSceneVersions: (id:string,scene:string,from:string,to:string) =>
+    call<SceneVersionComparison>(`/api/decks/${encodeURIComponent(id)}/versions/${encodeURIComponent(scene)}/compare/${encodeURIComponent(from)}/${encodeURIComponent(to)}`),
   getSceneReviews: (id:string,scene:string) =>
     call<SceneReviewRecord>(`/api/decks/${id}/reviews/${scene}`),
   getSceneReviewItem: (id:string,scene:string,itemId:string) =>
