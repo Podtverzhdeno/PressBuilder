@@ -56,6 +56,12 @@ test('P05: FFmpeg montage, FPS normalization, silent audio, crossfade, immutable
     assert.equal(inspectMp4(originalFile,{height:720,fps:24,audio_required:true}).verdict,'PASS');
     assert.equal(a.manifest.scenes[1].has_audio,false);
     assert.equal(a.current_release.release_id,release1);
+    const resumed=assemblyService({out,getDeck,getPlan:id=>plans.read(id),
+      getStyle:id=>styles.read(id),getRender:()=>({status:'not_started'}),
+      getTask:()=>({status:'review'}),baseUrl:()=> 'https://example.test'});
+    assert.equal(resumed.get('demo').status,'completed','Successful assembly journal survives service restart');
+    assert.equal(resumed.get('demo').result.release_id,release1);
+    assert.equal(resumed.current('demo').release_id,release1);
     const startPlan=plans.read('demo');
     const revised=structuredClone(startPlan.plan);
     revised.scenes[0].transition_after={type:'crossfade',duration:0.4};
