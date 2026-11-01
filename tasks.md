@@ -26,7 +26,7 @@
 | P06 | Scene ownership/leases/ACL | 9.3 | Средняя | MCP identity + хранилище | **IN PROGRESS — scoped leases MVP** |
 | P07 | Покадровые комментарии и ревью | 9.1 | Средняя | P02 + P03 | **IN PROGRESS — frame-review MVP** |
 | P08 | Версии сцен, артефактов, rollback | 9.0 | Средняя | P01 + P02 | **IN PROGRESS — immutable MP4 MVP** |
-| P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | BACKLOG |
+| P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | **MVP IN PROGRESS — anchored 3D cues** |
 | P10 | Director Agent/оркестрация | 8.8 | Высокая | P01–P09 | BACKLOG |
 
 Оценки — инженерные предположения, а не результаты объективного benchmark. Приоритет менять только по проверенным данным.
@@ -142,8 +142,8 @@
 
 ## P09 — единый audio/motion timeline
 
-- [ ] **P09.1** Источник времени для narration, SFX, музыки, анимации и camera cuts; sampling на одном timebase.
-- [ ] **P09.2** Схема cue points: `cue_id, start, duration, emphasis, silence`, неизменяемые ID.
+- [ ] **P09.1** Общий buildSchedule timebase управляет narration/3D и хранит маркеры SFX/camera/music; реальное audio mixing ещё не выполняется.
+- [x] **P09.2 (MVP)** Стабильные cue/event ID, anchors, duration, emphasis/silence и scene-scoped revision.
 - [ ] **P09.3** Автоматическая подстройка переходов по речевым паузам, но без подмены текста озвучки.
 - [ ] **P09.4** Инструменты beat markers и правила loudness/ducking; лицензирование/происхождение музыкальных файлов фиксировать.
 - [ ] **P09.5** Тест: изменение длительности сцены/ставки FPS не вызывает дрейфа аудио/видео >2 кадров.
@@ -211,3 +211,7 @@
 - **Восстановление:** только выбранный slide/cues/visuals + декларативный scene3d, с CAS-фингерпринтом и ревизией 3D. Изменённые глобальные настройки, аудио, развёрнутый bundle или зависимости таймлайна приводят к отказу, чтобы не затрагивать соседние сцены. Восстановление данных сцены и MP4 — **раздельные действия**.
 - **Ограничения:** файловые изменения сцены/3D не объединены транзакцией на уровне аварийного завершения процесса; отсутствует rollback TypeScript, автоматический архив внешних материалов, golden-image сравнение, pixel-perfect проверка текста, GC и distributed locking.
 - **Тесты:** `tests/cloud-source-provenance.test.mjs` (tampering/drift/isolated restoration), `tests/cloud-frame-qa.test.mjs` (real FFmpeg black/static/video), extended `tests/render-smoke.mjs` (real MP4 → 3 JPEG → SHA → source snapshot → modify scene → restore).
+
+
+### P08/P09 — интеграция с общим ревью и provenance (2026-11-01)
+Единый архив immutable MP4, 3 JPEG и SHA-256 browser/audio source дополнен маркерами P09 и точным timebase. 3D start_marker влияет на появление объекта, P09 MCP использует scoped leases. Директорский source rollback возвращает marker sheet после проверки. Не закрыты audio mixer/ducking, distributed locking и end-to-end AV drift.

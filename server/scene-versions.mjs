@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 import {sourceManifest} from './source-provenance.mjs';
+import {resolveSceneSync} from './scene-sync.mjs';
 
 const SLUG=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const VERSION=/^[0-9a-f]{16}$/;
@@ -20,7 +21,7 @@ function atomic(file,obj){
   fs.writeFileSync(temp,JSON.stringify(obj,null,2)+'\n',{mode:0o600});
   try{fs.renameSync(temp,file)}finally{fs.rmSync(temp,{force:true})}
 }
-export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreSlide=null,restoreScene3D=null,staticRoot=path.join(process.cwd(),'build'),now=()=>new Date().toISOString()}){
+export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreSlide=null,restoreScene3D=null,getSceneSync=()=>({revision:0,markers:[],timeline:{events:[]}}),restoreSceneSync=null,staticRoot=path.join(process.cwd(),'build'),now=()=>new Date().toISOString()}){
   function locate(id,scene){
     if(typeof id!=='string'||!SLUG.test(id)||typeof scene!=='string'||!SLUG.test(scene))bad('Invalid project/scene ID');
     const deck=getDeck(id);
@@ -32,7 +33,7 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreS
   function source(id,scene){
     const {deck,slide}=locate(id,scene);
     return sourceManifest({deck,slide,scene3d:getScene3D(id,scene),
-      styleContract:getStyle(id),mediaDir:path.join(root,id),staticDir:staticRoot});
+      styleContract:getStyle(id),sceneSync:getSceneSync(id,scene),mediaDir:path.join(root,id),staticDir:staticRoot});
   }
   const versionId=jobId=>createHash('sha256').update(jobId).digest('hex').slice(0,16);
   function read(id,scene,version){
@@ -113,6 +114,8 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreS
       bad('Scene source changed; reload and retry restoration',409);
     const targetSettings=saved.project_settings,live=before.snapshot.project_settings;
     const targetAssets=saved.assets,liveAssets=before.snapshot.assets;
+    if(saved.project_target!==before.snapshot.project_target || saved.project_lead!==before.snapshot.project_lead || saved.project_tail!==before.snapshot.project_tail)
+      bad('Shared project timebase changed; isolated source restore refused',409);
     // Project-level inputs apply to ALL scenes. Never silently overwrite shared settings,
     // narration, or deployed JS/CSS while restoring a single scene.
     if(JSON.stringify(targetSettings)!==JSON.stringify(live)||
@@ -121,12 +124,24 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreS
       bad('Shared settings, narration or deployed application assets differ; isolated source restoration refused',409);
     if(!saved.slide||saved.slide.id!==scene||!saved.scene3d||
       typeof saved.scene3d.revision!=='number')bad('Invalid archived source snapshot',409);
+    const savedMarkers=Array.isArray(saved.sync_markers)?structuredClone(saved.sync_markers):[];
+    const oldSync=getSceneSync(id,scene);
+    if(savedMarkers.length&&!restoreSceneSync)bad('Scene sync restore not configured',501);
+    // Verify archived marker anchors against archived slide before any write.
+    const trial=structuredClone(getDeck(id)),index=trial.slides.findIndex(x=>x.id===scene);
+    if(index<0)bad('Scene vanished during restore',409);
+    trial.slides[index]=structuredClone(saved.slide);
+    if(resolveSceneSync(trial,scene,savedMarkers).events.some(e=>e.out_of_range))
+      bad('Archived P09 marker outside restored scene',409);
     const old3D=before.snapshot.scene3d;
     const new3D=restoreScene3D(id,scene,saved.scene3d.spec,expected3DRevision);
+    let slideRestored=false,syncRestored=false;
     try{
-      restoreSlide(id,scene,structuredClone(saved.slide));
+      restoreSlide(id,scene,structuredClone(saved.slide));slideRestored=true;
+      if(restoreSceneSync){restoreSceneSync(id,scene,savedMarkers,oldSync.revision);syncRestored=true}
     }catch(e){
-      // Compensate a second-file write failure (process crashes remain non-transactional).
+      if(slideRestored)try{restoreSlide(id,scene,structuredClone(before.snapshot.slide))}catch{}
+      if(syncRestored)try{restoreSceneSync(id,scene,oldSync.markers,oldSync.revision+1)}catch{}
       try{restoreScene3D(id,scene,old3D.spec,new3D.revision)}catch{}
       throw e;
     }

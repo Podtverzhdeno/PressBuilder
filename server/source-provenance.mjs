@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {buildSchedule} from '../src/engine/schedule.ts';
 
 const HEX=/^[a-f0-9]{64}$/;
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -32,7 +33,14 @@ export function browserBundleManifest(staticDir){
   return {available:result.length>0,files:result,
     sha256:sha(JSON.stringify(result))};
 }
-export function sourceManifest({deck,slide,scene3d,styleContract,mediaDir,staticDir}){
+export function sourceManifest({deck,slide,scene3d,styleContract,mediaDir,staticDir,sceneSync=null}){
+  const sync=sceneSync||{markers:[],timeline:{events:[]}};
+  if(sync.validation_error)throw Object.assign(new Error('Orphaned sync markers: '+sync.validation_error),{status:409});
+  const ids=new Set((sync.timeline?.events||[]).filter(e=>!e.out_of_range).map(e=>e.id));
+  for(const o of scene3d?.spec?.objects||[])if(o.start_marker&&!ids.has(o.start_marker))
+    throw Object.assign(new Error('Unknown 3D start_marker: '+o.start_marker),{status:409});
+  const scheduled=buildSchedule(deck).slides.find(s=>s.slide.id===slide.id);
+  if(!scheduled)throw Object.assign(new Error('Scene missing from timeline'),{status:409});
   const audio=deck.audio||null;
   let audioAsset=null;
   if(audio?.file){
@@ -58,7 +66,10 @@ export function sourceManifest({deck,slide,scene3d,styleContract,mediaDir,static
     project_settings:{
     style:deck.style,format:structuredClone(deck.format),audio:structuredClone(audio)},
     scene3d:structuredClone(scene3d),style_contract:structuredClone(styleContract),
-    assets:{audio:audioAsset,browser}};
+    assets:{audio:audioAsset,browser},
+    sync_markers:structuredClone(sync.markers||[]),
+    clip_start:scheduled.start,clip_duration:scheduled.dur,
+    project_target:deck.target??null,project_lead:deck.lead??null,project_tail:deck.tail??null};
   const fingerprint=sha(JSON.stringify(snapshot));
   return {fingerprint,scene3d_revision:scene3d?.revision??0,style_revision:styleContract?.revision??0,
     audio_sha256:audioAsset?.sha256??null,browser_sha256:browser.sha256,
