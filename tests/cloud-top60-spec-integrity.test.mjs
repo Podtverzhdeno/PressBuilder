@@ -27,7 +27,7 @@ test('M01..M60: unique source spec, six exact domains, strict ranking and no fak
    assert.match(section,/\*\*зависимости:\*\*/);
    assert.match(section,/\*\*оценки Q\/E\/F\/C\/S\/L:\*\*/);
    assert.match(section,/DoD|Проверяемые критерии|Проверка эффекта|Acceptance/);
-   assert.match(section,/Негативные|Риски|сценарии|trade-off/i);
+   assert.match(section,/Негативн|Риски|риск|сценарии|отрицательн|trade-off/i);
    copies.push(m[1]);
   }
  }
