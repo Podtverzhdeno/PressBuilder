@@ -2,7 +2,8 @@
 
 import type { DeckData } from '../engine/types.ts';
 import type { SceneTask, SceneCheckpoint } from '../../server/scene-tasks.mjs';
-export type { SceneTask, SceneCheckpoint };
+import type { ProjectReadme } from '../../server/project-readme.mjs';
+export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
 export interface DeckMeta {
@@ -39,6 +40,11 @@ const body = (data: unknown): RequestInit => ({
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
   getDeck: (id: string) => call<DeckData>(`/api/decks/${id}`),
+  getProjectReadme: (id: string) => call<ProjectReadme>(`/api/decks/${id}/readme`),
+  saveProjectReadme: (id: string, content: string, expected_revision: string) =>
+    call<ProjectReadme>(`/api/decks/${id}/readme`,{
+      method:'PUT',...body({content,expected_revision})
+    }),
   listSceneTasks: (id: string) => call<SceneTask[]>(`/api/decks/${id}/tasks`),
   getSceneTask: (id: string, slideId: string) => call<SceneTask>(`/api/decks/${id}/tasks/${slideId}`),
   saveSceneTask: (id: string, slideId: string, task: Partial<SceneTask>, expected_revision: number) =>
