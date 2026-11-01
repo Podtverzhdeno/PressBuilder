@@ -56,7 +56,7 @@ export function captureFrameEvidence({file,out,id,scene,version,duration,fps,ffm
         '-frames:v','1','-vf','scale=64:36:flags=area,format=gray','-f','rawvideo','pipe:1'],{binary:true});
       const stats=analyzeGray(gray);
       const warnings=[];
-      if(stats.mean<9)warnings.push('DARK_FRAME');
+      if(stats.mean<24)warnings.push('DARK_FRAME');
       if(stats.stddev<1.5)warnings.push('LOW_DETAIL');
       frames.push({index:i,t,frame:Math.floor(t*fps),file:'out/'+name,sha256:hash(dest),
         size:fs.statSync(dest).size,mean_luma:stats.mean,luma_stddev:stats.stddev,warnings,
