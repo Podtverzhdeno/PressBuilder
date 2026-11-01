@@ -56,21 +56,22 @@ function getVoice(d) {
   if(!fs.existsSync(file))throw new Error('Voice audio is missing: '+a.file);
   return {file,offset:Number(a.offset||0),volume:Number(a.volume??1)};
 }
-async function encode(client,{id,fps,height,duration,onProgress}) {
+async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProgress}) {
   const deck=getDeck(id);
   const voice=getVoice(deck);
-  const output=path.join(OUT,id+'.mp4');
-  const staging=path.join(OUT,id+'.'+process.pid+'.partial.mp4');
+  const output=path.join(OUT,outputName+'.mp4');
+  const staging=path.join(OUT,outputName+'.'+process.pid+'.partial.mp4');
   const args=['-y','-v','error','-f','image2pipe','-framerate',String(fps),'-vcodec','png','-i','pipe:0'];
+  const voiceShift=voice?voice.offset-from:0;
   if(voice){
-    if(voice.offset<0)args.push('-ss',String(-voice.offset));
+    if(voiceShift<0)args.push('-ss',String(-voiceShift));
     args.push('-i',voice.file);
   }
   args.push('-map','0:v:0','-c:v','libx264','-preset','veryfast','-crf','20','-pix_fmt','yuv420p');
   if(voice){
     args.push('-map','1:a:0','-c:a','aac','-b:a','192k');
     const filters=[];
-    if(voice.offset>0)filters.push('adelay='+Math.round(voice.offset*1000)+':all=1');
+    if(voiceShift>0)filters.push('adelay='+Math.round(voiceShift*1000)+':all=1');
     if(voice.volume!==1)filters.push('volume='+voice.volume);
     if(filters.length)args.push('-af',filters.join(','));
   }
@@ -85,7 +86,7 @@ async function encode(client,{id,fps,height,duration,onProgress}) {
   try {
     for(let i=0;i<count;i++){
       if(failed)throw failed;
-      const png=await evalBrowser(client,'window.__PB_CLOUD_FRAME__('+(i/fps)+','+height+')');
+      const png=await evalBrowser(client,'window.__PB_CLOUD_FRAME__('+(from+i/fps)+','+height+')');
       if(typeof png!=='string'||png.length<100)throw new Error('Canvas capture failed at frame '+i);
       const bytes=Buffer.from(png,'base64');
       if(!ff.stdin.write(bytes))await new Promise((resolve,reject)=>{
@@ -107,7 +108,7 @@ async function encode(client,{id,fps,height,duration,onProgress}) {
     fs.rmSync(staging,{force:true});
   }
 }
-export async function renderWithChrome({id,port,username,password,timeoutMs=900000,onProgress}) {
+export async function renderWithChrome({id,slideId=null,port,username,password,timeoutMs=900000,onProgress}) {
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'pb-render-'));
   const exe=process.env.CHROMIUM_PATH||'/usr/bin/chromium';
   const args=['--headless=new','--no-sandbox','--disable-dev-shm-usage',
@@ -147,8 +148,14 @@ export async function renderWithChrome({id,port,username,password,timeoutMs=9000
     const height=d.format.height;
     if(![24,25,30,50,60].includes(fps))throw new Error('Unsupported fps; choose 24/25/30/50/60');
     if(![720,1080,1440,2160].includes(height))throw new Error('Unsupported height');
-    if(info.duration>600)throw new Error('Cloud render limited to 10-minute projects');
-    return await encode(client,{id,fps,height,duration:info.duration,onProgress});
+    const scene=slideId?info.slides?.find(s=>s.id===slideId):null;
+    if(slideId&&!scene)throw new Error('Requested render scene is not on the timeline: '+slideId);
+    const clipStart=scene?.start??0;
+    const clipDuration=scene?.dur??info.duration;
+    if(clipDuration<=0||clipDuration>600)throw new Error('Render clip limited to 10 minutes');
+    if(!Number.isFinite(clipStart)||clipStart<0)throw new Error('Invalid scene start time');
+    const outputName=slideId?id+'_'+slideId:id;
+    return await encode(client,{id,outputName,from:clipStart,fps,height,duration:clipDuration,onProgress});
   } finally {
     if(client)try{client.socket.close()}catch{}
     if(!exited)child.kill('SIGKILL');
