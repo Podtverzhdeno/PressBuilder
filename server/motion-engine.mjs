@@ -31,7 +31,7 @@ function valueAt(points,frame){
 }
 function validateTrack(t,frames,fps){
  if(!t||typeof t!=='object'||Array.isArray(t)||!keys(t,['target_id','property','keyframes'])||
-  !SLUG.test(t.target_id)||!Object.hasOwn(PROPERTIES,t.property)||
+  (typeof t.target_id!=='string'||!SLUG.test(t.target_id))||!Object.hasOwn(PROPERTIES,t.property)||
   !Array.isArray(t.keyframes)||t.keyframes.length<2||t.keyframes.length>32)bad('MOTION_TRACK_INVALID');
  const limit=PROPERTIES[t.property],points=[];
  for(const p of t.keyframes){
@@ -58,7 +58,8 @@ export function proposeMotionFrames(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||
   !keys(input,['schema_version','project_id','scene_id','source_sha256',
     'expected_revision','frame_rate','duration_frames','reduced_motion','tracks','sample_frames'])||
-  input.schema_version!==1||!SLUG.test(input.project_id)||!SLUG.test(input.scene_id)||
+  input.schema_version!==1||typeof input.project_id!=='string'||!SLUG.test(input.project_id)||
+  typeof input.scene_id!=='string'||!SLUG.test(input.scene_id)||
   !SHA.test(input.source_sha256)||!Number.isSafeInteger(input.expected_revision)||
   input.expected_revision<0||!input.frame_rate||
   !Number.isSafeInteger(input.frame_rate.num)||!Number.isSafeInteger(input.frame_rate.den)||
