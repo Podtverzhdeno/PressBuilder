@@ -63,12 +63,23 @@ test('OAuth consent survives server restart and can only be approved once', {tim
     const callback=new URL(approved.headers.get('location'));
     assert.equal(callback.searchParams.get('state'),'restart-test');
     const code=callback.searchParams.get('code');assert.ok(code);
-    assert.equal((await submit(nonce)).status,400,'Consent nonce must not be replayable');
+    const duplicate=await submit(nonce);
+    assert.equal(duplicate.status,303,'A second form POST should not fail');
+    assert.equal(duplicate.headers.get('location'),approved.headers.get('location'),'Identical OAuth callback must be returned');
+    await shutdown();
+    launch();await ready();
+    const afterRestart=await submit(nonce);
+    assert.equal(afterRestart.status,303,'Idempotency must survive another process restart');
+    assert.equal(afterRestart.headers.get('location'),approved.headers.get('location'));
     const exchanged=await fetch(base+'/oauth/token',{method:'POST',headers:{
       Authorization:client,'Content-Type':'application/x-www-form-urlencoded'},
       body:new URLSearchParams({grant_type:'authorization_code',code,
-        redirect_uri:redirectUri,code_verifier:verifier,resource:base+'/mcp'})});
+        redirect_uri:redirectUri,code_verifier:verifier})});
     assert.equal(exchanged.status,200,'OAuth code exchange failed: '+await exchanged.clone().text());
     assert.ok((await exchanged.json()).access_token);
+    const exchangeAgain=await fetch(base+'/oauth/token',{method:'POST',headers:{
+      Authorization:client,'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:redirectUri,code_verifier:verifier})});
+    assert.equal(exchangeAgain.status,400,'Authorization code must still be single-use');
   }finally{await shutdown();fs.rmSync(dir,{recursive:true,force:true})}
 });
