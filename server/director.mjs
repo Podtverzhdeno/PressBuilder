@@ -45,7 +45,7 @@ function hashFile(file){
   return hash.digest('hex');
 }
 
-export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,getAssembly,out}){
+export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,getAssembly,getApproved,out}){
   function location(id){
     if(typeof id!=='string'||!SLUG.test(id))fail('Invalid project id');
     getDeck(id);
@@ -372,7 +372,10 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
       fail('Final MP4 size does not match manifest',409);
     const sha256=hashFile(file);
     for(const scene of manifest.scenes){
-      const inputFile=path.join(out,id+'_'+scene.id+'.mp4');
+      const approved=getApproved?.(id,scene.id);
+      if(getApproved&&(!approved?.artifact||approved.version_id!==scene.approved_version_id))
+        fail('Approved scene version was changed or removed: '+scene.id,409);
+      const inputFile=approved?.artifact?.absolute_file||path.join(out,id+'_'+scene.id+'.mp4');
       if(!fs.existsSync(inputFile)||hashFile(inputFile)!==scene.sha256)
         fail('Assembled input scene artifact was removed or changed: '+scene.id,409);
     }
