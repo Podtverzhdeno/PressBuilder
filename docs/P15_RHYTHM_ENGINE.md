@@ -104,3 +104,7 @@ Docker `render-smoke` checks P01–P14 regression; **until P15-C05 exists it doe
 5. Feature flag staging canary and a tested rollback, with owner approval before production.
 
 Current GitHub CI can prove the API/contract behavior and lack of MP4 writes; it does **not** prove those five conditions.
+
+## Audio/rights evidence extension (PR #32)
+
+See [P15_AUDIO_EVIDENCE.md](P15_AUDIO_EVIDENCE.md) for the bounded FFmpeg PCM signal-energy gate, operator-owned licensed-music catalog, live setup, threat model, six-scene actual H.264/AAC synthetic signal fixture and limitations. CI run `41344739143` verified 135 cloud tests (119 pass, 16 skipped), Docker six-scene media test and render-smoke PASS. The synthetic signal is not natural speech, no model-level word alignment is asserted, and no release pointer is modified. `PB_RHYTHM_AUDIO_VERIFY` is opt-in only and its synchronous FFmpeg call must move to a resource-governed worker pool before production exposure. P15-C04/C05 remain IN_PROGRESS, not accepted.
