@@ -33,13 +33,16 @@ export const TOOLS = [
  { name:'reorder_slides', description:'Reorder existing slides without losing any cue IDs.', inputSchema:obj({id:str('Project slug'),slide_ids:{type:'array',items:{type:'string'}}},['id','slide_ids']) },
  { name:'render_video', description:'Start a server-side Chromium + WebCodecs + FFmpeg render job for a video. Poll get_render_status. Server rendering uses deterministic Chromium Canvas frames encoded with FFmpeg.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'render_scene', description:'Queue an independent MP4 render of one existing scene (not the entire video). Uses the timeline exact start and duration; safe to request while other scene renders are queued. Returns queued/running job details and job_id.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
+ { name:'cancel_scene_render', description:'Cancel a queued or running scene render by exact job_id. Does not delete the last approved MP4. The job_id must come from render_scene.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Exact job ID')},['id','slide_id','job_id']) },
+ { name:'retry_scene_render', description:'Request a new isolated render attempt after a completed/failed/cancelled scene job. Requires the exact previous job_id; stale retries are rejected.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Previous job ID')},['id','slide_id','job_id']) },
+ { name:'cancel_video_render', description:'Cancel a queued or running complete-video render by job_id, preserving previously approved MP4.', inputSchema:obj({id:str('Project slug'),job_id:str('Exact job ID')},['id','job_id']) },
  { name:'get_scene_qa_report', description:'Read technical MP4 QA after a scene render: codec, resolution, FPS, duration, audio presence, and detected issues. This is not artistic quality scoring.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'get_video_qa_report', description:'Read technical MP4 QA after a full video render. Validates stream metadata, not artistic composition.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_scene_render_status', description:'Check the independent render job status for one scene and get a direct MP4 download URL when complete.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
-export function makeMcp({ startRender, getRender, baseUrl }) {
+export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl }) {
   async function call(name, args) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) throw new UserError('Arguments must be an object');
     switch(name) {
@@ -71,6 +74,9 @@ export function makeMcp({ startRender, getRender, baseUrl }) {
       case 'render_video': return startRender(args.id);
       case 'render_scene': return startRender(args.id,args.slide_id);
       case 'get_scene_render_status': return getRender(args.id,args.slide_id);
+      case 'cancel_scene_render': return cancelRender(args.id,args.slide_id,args.job_id);
+      case 'retry_scene_render': return retryRender(args.id,args.slide_id,args.job_id);
+      case 'cancel_video_render': return cancelRender(args.id,null,args.job_id);
       case 'get_scene_qa_report': {const r=getRender(args.id,args.slide_id);return {id:args.id,slide_id:args.slide_id,status:r.status,report:r.qa_report||null};}
       case 'get_video_qa_report': {const r=getRender(args.id);return {id:args.id,status:r.status,report:r.qa_report||null};}
       case 'get_render_status': return getRender(args.id);
