@@ -247,6 +247,12 @@ async function api(req,res,url) {
     if(action==='approve'&&method==='POST')return json(res,200,directorPlan.approve(id,await readJson(req)));
     throw new UserError('Method not allowed',405);
   }
+  const directorReplan=/^\/api\/decks\/([^/]+)\/director\/replan\/([^/]+)$/.exec(p);
+  if(directorReplan){
+    if(method!=='POST')throw new UserError('Method not allowed',405);
+    return json(res,200,directorPlan.replan(
+      deckId(escaped(directorReplan[1])),escaped(directorReplan[2]),await readJson(req)));
+  }
   const taskMatch=/^\/api\/decks\/([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(p);
   if(taskMatch){
     const id=deckId(escaped(taskMatch[1]));
