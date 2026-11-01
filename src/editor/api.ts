@@ -7,6 +7,18 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface ReviewRegion { x:number;y:number;w:number;h:number }
+export type ReviewStatus = 'OPEN'|'FIXED'|'VERIFIED'|'REOPENED';
+export interface SceneReviewItem {
+  id:string;scene_id:string;render_revision:string;t:number;fps:number;frame:number;
+  author:string;severity:'minor'|'major'|'blocker';text:string;region:ReviewRegion|null;
+  status:ReviewStatus;revision:number;history:{at:string;actor:string;status:ReviewStatus;note:string}[];
+  created_at:string;updated_at:string;has_frame_evidence?:boolean;frame_evidence?:string|null;
+}
+export interface SceneRenderState {
+  status:string;id:string;slide_id?:string;job_id?:string;
+  qa_report?:{metadata?:{fps:number;duration:number}};result?:{file:string;download_url:string};
+}
 export interface DeckMeta {
   id: string;
   title: string;
@@ -50,6 +62,22 @@ export const api = {
   saveProjectReadme: (id: string, content: string, expected_revision: string) =>
     call<ProjectReadme>(`/api/decks/${id}/readme`,{
       method:'PUT',...body({content,expected_revision})
+    }),
+  getSceneRender: (id: string, sid: string) =>
+    call<SceneRenderState>(`/api/decks/${id}/renders/${sid}`),
+  listSceneReviews: (id:string,sid:string) =>
+    call<{scene_id:string;revision:number;items:SceneReviewItem[]}>(`/api/decks/${id}/reviews/${sid}`),
+  getSceneReview: (id:string,sid:string,itemId:string) =>
+    call<SceneReviewItem>(`/api/decks/${id}/reviews/${sid}/${itemId}`),
+  createSceneReview: (id:string,sid:string,payload:{
+    render_revision:string;t:number;fps:number;frame:number;severity:'minor'|'major'|'blocker';
+    text:string;region?:ReviewRegion|null;frame_evidence?:string|null;
+  })=>call<SceneReviewItem>(`/api/decks/${id}/reviews/${sid}`,{
+    method:'POST',...body(payload)
+  }),
+  updateSceneReview: (id:string,sid:string,itemId:string,payload:{status:ReviewStatus;note:string;expected_revision:number})=>
+    call<SceneReviewItem>(`/api/decks/${id}/reviews/${sid}/${itemId}`,{
+      method:'PATCH',...body(payload)
     }),
   listSceneTasks: (id: string) => call<SceneTask[]>(`/api/decks/${id}/tasks`),
   getSceneTask: (id: string, slideId: string) => call<SceneTask>(`/api/decks/${id}/tasks/${slideId}`),
