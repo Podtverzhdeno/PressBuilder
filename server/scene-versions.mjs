@@ -62,6 +62,7 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
     if(qa?.verdict!=='PASS')bad('Failed QA cannot be versioned',422);
     if(typeof jobId!=='string'||jobId.length>220)bad('Invalid render job');
     if(source(id,scene).fingerprint!==expectedSource?.fingerprint)bad('Scene changed during render',409);
+    if(list(id,scene).length>=50)bad('Scene version quota reached (50); explicit archival/GC required',413);
     const version=versionId(jobId);
     const targetName=id+'_'+scene+'_v'+version+'.mp4';
     const target=path.join(out,targetName);
@@ -108,7 +109,8 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
     finally{fs.rmSync(stage,{force:true})}
     const audit=path.join(dir,'history.jsonl');
     fs.appendFileSync(audit,JSON.stringify({...next,trace_id:randomUUID()})+'\n',{mode:0o600});
-    return {...next,artifact:item};
+    const {absolute_file,...publicItem}=item;
+    return {...next,artifact:publicItem};
   }
   function restore(id,scene,version,expectedRevision,actor,options={}){
     const {dir}=locate(id,scene);
