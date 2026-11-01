@@ -1,7 +1,8 @@
 /** P08: immutable rendered scene versions and explicit approved pointer. Single-process FS MVP. */
 import fs from 'node:fs';
 import path from 'node:path';
-import {createHash,randomUUID,constants} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
+import {sourceManifest} from './source-provenance.mjs';
 
 const SLUG=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const VERSION=/^[0-9a-f]{16}$/;
@@ -19,7 +20,7 @@ function atomic(file,obj){
   fs.writeFileSync(temp,JSON.stringify(obj,null,2)+'\n',{mode:0o600});
   try{fs.renameSync(temp,file)}finally{fs.rmSync(temp,{force:true})}
 }
-export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>new Date().toISOString()}){
+export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,staticRoot=path.join(process.cwd(),'build'),now=()=>new Date().toISOString()}){
   function locate(id,scene){
     if(typeof id!=='string'||!SLUG.test(id)||typeof scene!=='string'||!SLUG.test(scene))bad('Invalid project/scene ID');
     const deck=getDeck(id);
@@ -30,10 +31,8 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
   }
   function source(id,scene){
     const {deck,slide}=locate(id,scene);
-    const snapshot={slide,style:deck.style,format:deck.format,audio:deck.audio??null,
-      scene3d:getScene3D(id,scene),styleContract:getStyle(id)};
-    return {fingerprint:createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'),
-      scene3d_revision:snapshot.scene3d?.revision??0,style_revision:snapshot.styleContract?.revision??0};
+    return sourceManifest({deck,slide,scene3d:getScene3D(id,scene),
+      styleContract:getStyle(id),mediaDir:path.join(root,id),staticDir:staticRoot});
   }
   const versionId=jobId=>createHash('sha256').update(jobId).digest('hex').slice(0,16);
   function read(id,scene,version){
@@ -80,14 +79,28 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
           bad('Frame evidence integrity mismatch for sample '+i,409);
       }
     }
+    if(!expectedSource?.snapshot||createHash('sha256').update(JSON.stringify(expectedSource.snapshot)).digest('hex')!==expectedSource.fingerprint)
+      bad('Missing or changed source snapshot',409);
+    const {snapshot,...sourceSummary}=expectedSource;
     const item={version_id:version,project:id,scene_id:scene,job_id:jobId,created_at:now(),
       file:'out/'+targetName,sha256:hash,size:fs.statSync(target).size,
       duration:rendered.duration,fps:rendered.fps,height:rendered.height,
-      source:expectedSource,qa,...(frameEvidence?{frame_evidence:frameEvidence}:{})};
+      source:sourceSummary,qa,...(frameEvidence?{frame_evidence:frameEvidence}:{})};
     const f=path.join(dir,version+'.json');
     if(fs.existsSync(f))bad('Render version already exists',409);
+    const sourceFile=path.join(dir,version+'.source.json');
+    atomic(sourceFile,snapshot);
     atomic(f,item);
     return item;
+  }
+  function readSource(id,scene,version){
+    const {dir}=locate(id,scene),item=read(id,scene,version);
+    const file=path.join(dir,version+'.source.json');
+    if(!fs.existsSync(file))bad('Source snapshot unavailable for this legacy render',404);
+    const snapshot=JSON.parse(fs.readFileSync(file,'utf8'));
+    const sha=createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+    if(sha!==item.source?.fingerprint)bad('Source snapshot integrity mismatch',409);
+    return {version_id:version,source:snapshot,fingerprint:sha};
   }
   function verified(id,scene,version){
     const item=read(id,scene,version);
@@ -140,5 +153,5 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
     fs.copyFileSync(path.join(out,path.basename(item.file)),stage);
     try{fs.renameSync(stage,original)}finally{fs.rmSync(stage,{force:true})}
   }
-  return {source,versionId,capture,read,list,pointer,approved,approve,restore,verified,publishPreview};
+  return {source,versionId,capture,read,readSource,list,pointer,approved,approve,restore,verified,publishPreview};
 }
