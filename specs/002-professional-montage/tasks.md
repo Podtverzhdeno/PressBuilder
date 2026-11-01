@@ -48,7 +48,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C03 — MCP + REST + Studio preview
 
-- [ ] P15-C03 — IN_PROGRESS (source-pinned Studio preview, persistent CAS draft and independent non-publishable reviewer MCP tested; verified voice alignment/rights, human approval, real P15 render and production gate outstanding). Deliverable: MCP/REST route and Studio scene editor.
+- [ ] P15-C03 — IN_PROGRESS (source-pinned Studio+MCP preview, revisioned CAS review, real PCM16 WAV silence measured and CI-tested; exact word alignment, verified music rights, independent final approval and P15 real-media release still outstanding). Deliverable: MCP/REST route and Studio scene editor.
 - Actions: Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor. Expose revisioned preview for proposed cut list with source frames and deterministic review evidence; leave published release unchanged.
 - Dependencies: P15-C02.
 - Acceptance: Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.
