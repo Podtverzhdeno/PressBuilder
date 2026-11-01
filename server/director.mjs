@@ -244,6 +244,61 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles}){
     }
     return read(id);
   }
+  // Replan exactly one failed/in-review scene; no parallel agent is started.
+  // The original brief and checkpoint notes remain available as evidence.
+  function replan(id,slideId,args){
+    read(id); // also performs interrupted-approval recovery
+    const plan=raw(id);
+    if(plan.status!=='approved')fail('Approve the six-scene plan before replanning',409);
+    if(!args||typeof args!=='object'||Array.isArray(args)||
+       Object.keys(args).some(k=>!['expected_plan_revision','expected_task_revision','reason','direction','reset_checkpoint_ids'].includes(k)))
+      fail('Invalid scene replanning request');
+    if(!Number.isSafeInteger(args.expected_plan_revision)||args.expected_plan_revision!==plan.revision)
+      fail('Director plan changed; reload before replanning',409);
+    if(fingerprint(getDeck(id))!==plan.script_fingerprint)
+      fail('Deck changed since director approval; scene replan requires review',409);
+    if(styles&&styles.read(id).revision!==plan.style_contract_revision)
+      fail('Style contract changed since director approval',409);
+    if(!plan.scenes.some(s=>s.scene_id===slideId))fail('Scene does not belong to approved plan',404);
+    const current=sceneTasks.read(id,slideId);
+    if(!Number.isSafeInteger(args.expected_task_revision)||current.revision!==args.expected_task_revision)
+      fail('Scene task changed; reload before replanning',409);
+    if(!['blocked','review'].includes(current.status))
+      fail('Only blocked or review scenes may be replanned',409);
+    const reason=text(args.reason,'reason',2000,true);
+    const direction=text(args.direction??'','direction',3000);
+    const history=Array.isArray(plan.replan_history)?plan.replan_history:[];
+    const attempts=history.filter(h=>h.scene_id===slideId).length;
+    if(attempts>=3)fail('Scene replan limit reached (3)',429);
+    const reset=args.reset_checkpoint_ids??[];
+    const ids=new Set(current.checkpoints.map(x=>x.id));
+    if(!Array.isArray(reset)||reset.length>60||new Set(reset).size!==reset.length||
+       reset.some(x=>typeof x!=='string'||!ids.has(x)))
+      fail('Invalid checkpoint reset selection');
+    const brief=current.brief+'\n\nDirector revision '+(attempts+1)+
+      ': reason='+JSON.stringify(reason)+', new direction='+JSON.stringify(direction||'Resolve the recorded blocker')+
+      '. Previous checkpoint notes remain as historical evidence.';
+    if(brief.length>20000)fail('Revised scene brief exceeds 20000 characters',413);
+    const checkpoints=current.checkpoints.map(cp=>({...cp,done:reset.includes(cp.id)?false:cp.done}));
+    const taskFile=path.join(root,id,'.scene-tasks',slideId+'.json');
+    const backup=fs.existsSync(taskFile)?fs.readFileSync(taskFile):null;
+    try{
+      const changed=sceneTasks.put(id,slideId,{brief,status:'todo',checkpoints},current.revision);
+      save(planFile(id),{...plan,revision:plan.revision+1,replan_history:[
+        ...history,{scene_id:slideId,attempt:attempts+1,reason,direction,
+          reset_checkpoint_ids:reset,previous_revision:current.revision,
+          new_revision:changed.revision,at:new Date().toISOString()}]});
+    }catch(e){
+      if(backup===null)fs.rmSync(taskFile,{force:true});
+      else{
+        const temp=taskFile+'.restore-'+randomUUID();
+        fs.writeFileSync(temp,backup,{mode:0o600});
+        fs.renameSync(temp,taskFile);
+      }
+      throw e;
+    }
+    return read(id);
+  }
   // Run recovery before the server accepts any scene-task requests. Without
   // this, another API route might read half-published tasks after a crash.
   if(fs.existsSync(root)){
@@ -253,5 +308,5 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles}){
         recover(entry.name);
     }
   }
-  return {read,propose,approve};
+  return {read,propose,approve,replan};
 }
