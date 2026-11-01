@@ -24,6 +24,7 @@ import { scene3dStore } from './scene-3d.mjs';
 import { styleContractStore,enforceScene3D,enforceVisuals } from './style-contract.mjs';
 import {styleById} from '../src/engine/styles.ts';
 import { assemblyPlanStore } from './assembly-plan.mjs';
+import {rhythmPreviewService} from './rhythm-preview.mjs';
 
 const ROOT = process.cwd();
 const DECKS_DIR = path.join(ROOT, 'src', 'decks');
@@ -72,6 +73,9 @@ const readmeStore=projectReadmeStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.p
 const scene3d=scene3dStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 const styleContracts=styleContractStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 const assemblyPlans=assemblyPlanStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),getStyle:(id:string)=>styleContracts.read(id)});
+const rhythmPreview=rhythmPreviewService({root:DECKS_DIR,
+  getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),
+  enabled:process.env.PB_RHYTHM_PREVIEW==='1'});
 
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -155,6 +159,37 @@ export function presbuilder(): Plugin {
       return fail(res, 405, 'method');
     }
 
+    const rhythm=/^([^/]+)\/rhythm\/(context|preview)$/.exec(rest);
+    if(rhythm){
+      const id=rhythm[1];
+      if(!ID_RE.test(id)||!fs.existsSync(deckFile(id)))return fail(res,404,'Ролик не найден');
+      try{
+        if(rhythm[2]==='context'&&req.method==='GET')
+          return json(res,rhythmPreview.context(id));
+        if(rhythm[2]==='preview'&&req.method==='POST'){
+          // Keep the development-only endpoint bounded; the cloud server has
+          // its own 1 MiB HTTP cap before parsed manifests reach this service.
+          const chunks:Buffer[]=[];let length=0;
+          const raw=await new Promise<Buffer>((resolve,reject)=>{
+            req.on('data',(chunk:Buffer)=>{
+              length+=chunk.length;
+              if(length>512*1024){reject(Object.assign(new Error('Rhythm request too large'),{status:413}));req.destroy();}
+              else chunks.push(chunk);
+            });
+            req.on('end',()=>resolve(Buffer.concat(chunks)));
+            req.on('error',reject);
+          });
+          let body;
+          try{body=JSON.parse(raw.toString('utf8'))}
+          catch{ return fail(res,400,'Invalid JSON rhythm manifest') }
+          return json(res,rhythmPreview.preview(id,body?.manifest));
+        }
+        return fail(res,405,'method');
+      }catch(e){
+        const status=Number((e as {status?:number})?.status||500);
+        return fail(res,status,e instanceof Error?e.message:String(e));
+      }
+    }
     const style=/^([^/]+)\/style-contract$/.exec(rest);
     if(style){
       const id=style[1];
