@@ -55,6 +55,7 @@ export const TOOLS = [
  { name:'release_scene', description:'Release the lease and invalidate old fencing tokens.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','fence_token']) },
  { name:'list_scene_versions', description:'List immutable QA-passing rendered versions of a scene, plus the explicitly approved pointer.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'get_scene_version', description:'Inspect an immutable scene version and protected MP4 download URL.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('16-hex version ID')},['id','slide_id','version_id']) },
+ { name:'compare_scene_versions', description:'Compare two immutable P08 MP4 versions using three real P03 JPEG samples. Returns before/after images, difference JPEG links and numeric pixel-change statistics; not a creative QA verdict. May take time on first call.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),before_version:str('First 16-hex P08 version'),after_version:str('Second 16-hex P08 version')},['id','slide_id','before_version','after_version']) },
  { name:'get_scene_source_state', description:'Director only: current SHA-256 source fingerprint and 3D revision for optimistic restore. Does not expose source contents.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'get_scene_source_snapshot', description:'Director only: read the immutable declarative scene source, browser bundle and narration provenance of a rendered version.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('Immutable version ID')},['id','slide_id','version_id']) },
  { name:'restore_scene_source', description:'Director only: restore a versioned slide/cues/visuals and declarative 3D. Refuses if project-wide style, audio or browser bundle differs. Does not change approved MP4; requires optimistic fingerprint and 3D revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('Immutable version ID'),
@@ -82,7 +83,7 @@ export const TOOLS = [
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
 export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly,
-  assemblyPlans,versions,reviews,sceneSync,directorPlan:providedDirectorPlan=null,
+  assemblyPlans,versions,reviews,sceneSync,comparisons=null,directorPlan:providedDirectorPlan=null,
   dispatch:providedDispatch=null }) {
   const directorPlan=providedDirectorPlan||directorStore({root:DECKS,getDeck,
     sceneTasks:taskStore,projectReadmes:readmeStore,styles,getAssembly:()=>assembly,
@@ -179,6 +180,9 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'get_scene_version': scoped(args.id,args.slide_id,actor);{
         const v=versions.read(args.id,args.slide_id,args.version_id);return {...v,download_url:baseUrl()+'/'+v.file};
       }
+      case 'compare_scene_versions': scoped(args.id,args.slide_id,actor);
+        if(!comparisons)throw new UserError('Scene comparison not configured',501);
+        return await comparisons.compare(args.id,args.slide_id,args.before_version,args.after_version);
       case 'get_scene_source_state': directorOnly(actor);{
         const {snapshot,...state}=versions.source(args.id,args.slide_id);return state;
       }

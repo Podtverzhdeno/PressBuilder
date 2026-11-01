@@ -1,6 +1,7 @@
 /** Browser review of immutable scene MP4s. Hosted cloud editor only; local Vite has no cloud render jobs. */
 import {useEffect,useRef,useState} from 'preact/hooks';
-import {api,type SceneRenderVersion,type SceneReviewRecord,type ApprovedScenePointer,type SceneReviewItem} from './api.ts';
+import {api,type SceneRenderVersion,type SceneReviewRecord,type ApprovedScenePointer,
+  type SceneReviewItem,type SceneVersionComparison} from './api.ts';
 import {deck as deckState} from './store.ts';
 
 interface Props{projectId:string;initialSlide?:string;onClose:()=>void}
@@ -14,6 +15,8 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
   const [versions,setVersions]=useState<SceneRenderVersion[]>([]);
   const [approved,setApproved]=useState<ApprovedScenePointer|null>(null);
   const [selected,setSelected]=useState('');
+  const [compareFrom,setCompareFrom]=useState('');
+  const [comparison,setComparison]=useState<SceneVersionComparison|null>(null);
   const [reviews,setReviews]=useState<SceneReviewRecord|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -31,6 +34,7 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
   async function refresh(scene:string,keepSelection?:string){
     const [v,r]=await Promise.all([api.getSceneVersions(projectId,scene),api.getSceneReviews(projectId,scene)]);
     setVersions(v.versions);setApproved(v.approved);setReviews(r);setEvidence(null);
+    setComparison(null);setCompareFrom('');
     setSelected(keepSelection&&v.versions.some(x=>x.version_id===keepSelection)
       ?keepSelection:(v.approved.version_id||v.versions.at(-1)?.version_id||''));
   }
@@ -41,6 +45,7 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
       .then(([v,r])=>{
         if(!alive)return;
         setVersions(v.versions);setApproved(v.approved);setReviews(r);
+        setComparison(null);setCompareFrom('');
         setSelected(v.approved.version_id||v.versions.at(-1)?.version_id||'');
       }).catch(e=>{if(alive)setError('Версии доступны в облачном редакторе после рендера: '+String(e))});
     return()=>{alive=false};
@@ -80,6 +85,12 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
     await api.transitionSceneReview(projectId,slide,item.id,status,note,reviews.revision);
     setNote('');setNotice('Статус обновлён и сохранён в истории');
     await refresh(slide,selected);
+  });
+  const compare=()=>perform(async()=>{
+    if(!selected||!compareFrom||selected===compareFrom)
+      throw new Error('Выбери две разные сохранённые версии');
+    const report=await api.compareSceneVersions(projectId,slide,compareFrom,selected);
+    setComparison(report);
   });
   const approval=(action:'approve'|'restore')=>perform(async()=>{
     if(!approved||!active)throw new Error('Выбери существующий MP4');
@@ -125,7 +136,8 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
             </select>
           </label>
           <label>Версия рендера
-            <select value={selected} onChange={e=>{setSelected(e.currentTarget.value);setRect(null)}}>
+            <select value={selected} disabled={busy}
+              onChange={e=>{setSelected(e.currentTarget.value);setRect(null);setComparison(null);setCompareFrom('')}}>
               {versions.map(v=><option key={v.version_id} value={v.version_id}>
                 {v.version_id} · {v.created_at}{approved?.version_id===v.version_id?' · УТВЕРЖДЕНА':''}
               </option>)}
@@ -165,6 +177,37 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
                   Диагностика: {active.frame_evidence.warnings.join(', ')}. Статичный или тёмный кадр может быть намеренным.
                 </p>}
               </div>}
+              {versions.length>1&&<section style={{marginTop:'18px',borderTop:'1px solid #7776',paddingTop:'12px'}}>
+                <strong>Сравнить две версии по реальным кадрам</strong>
+                <p class="task-readme-help">Выбери исходную версию. Сравнение — три точки 10/50/90%, а не автоматическая оценка художественного качества.</p>
+                <div class="task-row">
+                  <label>Предыдущая версия
+                    <select value={compareFrom} disabled={busy}
+                      onChange={e=>{setCompareFrom(e.currentTarget.value);setComparison(null)}}>
+                      <option value="">Выбрать версию для сравнения</option>
+                      {versions.filter(v=>v.version_id!==selected).map(v=>
+                        <option key={v.version_id} value={v.version_id}>{v.version_id} · {v.created_at}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" class="btn" disabled={busy||!compareFrom||compareFrom===selected}
+                    onClick={compare}>{busy?'Сравнение…':'Показать отличия'}</button>
+                </div>
+                {comparison&&comparison.to_version===selected&&comparison.from_version===compareFrom&&<>
+                  <p class="task-readme-help">Средняя разница RGB на сетке 64×36: <strong>{comparison.mean_absolute_difference.toFixed(2)} / 255</strong>. Карта различий показывает изменения пикселей; светлые участки — более сильные отличия.</p>
+                  {comparison.frames.map(f=><div key={f.index} style={{marginTop:'10px'}}>
+                    <strong>Кадр {f.index+1} · изменено {(f.changed_fraction*100).toFixed(1)}% точек · MAE {f.mean_absolute_difference.toFixed(2)}</strong>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:'5px',marginTop:'5px'}}>
+                      {([{label:'До',src:f.before_url},{label:'После',src:f.after_url},{label:'Разница',src:f.difference_url}]).map(item=>
+                        <div key={item.label}>
+                          <img src={item.src} alt={item.label+' — кадр '+(f.index+1)} loading="lazy"
+                            style={{width:'100%',aspectRatio:'16/9',objectFit:'contain',background:'#111'}} />
+                          <small>{item.label}</small>
+                        </div>)}
+                    </div>
+                  </div>)}
+                  <p class="task-readme-help">{comparison.note}</p>
+                </>}
+              </section>}
               <div class="task-row">
                 <label>Приоритет
                   <select value={issueSeverity} onChange={e=>setIssueSeverity(e.currentTarget.value as SceneReviewItem['severity'])}>
