@@ -153,3 +153,25 @@ test('rejects symlinked rhythm metadata directory or file',()=>{
    bad('UNSAFE_RHYTHM_DIR',()=>x.service.status(x.id,author));
  }finally{x.close()}
 });
+
+test('corrupt and symlinked review file are rejected without reading linked data',()=>{
+ const x=fixture();try{
+   x.service.submit(x.id,author,x.manifest(),0,'Create actual draft before tamper');
+   fs.writeFileSync(x.file,'{not-json');
+   bad('CORRUPT_RHYTHM_RECORD',()=>x.service.status(x.id,author));
+   fs.rmSync(x.file);
+   const privateFile=path.join(x.root,'private.txt');fs.writeFileSync(privateFile,'PRIVATE');
+   try{fs.symlinkSync(privateFile,x.file)}
+   catch(e){if(['EPERM','EACCES'].includes(e.code))return;throw e}
+   bad('UNSAFE_RHYTHM_FILE',()=>x.service.status(x.id,author));
+ }finally{x.close()}
+});
+test('hard-linked review file is rejected rather than exposing shared inode',()=>{
+ const x=fixture();try{
+   x.service.submit(x.id,author,x.manifest(),0,'Create draft for hardlink test');
+   const another=path.join(x.root,'shared-review.json');
+   try{fs.linkSync(x.file,another)}
+   catch(e){if(['EPERM','EACCES','ENOTSUP'].includes(e.code))return;throw e}
+   bad('UNSAFE_RHYTHM_FILE',()=>x.service.status(x.id,author));
+ }finally{x.close()}
+});
