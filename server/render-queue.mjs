@@ -38,6 +38,7 @@ function publishAlias(file,alias) {
 export function makeRenderQueue({
   root,outputDir,resolveDeck,render,inspect,baseUrl,
   fingerprint=()=>null,concurrency=1,maxPending=50,maxRestarts=2,jobTimeoutMs=3600000,
+  outputNameForJob=null,publishScene=null,
   logger=console,autoStart=false
 }){
   if(!Number.isSafeInteger(concurrency)||concurrency!==1)
@@ -136,7 +137,10 @@ export function makeRenderQueue({
     if(pending.length>=maxPending)throw err('Render queue is full',429);
     const token=randomBytes(6).toString('hex');
     const job_id=token; // ≤40 characters; never uses user-supplied filenames
-    const output_name=id+(slide_id?'_'+slide_id:'')+'_'+token;
+    const output_name=outputNameForJob?.(id,slide_id,job_id)??
+      id+(slide_id?'_'+slide_id:'')+'_'+token;
+    if(typeof output_name!=='string'||!/^[a-z0-9][a-z0-9_-]{0,125}$/.test(output_name))
+      throw err('Invalid output name');
     const j={id,...(slide_id?{slide_id}:{}),job_id,output_name,status:'queued',
       queuedAt:stamp(),progress:0,restartAttempts:0,source_fingerprint:fingerprint(id,slide_id)};
     save(j);latest.set(k,j);pending.push(j);
@@ -190,16 +194,29 @@ export function makeRenderQueue({
           throw Error('Invalid QA response: render cannot be approved');
         if(report.verdict==='FAIL')throw Error('Video QA failed: '+report.issues.map(x=>x.id).join(', '));
         if(abort.signal.aborted||j.status==='cancelling')throw Error('Render cancelled');
-        const alias=j.id+(j.slide_id?'_'+j.slide_id:'')+'.mp4';
-        publishAlias(immutable,path.join(outputDir,alias));
+        let published=null;
+        if(j.slide_id&&publishScene){
+          // P08 approval owns the stable URL. A draft render must NEVER
+          // overwrite an approved version just because its QA passes.
+          if(report.verdict!=='PASS')throw Error('Scene needs QA PASS before version capture');
+          published=await publishScene({job:j,file:immutable,rendered,qa:report});
+          if(!published?.version_id)throw Error('Version store did not capture the scene');
+          j.version_id=published.version_id;
+        }else{
+          const alias=j.id+(j.slide_id?'_'+j.slide_id:'')+'.mp4';
+          publishAlias(immutable,path.join(outputDir,alias));
+          published={legacy_file:'out/'+alias};
+        }
         j.status='completed';j.progress=100;
-        j.result={file:'out/'+j.output_name+'.mp4',legacy_file:'out/'+alias,
+        j.result={file:'out/'+j.output_name+'.mp4',...published,
           size:fs.statSync(immutable).size,download_url:baseUrl().replace(/\/$/,'')+'/out/'+j.output_name+'.mp4'};
       }catch(e){
         j.status=j.status==='cancelling'?'cancelled':'failed';
         j.error=e instanceof Error?e.message:String(e);
         // An unapproved render must not remain visible as a successful artifact.
-        try{fs.rmSync(path.join(outputDir,j.output_name+'.mp4'),{force:true})}catch{}
+        // Once metadata has been captured by P08, keep its immutable MP4
+        // even if preview publication fails; removing it corrupts the catalog.
+        if(!j.version_id)try{fs.rmSync(path.join(outputDir,j.output_name+'.mp4'),{force:true})}catch{}
       }finally{
         clearTimeout(deadline);
         j.finishedAt=stamp();save(j);running=null;
