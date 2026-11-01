@@ -79,3 +79,44 @@ if(qa?.report?.verdict!=='PASS')throw new Error('P03 scene technical QA failed '
 const qaFull=unwrap(await rpc('tools/call',{name:'get_video_qa_report',arguments:{id}}));
 if(qaFull?.report?.verdict!=='PASS')throw new Error('P03 full video technical QA failed '+JSON.stringify(qaFull));
 console.log('PASS P03 ffprobe quality gates for scene and full video');
+
+
+/** P07: actual H.264 scene -> real decoded JPEG frame -> review -> resolution */
+const {spawnSync}=await import('node:child_process');
+const thumbnail=spawnSync('ffmpeg',['-hide_banner','-loglevel','error','-i','pipe:0',
+  '-vf','scale=480:270','-frames:v','1','-f','image2pipe','-vcodec','mjpeg','-q:v','9','pipe:1'],
+  {input:Buffer.from(clipBytes),maxBuffer:1024*1024,timeout:30000});
+if(thumbnail.status!==0||!thumbnail.stdout?.length)
+  throw new Error('Real MP4 JPEG evidence extraction failed: '+String(thumbnail.stderr));
+const jpeg='data:image/jpeg;base64,'+thumbnail.stdout.toString('base64');
+const fps=Math.round(qa.report.metadata.fps);
+const t=0.2;
+const made=unwrap(await rpc('tools/call',{name:'create_scene_review_item',arguments:{
+  id,slide_id:firstSlide,render_revision:clipStatus.job_id,t,fps,frame:Math.round(t*fps),
+  severity:'major',text:'Real MP4 smoke review: verify title position and composition',
+  region:{x:0.1,y:0.1,w:0.6,h:0.3},frame_evidence:jpeg
+}}));
+if(made.status!=='OPEN'||made.has_frame_evidence!==true)
+  throw new Error('Review creation failed: '+JSON.stringify(made));
+const opened=unwrap(await rpc('tools/call',{name:'get_scene_review_item',arguments:{
+  id,slide_id:firstSlide,item_id:made.id
+}}));
+if(opened.render_revision!==clipStatus.job_id||opened.frame_evidence!==jpeg)
+  throw new Error('Review evidence or render reference not preserved');
+const fixed=unwrap(await rpc('tools/call',{name:'update_scene_review_item',arguments:{
+  id,slide_id:firstSlide,item_id:made.id,status:'FIXED',expected_revision:1,
+  note:'Real rendered frame checked; issue documented'
+}}));
+if(fixed.status!=='FIXED')throw new Error('Review fix transition failed');
+const verified=unwrap(await rpc('tools/call',{name:'update_scene_review_item',arguments:{
+  id,slide_id:firstSlide,item_id:made.id,status:'VERIFIED',expected_revision:2,
+  note:'Quality reviewer confirmed the sampled frame'
+}}));
+if(verified.status!=='VERIFIED'||verified.history.length!==3)
+  throw new Error('Review acceptance / audit history failed');
+const persisted=unwrap(await rpc('tools/call',{name:'list_scene_review_items',arguments:{
+  id,slide_id:firstSlide
+}}));
+if(persisted.items.length!==1||persisted.items[0].status!=='VERIFIED')
+  throw new Error('Review item was not persisted');
+console.log('PASS P07 real MP4 frame review, JPEG evidence, fix and verification');
