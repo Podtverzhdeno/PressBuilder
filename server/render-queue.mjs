@@ -79,7 +79,7 @@ export function makeRenderQueue({
           if(fs.existsSync(currentFile))continue;
           const token=randomBytes(16).toString('hex');
           j.job_id=token;
-          j.output_name=j.id+(j.slide_id?'_'+j.slide_id:'')+'_'+token;
+          j.output_name=j.id+(j.slide_id?'_'+j.slide_id:'')+'_'+token.slice(0,12);
           j.restartAttempts=0;
           if(j.status==='completed'&&j.qa_report?.verdict==='PASS'&&j.result?.file){
             const legacy=path.join(outputDir,path.basename(j.result.file));
