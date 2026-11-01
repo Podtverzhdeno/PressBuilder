@@ -110,6 +110,16 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
     fs.appendFileSync(audit,JSON.stringify({...next,trace_id:randomUUID()})+'\n',{mode:0o600});
     return {...next,artifact:item};
   }
+  function restore(id,scene,version,expectedRevision,actor,options={}){
+    const {dir}=locate(id,scene);
+    const log=path.join(dir,'history.jsonl');
+    if(!fs.existsSync(log))bad('No previously approved versions to restore',409);
+    const wasApproved=fs.readFileSync(log,'utf8').split('\n').filter(Boolean).some(line=>{
+      try{return JSON.parse(line).version_id===version}catch{return false}
+    });
+    if(!wasApproved)bad('Cannot restore a version that was never approved',409);
+    return approve(id,scene,version,expectedRevision,actor,options);
+  }
   function publishPreview(id,scene,item){
     // Preserve the approved stable MP4 while subsequent draft renders are evaluated.
     if(pointer(id,scene).version_id)return;
@@ -117,5 +127,5 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
     fs.copyFileSync(path.join(out,path.basename(item.file)),stage);
     try{fs.renameSync(stage,original)}finally{fs.rmSync(stage,{force:true})}
   }
-  return {source,versionId,capture,read,list,pointer,approved,approve,verified,publishPreview};
+  return {source,versionId,capture,read,list,pointer,approved,approve,restore,verified,publishPreview};
 }
