@@ -34,9 +34,3 @@ The system SHALL persist candidate rhythm plans with source hashes and explicit 
 #### Scenario: Rejected or degraded determinism and review
 - **WHEN** the soundtrack, cue positions or policy changes after an approved plan
 - **THEN** the old plan is invalidated and no release is overwritten
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P15.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P15, checkpoints P15-C01…P15-C06 and release gate in `specs/002-professional-montage/tasks.md`.
