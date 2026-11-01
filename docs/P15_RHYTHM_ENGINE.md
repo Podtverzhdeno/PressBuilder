@@ -83,3 +83,24 @@ Docker `render-smoke` checks P01–P14 regression; **until P15-C05 exists it doe
 - `tests/cloud-rhythm-preview.test.mjs` and `tests/cloud-rhythm-wire.test.mjs`: local voice verification, stale cue/source, repeated cue ID and role-denial integration.
 - Cloud CI run `41340562286` on commit `35fd4c0c84264167a5cc8322376f8db04e868bda`: TypeScript build + 117 tests, 103 pass, 14 skipped, 0 failures. Not proof of any P15 audio analysis, deployment or artistic quality.
 - Remaining: authenticated alignment, rights checks, durable CAS review/approval, scene-fenced proposal writes, actual six-scene P15 media/audio E2E and staging canary.
+
+## P15-C03 persistent CAS draft stage (PR #30, not a production release)
+
+**New sidecar:** `.rhythm/review.json` stores a bounded current proposal, revision, source SHA, reviewer note and prior-revision metadata. It does **not** write `deck.json`, edit scenes, render media, switch an approved MP4 or grant production approval.
+
+- **Author:** authenticated director may `GET /api/decks/:id/rhythm/draft` then `POST /api/decks/:id/rhythm/draft` with `{manifest,expected_revision,note}`. Both cloud Basic-auth and local editor (Vite) support this flow. The editor shows current revision, source freshness, human review, and CAS conflicts. The proposal is newly computed from current input; supplied `cuts` or `approved` flags are never accepted.
+- **Reviewer:** distinct MCP reviewer credential scoped to **every scene** in the project may call `get_rhythm_draft`, then `review_rhythm_draft` with `{id,expected_revision,plan_sha256,decision:'endorse'|'reject',note}`. Directors and scene-limited reviewers cannot call the review action.
+- **Staleness:** before save and reviewer decision, re-read actual voice bytes and current cue text/timing. Reject wrong SHA, unknown scene/cue, word or pause outside its cue, wrong revision, tampered plan hash, replaced audio, or modified text.
+- **Durability:** atomic file replacement and revision CAS under single-process writer-lock production assumption. File and metadata directory must not be symlinks. On re-submission, previous endorsement is invalidated. This is *not* a distributed multi-writer database.
+- **Immutable release:** all responses explicitly carry `publication_allowed:false`. `endorsed_nonpublishable` is a technical opinion on the proposed structure, NOT an approval for sound licensing, accurate word alignment, creative quality, rendering or publishing.
+- **Enable:** `PB_RHYTHM_PREVIEW=1` in authorized staging only. In the absence of this flag the analysis remains disabled; the addition does not authorize a Railway production change.
+
+### Stage acceptance blockers
+
+1. Independently verified word alignment from the **actual** audio signal with scored timing and an explicit source SHA (not only caller-supplied timestamps).
+2. Music provenance and legal rights verified at a trusted asset catalog/server boundary.
+3. A real six-scene voice/music render with measured frame timing, peak/loudness and a human cinematic A/B review.
+4. Security review for malicious data, multi-instance deployment and replayed reviewer credentials; independent approval signoff.
+5. Feature flag staging canary and a tested rollback, with owner approval before production.
+
+Current GitHub CI can prove the API/contract behavior and lack of MP4 writes; it does **not** prove those five conditions.
