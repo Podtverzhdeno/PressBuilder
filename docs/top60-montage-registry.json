@@ -64,7 +64,30 @@
       "recommended_predecessors": [
         "P06",
         "P10"
-      ]
+      ],
+      "implementation_slice": {
+        "id": "M40-R01",
+        "status": "IN_PROGRESS",
+        "scope": "source-attested read-only brief from existing P10 + P06",
+        "ci": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41357246400",
+        "ci_status": "CLOUD_PASS_DOCKER_PENDING",
+        "feature_flag": "PB_TYPED_SCENE_BRIEFS",
+        "default_enabled": false,
+        "code": [
+          "server/typed-scene-brief.mjs",
+          "schemas/montage/typed-scene-brief-v2.schema.json",
+          "src/editor/TypedSceneBriefPanel.tsx",
+          "tests/cloud-typed-scene-brief.test.mjs"
+        ],
+        "not_yet_proven": [
+          "typed write and P06 CAS",
+          "six-scene brief-to-real-render E2E",
+          "editor efficiency benchmark",
+          "independent security review",
+          "staging canary",
+          "production enablement"
+        ]
+      }
     },
     {
       "id": "M50",
