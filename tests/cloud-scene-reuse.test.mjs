@@ -123,3 +123,31 @@ test('P08 rejects malformed full render fingerprints and legacy metadata is not 
       qa:{verdict:'PASS'},renderFingerprint:'bad'}),/render fingerprint/);
   }finally{f.cleanup()}
 });
+
+
+test('P07 any reopened review on a matching source blocks fallback to older P08 versions',{
+  timeout:12000
+},async()=>{
+  const f=create();
+  try{
+    f.q.start();
+    f.q.enqueue('demo','s01');
+    const first=await until(()=>f.q.get('demo','s01').status==='completed'?f.q.get('demo','s01'):null);
+    f.q.retry('demo','s01',first.job_id);
+    const second=await until(()=>{
+      const j=f.q.get('demo','s01');
+      return j.status==='completed'&&j.job_id!==first.job_id?j:null;
+    });
+    assert.notEqual(second.version_id,first.version_id);
+    const src='a'.repeat(64);
+    const reopened=new Set([first.version_id]);
+    const reuse=findReusableScene({id:'demo',slide_id:'s01',source_fingerprint:src,
+      versions:f.versions,reviews:{unresolved:(id,scene,version)=>reopened.has(version)},
+      baseUrl:()=> 'https://example.test'});
+    assert.equal(reuse,null,'A reopened P07 issue must veto all matching cached versions');
+    reopened.clear();
+    assert.equal(findReusableScene({id:'demo',slide_id:'s01',source_fingerprint:src,
+      versions:f.versions,reviews:{unresolved:()=>false},
+      baseUrl:()=> 'https://example.test'}).version_id,second.version_id);
+  }finally{f.cleanup()}
+});
