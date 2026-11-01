@@ -83,14 +83,24 @@ export function makeRenderQueue({
           j.restartAttempts=0;
           if(j.status==='completed'&&j.qa_report?.verdict==='PASS'&&j.result?.file){
             const legacy=path.join(outputDir,path.basename(j.result.file));
-            const immutable=path.join(outputDir,j.output_name+'.mp4');
             if(fs.existsSync(legacy)){
-              fs.copyFileSync(legacy,immutable);
+              const p08Name=j.id+(j.slide_id?'_'+j.slide_id:'')+'_v'+j.version_id+'.mp4';
+              const alreadyVersioned=j.slide_id&&/^[0-9a-f]{16}$/.test(j.version_id||'')&&
+                path.basename(legacy)===p08Name;
+              if(alreadyVersioned){
+                // P08 has already captured/checksummed this file: keep its
+                // exact identity and the approved pointer unchanged.
+                j.output_name=path.basename(legacy,'.mp4');
+              }else{
+                const immutable=path.join(outputDir,j.output_name+'.mp4');
+                fs.copyFileSync(legacy,immutable);
+              }
+              const final=path.join(outputDir,j.output_name+'.mp4');
               j.result={
-                file:'out/'+path.basename(immutable),
-                legacy_file:'out/'+path.basename(legacy),
-                size:fs.statSync(immutable).size,
-                download_url:baseUrl().replace(/\/$/,'')+'/out/'+path.basename(immutable),
+                file:'out/'+path.basename(final),
+                legacy_file:alreadyVersioned?null:'out/'+path.basename(legacy),
+                size:fs.statSync(final).size,
+                download_url:baseUrl().replace(/\/$/,'')+'/out/'+path.basename(final),
               };
             }else{
               j.status='failed';j.error='Legacy MP4 not found';
