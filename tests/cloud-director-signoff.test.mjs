@@ -44,8 +44,13 @@ test('Director P10 release boundary: exact six approved tasks, evidence, job and
     const file=path.join(out,id+'_final.mp4');
     fs.writeFileSync(file,Buffer.from('Synthetic handoff fixture, not a real MP4.'));
     const sha=createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+    const inputs=ids.map(scene=>{
+      const file=path.join(out,id+'_'+scene+'.mp4');
+      fs.writeFileSync(file,Buffer.from('Synthetic input for '+scene));
+      return {id:scene,sha256:createHash('sha256').update(fs.readFileSync(file)).digest('hex')};
+    });
     const fakeManifest={project:id,job_id:'test-job',
-      scenes:ids.map(scene=>({id:scene})),
+      scenes:inputs,
       output:{sha256:sha,size:fs.statSync(file).size,qa:{verdict:'PASS'}}};
     job={id,status:'completed',job_id:'test-job',manifest:fakeManifest};
     rejectStatus(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
@@ -54,6 +59,10 @@ test('Director P10 release boundary: exact six approved tasks, evidence, job and
     rejectStatus(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
       assembly_job_id:'test-job'}),409);
     fs.writeFileSync(file,Buffer.from('Synthetic handoff fixture, not a real MP4.'));
+    fs.appendFileSync(path.join(out,id+'_s05.mp4'),'tampered');
+    rejectStatus(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
+      assembly_job_id:'test-job'}),409);
+    fs.writeFileSync(path.join(out,id+'_s05.mp4'),Buffer.from('Synthetic input for s05'));
     const released=director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
       assembly_job_id:'test-job'});
     assert.equal(released.status,'released');
