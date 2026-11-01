@@ -6,7 +6,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, createHash } from 'node:crypto';
 import { DATA, DECKS, OUT, UserError, createDeck, deckId, getDeck, hasDeck, listDecks, putDeck } from './cloud-core.mjs';
 import { makeMcp } from './mcp.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
@@ -279,10 +279,21 @@ async function api(req,res,url) {
   }
   throw new UserError('Unknown API endpoint',404);
 }
-// P02: bounded in-process FIFO. Workers run one Chromium render at a time.
-// Jobs for different scenes queue independently instead of returning HTTP 409.
+// P02: bounded FIFO and persistent job metadata in /data.
+// Restarted workers replay interrupted jobs (at most twice), while metadata
+// for completed/failed jobs survives process restarts.
 const jobs=new Map();
 const renderQueue=[];
+const JOBS_DIR=path.join(DATA,'render-jobs');
+fs.mkdirSync(JOBS_DIR,{recursive:true});
+const jobPath=(id,slideId)=>path.join(JOBS_DIR,
+  createHash('sha256').update(id+'\\0'+(slideId||'full')).digest('hex')+'.json');
+function persistJob(j){
+  const file=jobPath(j.id,j.slide_id);
+  const tmp=file+'.'+process.pid+'.tmp';
+  fs.writeFileSync(tmp,JSON.stringify(j,null,2)+'\n',{mode:0o600});
+  fs.renameSync(tmp,file);
+}
 let workerActive=false;
 const baseUrl=()=>ORIGIN||'http://localhost:'+PORT;
 const renderKey=(id,slideId)=>slideId?id+':'+slideId:id;
@@ -299,11 +310,18 @@ async function workQueue(){
     while(renderQueue.length){
       const j=renderQueue.shift();
       const {id,slide_id:slideId}=j;
+      if(j.status==='cancelled')continue;
       j.status='running';
       j.startedAt=new Date().toISOString();
+      persistJob(j);
       try {
         await renderWithChrome({id,slideId,port:PORT,username:WEB_USER,password:WEB_PASS,
-          timeoutMs:900000,onProgress:p=>{j.progress=Math.round(p*100)}});
+          timeoutMs:900000,onProgress:p=>{
+            const percent=Math.round(p*100);
+            if(Math.floor(percent/10)!==Math.floor((j.progress||0)/10)){
+              j.progress=percent;persistJob(j);
+            }else j.progress=percent;
+          }});
         const name=slideId?id+'_'+slideId:id;
         const file=path.join(OUT,name+'.mp4');
         if(!fs.existsSync(file))throw new Error('Video was not produced');
@@ -313,7 +331,7 @@ async function workQueue(){
       }catch(e){
         j.status='failed';
         j.error=e instanceof Error?e.message:String(e);
-      }finally{j.finishedAt=new Date().toISOString()}
+      }finally{j.finishedAt=new Date().toISOString();persistJob(j)}
     }
   }finally{workerActive=false}
 }
@@ -330,9 +348,33 @@ function startRender(id,slideId=null){
   const j={id,...(slideId?{slide_id:slideId}:{}),job_id:key+'-'+Date.now(),
     status:'queued',queuedAt:new Date().toISOString(),progress:0};
   jobs.set(key,j);
+  persistJob(j);
   renderQueue.push(j);
   void workQueue();
   return {...j};
+}
+// Recover job states without executing a render before the HTTP server listens.
+for(const file of fs.readdirSync(JOBS_DIR).filter(n=>/^[0-9a-f]{64}\.json$/.test(n))){
+  try{
+    const j=JSON.parse(fs.readFileSync(path.join(JOBS_DIR,file),'utf8'));
+    if(!j||typeof j.id!=='string'||typeof j.status!=='string')continue;
+    deckId(j.id);if(j.slide_id)deckId(j.slide_id);
+    // Old completed jobs may be referenced after a restart.
+    if(j.status==='completed' && j.result?.file && !fs.existsSync(path.join(DATA,j.result.file))){
+      j.status='failed';j.error='Output file was removed from the volume';j.finishedAt=new Date().toISOString();
+      persistJob(j);
+    }
+    const key=renderKey(j.id,j.slide_id);
+    jobs.set(key,j);
+    if(['queued','running'].includes(j.status)){
+      j.restartAttempts=(j.restartAttempts||0)+1;
+      if(j.restartAttempts>2){
+        j.status='failed';j.error='Render aborted after repeated process restarts';
+        j.finishedAt=new Date().toISOString();
+      }else{j.status='queued';renderQueue.push(j)}
+      persistJob(j);
+    }
+  }catch(e){console.warn('Invalid persisted render job:',file,String(e))}
 }
 const mcp=makeMcp({startRender,getRender,baseUrl});
 const server=http.createServer(async(req,res)=>{
@@ -383,4 +425,4 @@ const server=http.createServer(async(req,res)=>{
     return fileResponse(req,res,file);
   }catch(e){if(!res.headersSent)error(res,e);else res.destroy();}
 });
-server.listen(PORT,HOST,()=>console.log('PressBuilder cloud listening on '+PORT));
+server.listen(PORT,HOST,()=>{console.log('PressBuilder cloud listening on '+PORT);void workQueue();});
