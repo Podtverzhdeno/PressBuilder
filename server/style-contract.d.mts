@@ -15,7 +15,7 @@ export interface StyleContractRecord {
 export function validateStyleContract(x:StyleContract):StyleContract;
 export function effectiveStyle(contract:StyleContract,sceneId?:string):StyleContract;
 export function enforceScene3D(contract:StyleContract,spec:unknown,sceneId?:string):void;
-export function enforceVisuals(contract:StyleContract,elements:unknown[],sceneId?:string,theme?:Record<string,string>):void;
+export function enforceVisuals(contract:StyleContract,elements:unknown[],sceneId?:string,theme?:{h1:string;accent:string;text:string;pos:string;panel:string;bg:string}):void;
 export function styleContractStore(args:{
   root:string;
   getDeck:(id:string)=>{slides:{id:string;visuals?:unknown[]}[]}
