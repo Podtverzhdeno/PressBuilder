@@ -17,7 +17,9 @@ import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 import { inspectMp4, mergeVisualQA } from './video-qa.mjs';
 import { makeRenderQueue } from './render-queue.mjs';
-import {styleContractStore,enforceScene3D} from './style-contract.mjs';
+import {styleContractStore,enforceScene3D,enforceVisuals} from './style-contract.mjs';
+import {styleById} from '../src/engine/styles.ts';
+import {assemblyPlanStore} from './assembly-plan.mjs';
 import {sceneLeaseStore,agentDirectory} from './scene-leases.mjs';
 import {assemblyService} from './assemble-scenes.mjs';
 import {sceneVersionStore} from './scene-versions.mjs';
@@ -42,6 +44,7 @@ const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.c
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const sceneSync=sceneSyncStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const styles=styleContractStore({root:DECKS,getDeck});
+const assemblyPlans=assemblyPlanStore({root:DECKS,getDeck,getStyle:id=>styles.read(id)});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
@@ -224,6 +227,27 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const planMatch=/^\/api\/decks\/([^/]+)\/assembly-plan$/.exec(p);
+  if(planMatch){
+    const id=deckId(escaped(planMatch[1]));
+    if(method==='GET')return json(res,200,assemblyPlans.read(id));
+    if(method==='PUT'){
+      const body=await readJson(req);
+      return json(res,200,assemblyPlans.put(id,body?.plan,body?.expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const releaseMatch=/^\/api\/decks\/([^/]+)\/assembly\/releases\/([^/]+)\/final\.mp4$/.exec(p);
+  if(releaseMatch){
+    if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
+    const id=deckId(escaped(releaseMatch[1])),releaseId=escaped(releaseMatch[2]);
+    return fileResponse(req,res,assembly.download(id,releaseId));
+  }
+  const cancelAssembly=/^\/api\/decks\/([^/]+)\/assemble\/cancel$/.exec(p);
+  if(cancelAssembly){
+    if(method!=='POST')throw new UserError('Method not allowed',405);
+    return json(res,200,assembly.cancel(deckId(escaped(cancelAssembly[1]))));
+  }
   const assembleMatch=/^\/api\/decks\/([^/]+)\/assemble$/.exec(p);
   if(assembleMatch){
     const id=deckId(escaped(assembleMatch[1]));
@@ -300,7 +324,7 @@ async function api(req,res,url) {
     if(method==='GET')return json(res,200,scene3d.read(id,slideId));
     if(method==='PUT'){
       const payload=await readJson(req);
-      enforceScene3D(styles.read(id).contract,payload?.spec);
+      enforceScene3D(styles.read(id).contract,payload?.spec,slideId);
       const saved=scene3d.put(id,slideId,payload?.spec,payload?.expected_revision);
       leases.logWrite(id,slideId,director,saved.revision,'write_3d');
       return json(res,200,saved);
@@ -332,7 +356,14 @@ async function api(req,res,url) {
   if(deckMatch){
     const id=deckId(escaped(deckMatch[1]));
     if(method==='GET')return json(res,200,getDeck(id));
-    if(method==='PUT')return json(res,200,putDeck(id,await readJson(req)));
+    if(method==='PUT'){
+      const payload=await readJson(req);
+      const contract=styles.read(id).contract;
+      for(const slide of payload?.slides??[]){
+        if(slide?.visuals?.length)enforceVisuals(contract,slide.visuals,slide.id,styleById(payload.style).colors);
+      }
+      return json(res,200,putDeck(id,payload));
+    }
     if(method==='DELETE'){
       const f=path.join(DECKS,id);
       if(!fs.existsSync(f))throw new UserError('Only cloud-created decks may be deleted',403);
@@ -469,8 +500,9 @@ const cancelRender=(id,slideId,jobId)=>renderJobs.cancel(id,slideId,jobId);
 const retryRender=(id,slideId,jobId)=>renderJobs.retry(id,slideId,jobId);
 const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),
   getApproved:(id,scene)=>versions.approved(id,scene),
-  reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl});
-const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,assembly,versions,reviews,sceneSync});
+  reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl,
+  getPlan:id=>assemblyPlans.read(id),getStyle:id=>styles.read(id)});
+const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,assembly,assemblyPlans,versions,reviews,sceneSync});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
