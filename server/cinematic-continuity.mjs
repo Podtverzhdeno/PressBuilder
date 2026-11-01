@@ -8,7 +8,7 @@ import {createHash} from 'node:crypto';
 const HASH=/^[0-9a-f]{64}$/;
 const SLUG=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const TYPES=new Set(['hard_cut','match_on_action','j_cut','l_cut']);
-const SAFE=[[24,1],[25,1],[30,1],[60,1],[30000,1001]];
+const SAFE=[[24,1],[25,1],[30,1],[60,1],[24000,1001],[30000,1001]];
 const fail=(code,status=409)=>{throw Object.assign(new Error(code),{status,code})};
 const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const finite=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
@@ -65,7 +65,7 @@ function continuity(left,right){
  const luma_diff=Math.abs(a.mean_luma-b.mean_luma);
  const hue_diff=deltaAngle(a.hue_deg,b.hue_deg);
  const normA=Math.hypot(...a.motion_vector),normB=Math.hypot(...b.motion_vector);
- let motion_angle=180;
+ let motion_angle=normA<=0.1&&normB<=0.1?0:180;
  if(normA>0.1&&normB>0.1){
   const cosine=(a.motion_vector[0]*b.motion_vector[0]+a.motion_vector[1]*b.motion_vector[1])/(normA*normB);
   motion_angle=Math.acos(Math.max(-1,Math.min(1,cosine)))*180/Math.PI;
@@ -78,7 +78,7 @@ function continuity(left,right){
  return {yaw_diff_deg:+yaw_diff.toFixed(2),
   anchor_shift:+anchor_shift.toFixed(4),luma_diff:+luma_diff.toFixed(4),
   hue_diff_deg:+hue_diff.toFixed(2),motion_angle_deg:+motion_angle.toFixed(2),
-  issues,match_on_action_supported:motion_angle<=45&&anchor_shift<=0.45};
+  issues,match_on_action_supported:normA>0.1&&normB>0.1&&motion_angle<=45&&anchor_shift<=0.45};
 }
 export function proposeContinuityTransition(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||
@@ -117,18 +117,18 @@ export function proposeContinuityTransition(input){
      left:left.approved_version_id,right:right.approved_version_id
    }
  };
- const result={schema_version:1,status,
-   boundary_evidence:{
+ const boundary_evidence={
      left:{scene_id:left.scene_id,version_id:left.approved_version_id,
        source_sha256:left.source_sha256,frame:left.exit.frame,image_sha256:left.exit.image_sha256},
      right:{scene_id:right.scene_id,version_id:right.approved_version_id,
        source_sha256:right.source_sha256,frame:right.entry.frame,image_sha256:right.entry.image_sha256}
-   },
+   };
+ const result={schema_version:1,status,boundary_evidence,
    metrics:measured,issues,
    operation,status_explanation:issues.length?'Technical continuity requires independent review':'No configured continuity thresholds exceeded',
    proposal_sha256:hash({left:left.source_sha256,right:right.source_sha256,
      left_version:left.approved_version_id,right_version:right.approved_version_id,
-     operation,metrics:measured}),
+     boundary_evidence,operation,metrics:measured,issues}),
    approved:false,persisted:false,publication_allowed:false,
    caveat:'Data-only frame operation. Source approvals and boundary frame hashes need server-side proof. Actual audio, subtitles and visual continuity require human review.'};
  return result;

@@ -51,7 +51,69 @@
           "type": "integer",
           "minimum": 1
         }
-      }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "num": {
+              "const": 24
+            },
+            "den": {
+              "const": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "num": {
+              "const": 25
+            },
+            "den": {
+              "const": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "num": {
+              "const": 30
+            },
+            "den": {
+              "const": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "num": {
+              "const": 60
+            },
+            "den": {
+              "const": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "num": {
+              "const": 24000
+            },
+            "den": {
+              "const": 1001
+            }
+          }
+        },
+        {
+          "properties": {
+            "num": {
+              "const": 30000
+            },
+            "den": {
+              "const": 1001
+            }
+          }
+        }
+      ]
     },
     "boundary": {
       "type": "object",

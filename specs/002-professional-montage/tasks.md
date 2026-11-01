@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 49 other checkpoints TODO. P17-C01/C02 pure continuity core TESTED; independent P08/P03 attestation, actual audio/video and human comparison remain outstanding.
+Progress: P17-C01/C02 TESTED (data-only core; run 41350977938, 160/160 Docker, independent review pending), P18–P24 TODO. P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
 
 ## Evidence and progression rules
 
@@ -187,12 +187,12 @@ Expected behavior: frame-accurate match-action, J-cut and L-cut with separate au
 Negative tests: prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval.
 Real media scenario: motion-compatible scenes, J/L overlaps decoded and reviewed at exact frame boundaries.
 User value: cut continuity and independent audio track offsets with evidence.
-Implemented pure core: server/cinematic-continuity.mjs, schemas/montage/cinematic-boundary-v1.schema.json, tests/cloud-cinematic-continuity.test.mjs. Source attestation/MCP/UI and actual transition application are not implemented.
+Implemented data-only core/test (not media-authorized): server/cinematic-continuity.mjs and tests/cloud-cinematic-continuity.test.mjs; server-side P08/P03 attestation and media integration remain TODO.
 OpenSpec: openspec/changes/professional-montage-p15-p24/specs/cinematic-continuity/spec.md.
 
 #### P17-C01 — Contract and threat model
 
-- [ ] P17-C01 — TESTED (bounded descriptor schema with SHA source hashes and exact exit/entry frame IDs; trusted P08/P03 server verification pending). Deliverable: schemas/montage/cinematic-boundary-v1.schema.json.
+- [ ] P17-C01 — TESTED (data-only core: 160/160 Docker PASS on d72817ef5a; P08/P03 attestation, separate reviewer and media acceptance pending). Deliverable: montage/cinematic-continuity-v1.json and JSON Schema.
 - Actions: Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json. Define P05/P08 approved scene source and boundary states; reject prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval.
 - Dependencies: Existing P06/P08/P09 and current OpenSpec.
 - Acceptance: Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.
@@ -204,7 +204,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/cinematic-continui
 
 #### P17-C02 — Bounded functional vertical slice
 
-- [ ] P17-C02 — TESTED (pure frame-safe hard-cut, J/L handle checks, match-on-action REVIEW and 30000/1001 rational timing). Deliverable: server/cinematic-continuity.mjs.
+- [ ] P17-C02 — TESTED (data-only core: 160/160 Docker PASS on d72817ef5a; P08/P03 attestation, separate reviewer and media acceptance pending). Deliverable: server/continuity-plan.mjs.
 - Actions: Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback. Implement: frame-accurate match-action, J-cut and L-cut with separate audio/video handles.
 - Dependencies: P17-C01, P15-C01, P16-C01.
 - Acceptance: Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.
