@@ -37,11 +37,13 @@ function publishAlias(file,alias) {
 }
 export function makeRenderQueue({
   root,outputDir,resolveDeck,render,inspect,baseUrl,
-  fingerprint=()=>null,concurrency=1,maxPending=50,maxRestarts=2,
+  fingerprint=()=>null,concurrency=1,maxPending=50,maxRestarts=2,jobTimeoutMs=3600000,
   logger=console,autoStart=false
 }){
   if(!Number.isSafeInteger(concurrency)||concurrency!==1)
     throw err('Only one rendering worker per instance is currently supported');
+  if(!Number.isSafeInteger(jobTimeoutMs)||jobTimeoutMs<1000||jobTimeoutMs>7200000)
+    throw err('Invalid render timeout (1s..2h)');
   fs.mkdirSync(root,{recursive:true});
   fs.mkdirSync(outputDir,{recursive:true});
   const latest=new Map();
@@ -49,6 +51,9 @@ export function makeRenderQueue({
   let running=null,enabled=autoStart;
   const key=(id,slide_id)=>id+':'+(slide_id||'<full>');
   const journal=(id,slide_id)=>path.join(root,createHash('sha256').update(key(id,slide_id)).digest('hex')+'.json');
+  // Legacy server/cloud.mjs used a different journal hash and mutable MP4 name.
+  const oldJournal=(id,slide_id)=>path.join(root,
+    createHash('sha256').update(id+'\\0'+(slide_id||'full')).digest('hex')+'.json');
   const save=j=>atomicWrite(journal(j.id,j.slide_id),JSON.stringify(j,null,2)+'\n');
   const validate=(id,slide_id=null)=>{
     slug(id,'project ID');
@@ -63,7 +68,41 @@ export function makeRenderQueue({
         const j=JSON.parse(fs.readFileSync(path.join(root,file),'utf8'));
         if(!j||typeof j!=='object'||!['queued','running','cancelling','completed','failed','cancelled'].includes(j.status))throw Error('Invalid status');
         validate(j.id,j.slide_id||null);
-        if(journal(j.id,j.slide_id)!==path.join(root,file))throw Error('Journal key mismatch');
+        const currentFile=journal(j.id,j.slide_id);
+        const oldFile=oldJournal(j.id,j.slide_id);
+        const isLegacy=oldFile===path.join(root,file);
+        if(currentFile!==path.join(root,file)&&!isLegacy)throw Error('Journal key mismatch');
+        if(isLegacy){
+          // Import *accepted* legacy MP4 without overwriting or deleting it.
+          // Old queued/running requests lack source fingerprints; replay is unsafe.
+          if(fs.existsSync(currentFile))continue;
+          const token=randomBytes(16).toString('hex');
+          j.job_id=token;
+          j.output_name=j.id+(j.slide_id?'_'+j.slide_id:'')+'_'+token;
+          j.restartAttempts=0;
+          if(j.status==='completed'&&j.qa_report?.verdict==='PASS'&&j.result?.file){
+            const legacy=path.join(outputDir,path.basename(j.result.file));
+            const immutable=path.join(outputDir,j.output_name+'.mp4');
+            if(fs.existsSync(legacy)){
+              fs.copyFileSync(legacy,immutable);
+              j.result={
+                file:'out/'+path.basename(immutable),
+                legacy_file:'out/'+path.basename(legacy),
+                size:fs.statSync(immutable).size,
+                download_url:baseUrl().replace(/\\/$/,'')+'/out/'+path.basename(immutable),
+              };
+            }else{
+              j.status='failed';j.error='Legacy MP4 not found';
+            }
+          }else if(['queued','running','cancelling'].includes(j.status)){
+            j.status='failed';j.error='Legacy queued render cannot safely resume without a source fingerprint';
+            j.finishedAt=stamp();
+          }else if(j.status==='completed'){
+            j.status='failed';j.error='Legacy render lacks verified MP4 / QA';
+          }
+          save(j);
+          fs.rmSync(oldFile,{force:true});
+        }
         if(typeof j.job_id!=='string'||!idRE.test(j.job_id)||typeof j.output_name!=='string')throw Error('Invalid job identity');
         if(j.status==='completed'&&(!j.result?.file||!fs.existsSync(path.join(outputDir,path.basename(j.result.file))))){
           j.status='failed';j.error='Previously rendered file is missing';j.finishedAt=stamp();save(j);
@@ -124,6 +163,8 @@ export function makeRenderQueue({
       const j=pending.shift();
       if(j.status!=='queued')continue;
       const abort=new AbortController();
+      const deadline=setTimeout(()=>abort.abort(new Error('Render timed out')),jobTimeoutMs);
+      deadline.unref?.();
       running={job:j,abort};
       j.status='running';j.startedAt=stamp();j.progress=0;save(j);
       try{
@@ -145,7 +186,9 @@ export function makeRenderQueue({
           duration:rendered.duration,scene_id:j.slide_id||null,id:j.id,
           visualAudit:rendered.visualAudit??null,frameSamples:rendered.frameSamples??[]});
         j.qa_report=report;
-        if(report?.verdict==='FAIL')throw Error('Technical QA failed: '+(report.issues||[]).map(x=>x.id).join(', '));
+        if(!report||!['PASS','REVIEW','FAIL'].includes(report.verdict)||!Array.isArray(report.issues))
+          throw Error('Invalid QA response: render cannot be approved');
+        if(report.verdict==='FAIL')throw Error('Video QA failed: '+report.issues.map(x=>x.id).join(', '));
         if(abort.signal.aborted||j.status==='cancelling')throw Error('Render cancelled');
         const alias=j.id+(j.slide_id?'_'+j.slide_id:'')+'.mp4';
         publishAlias(immutable,path.join(outputDir,alias));
@@ -153,11 +196,12 @@ export function makeRenderQueue({
         j.result={file:'out/'+j.output_name+'.mp4',legacy_file:'out/'+alias,
           size:fs.statSync(immutable).size,download_url:baseUrl().replace(/\/$/,'')+'/out/'+j.output_name+'.mp4'};
       }catch(e){
-        j.status=abort.signal.aborted||j.status==='cancelling'?'cancelled':'failed';
+        j.status=j.status==='cancelling'?'cancelled':'failed';
         j.error=e instanceof Error?e.message:String(e);
         // An unapproved render must not remain visible as a successful artifact.
         try{fs.rmSync(path.join(outputDir,j.output_name+'.mp4'),{force:true})}catch{}
       }finally{
+        clearTimeout(deadline);
         j.finishedAt=stamp();save(j);running=null;
       }
     }
