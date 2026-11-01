@@ -33,17 +33,36 @@ export function visualScene(elements: VisualElement[]): SceneDef {
         frame.obj(v.id,{x,y,text:v.text||'',label:v.text?.slice(0,48)||v.kind},(o)=>{
           ctx.save();
           ctx.globalAlpha *= e;
-          if(v.effect==='rise')ctx.translate(0,(1-e)*45);
-          if(v.effect==='slide')ctx.translate((1-e)*80,0);
-          if(v.effect==='pop')ctx.scale(lerp(0.82,1,e),lerp(0.82,1,e));
+          // Directional and dimensional motion. Use the existing scene
+          // effects, but avoid identical transitions on every graphic.
+          if(v.effect==='rise')ctx.translate(0,(1-e)*85);
+          if(v.effect==='slide')ctx.translate((x<960?-1:1)*(1-e)*150,0);
+          if(v.effect==='pop'){
+            const z=lerp(0.72,1,e);
+            ctx.translate((v.w??400)*(1-z)/2,(v.h??130)*(1-z)/2);
+            ctx.scale(z,z);
+          }
           const color=palette(v.color);
           const w=v.w??400,h=v.h??130;
           if(v.kind==='text'){
-            ctx.font = (v.weight==='regular'?'400':'700')+' '+(v.size??80)+'px '+(v.font==='mono'?FONT.mono:v.font==='sans'?FONT.sans:FONT.display);
+            // NEVER use the Canvas fillText maxWidth argument: it
+            // horizontally compresses glyphs and makes captions look stretched.
+            // Fit by font size instead, then draw with the font's real proportions.
+            const family=v.font==='mono'?FONT.mono:v.font==='sans'?FONT.sans:FONT.display;
+            const weight=v.weight==='regular'?'400':'700';
+            const lines=String(o.text).split('\\n');
+            const available=Math.max(24,Math.min(w,1920-v.x-40));
+            let size=v.size??80;
+            const fontAt=(s:number)=>weight+' '+s+'px '+family;
+            ctx.font=fontAt(size);
+            while(size>24 && lines.some(line=>ctx.measureText(line).width>available)){
+              size=Math.max(24,size-2);
+              ctx.font=fontAt(size);
+            }
             ctx.fillStyle=color;
             ctx.textBaseline='top';
             ctx.textAlign='left';
-            ctx.fillText(o.text,0,0,Math.max(1,w));
+            lines.forEach((line,i)=>ctx.fillText(line,0,i*size*1.18));
           }else if(v.kind==='rect'){
             ctx.fillStyle=color;
             rrPath(ctx,0,0,w,h,v.radius??24);
