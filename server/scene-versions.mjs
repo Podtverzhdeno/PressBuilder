@@ -57,7 +57,7 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
     if(!fs.existsSync(f))return {project:id,scene_id:scene,revision:0,version_id:null,updated_at:null};
     return JSON.parse(fs.readFileSync(f,'utf8'));
   }
-  function capture({id,scene,jobId,file,rendered,qa,expectedSource}){
+  function capture({id,scene,jobId,file,rendered,qa,expectedSource,frameEvidence=null}){
     const {dir}=locate(id,scene);
     if(qa?.verdict!=='PASS')bad('Failed QA cannot be versioned',422);
     if(typeof jobId!=='string'||jobId.length>220)bad('Invalid render job');
@@ -69,10 +69,21 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,now=()=>
     if(path.resolve(file)!==path.resolve(target))bad('Render output is not the expected immutable path',400);
     if(!fs.existsSync(target)||!fs.statSync(target).isFile())bad('MP4 missing',404);
     const hash=fileHash(target);
+    if(frameEvidence){
+      if(frameEvidence.scope!=='FRAME_HEURISTICS_ONLY'||frameEvidence.frames?.length!==3)bad('Expected three real frame samples',422);
+      for(let i=0;i<3;i++){
+        const frame=frameEvidence.frames[i];
+        const name=id+'_'+scene+'_v'+version+'_f'+i+'.jpg';
+        const candidate=path.join(out,name);
+        if(frame.index!==i||frame.file!=='out/'+name||!fs.existsSync(candidate)||
+          fs.statSync(candidate).size!==frame.size||fileHash(candidate)!==frame.sha256)
+          bad('Frame evidence integrity mismatch for sample '+i,409);
+      }
+    }
     const item={version_id:version,project:id,scene_id:scene,job_id:jobId,created_at:now(),
       file:'out/'+targetName,sha256:hash,size:fs.statSync(target).size,
       duration:rendered.duration,fps:rendered.fps,height:rendered.height,
-      source:expectedSource,qa};
+      source:expectedSource,qa,...(frameEvidence?{frame_evidence:frameEvidence}:{})};
     const f=path.join(dir,version+'.json');
     if(fs.existsSync(f))bad('Render version already exists',409);
     atomic(f,item);
