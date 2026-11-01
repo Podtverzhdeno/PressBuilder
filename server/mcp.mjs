@@ -40,7 +40,6 @@ export const TOOLS = [
  },['id','slide_id','expected_revision','markers']) },
  { name:'list_scene_versions', description:'P08: list immutable scene snapshots, archived MP4 SHA-256 fingerprints, approval state and working fingerprint.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'save_scene_version', description:'P08: archive the most recent completed, QA-PASS scene render only if its render-input fingerprint matches current source; creates immutable manifest and MP4.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
- { name:'approve_scene_version', description:'P08: explicitly mark an archived version approved. Supply approval revision from list_scene_versions. Authorization currently uses shared MCP credential, not individual reviewer roles.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),version_id:str('Archive version ID'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','version_id','expected_revision']) },
  { name:'restore_scene_version', description:'P08: guarded rollback of slide, data-driven 3D and cue markers; must supply current_fingerprint from list_scene_versions. Archived accepted MP4 is retained; other scenes are unchanged.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),version_id:str('Archive version ID'),expected_fingerprint:str('Working-scene SHA-256')},['id','slide_id','version_id','expected_fingerprint']) },
  { name:'compare_scene_versions', description:'P08: compare archived scene metadata, changed cue IDs, 3D, marker sheet, FPS and duration.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),from_version:str('Earlier version ID'),to_version:str('Later version ID')},['id','slide_id','from_version','to_version']) },
  { name:'get_scene_3d', description:'Read the independently stored data-only 3D composition of a particular video scene, including revision. Returns null spec if not authored yet.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
@@ -86,7 +85,6 @@ export function makeMcp({ startRender, getRender, baseUrl, sceneSync, versions }
         const doc=versions.capture(args.id,args.slide_id,getRender(args.id,args.slide_id));
         return {version_id:doc.version_id,source_sha256:doc.source_sha256,artifact:doc.artifact};
       }
-      case 'approve_scene_version': return versions.approve(args.id,args.slide_id,args.version_id,args.expected_revision,'mcp-credential');
       case 'restore_scene_version': return versions.restore(args.id,args.slide_id,args.version_id,args.expected_fingerprint,'mcp-credential');
       case 'compare_scene_versions': return versions.compare(args.id,args.slide_id,args.from_version,args.to_version);
       case 'get_scene_3d': return scene3d.read(args.id,args.slide_id);
