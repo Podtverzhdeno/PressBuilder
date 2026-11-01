@@ -6,6 +6,7 @@ import { scene3dStore } from './scene-3d.mjs';
 import {directorStore} from './director.mjs';
 import {typedSceneBriefService} from './typed-scene-brief.mjs';
 import {mediaCatalogStore} from './media-catalog.mjs';
+import {editGraphService} from './edit-graph.mjs';
 import {directorDispatchStore} from './director-dispatch.mjs';
 import {styleContractStore,enforceScene3D,enforceVisuals,effectiveStyle} from './style-contract.mjs';
 import {styleById} from '../src/engine/styles.ts';
@@ -57,6 +58,8 @@ export const TOOLS = [
  { name:'renew_scene_lease', description:'Extend live lease with matching fencing token.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1},ttl:{type:'integer',minimum:30,maximum:3600}},['id','slide_id','fence_token']) },
  { name:'release_scene', description:'Release the lease and invalidate old fencing tokens.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','fence_token']) },
  { name:'list_scene_versions', description:'List immutable QA-passing rendered versions of a scene, plus the explicitly approved pointer.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
+ { name:'get_edit_graph', description:'M01 deterministic read-only P01/P05/P08/P09 rational edit timeline; director can read all scenes, workers only their own scene. No media mutation or release. Off unless PB_EDITGRAPH_PREVIEW=1.', inputSchema:obj({id:str('Project slug'),slide_id:str('Worker scope: required for non-directors')},['id']) },
+ { name:'propose_edit_graph', description:'M01 director-only CAS preview of approved-MP4 frame trims. Never changes P01 timing, P05 release, P08 approval or real MP4.', inputSchema:obj({id:str('Project ID'),expected_revision:{type:'integer',minimum:0},expected_source_sha256:str('SHA from get_edit_graph'),trims:{type:'array',minItems:1,maxItems:300,items:obj({scene_id:str('P01 scene ID'),source_in_frame:{type:'integer',minimum:0},source_out_frame:{type:'integer',minimum:1}},['scene_id','source_in_frame','source_out_frame'])}},['id','expected_revision','expected_source_sha256','trims']) },
  { name:'list_media_assets', description:'M32 source-pinned P08 media catalog. Actor must be authorized for slide_id; workers only see grants for their assigned scene. Read-only and disabled by default.', inputSchema:obj({id:str('Project ID'),slide_id:str('Agent-owned scene ID')},['id','slide_id']) },
  { name:'verify_media_asset', description:'M32 check exact source SHA, current P08 approval, director attestation, grant expiry, scene and permitted use. Never authorizes a render or publishing.', inputSchema:obj({id:str('Project ID'),slide_id:str('Requested consumer scene'),asset_id:str('Catalog asset ID'),use:{type:'string',enum:['b_roll','internal_preview','composition','research']}},['id','slide_id','asset_id','use']) },
  { name:'propose_media_asset', description:'Director only: create a P08 approved-MP4 source-pinned rights proposal. Independent web director attestation required before proposals may be used; no arbitrary paths or URLs.', inputSchema:obj({id:str('Project ID'),expected_revision:{type:'integer',minimum:0},asset_id:str('Unique asset ID'),source_scene_id:str('Existing source scene'),source_version_id:str('P08 version ID'),source_sha256:str('Exact P08 SHA-256'),source_approval_revision:{type:'integer',minimum:1},label:str('Human label'),rights_holder:str('Claimed rights holder'),license_ref:str('Recorded license identifier'),evidence_ref:str('Manual rights evidence identifier'),expires_at:str('UTC ISO timestamp in future'),allowed_uses:{type:'array',maxItems:4,items:{type:'string',enum:['b_roll','internal_preview','composition','research']}},allowed_scenes:{type:'array',maxItems:12,items:str('Consumer scene ID')},attribution:str('Mandatory attribution; write NONE if not required')},['id','expected_revision','asset_id','source_scene_id','source_version_id','source_sha256','source_approval_revision','label','rights_holder','license_ref','evidence_ref','expires_at','allowed_uses','allowed_scenes','attribution']) },
@@ -103,7 +106,7 @@ export const TOOLS = [
 export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly,
   assemblyPlans,versions,reviews,sceneSync,comparisons=null,previews=null,
   directorPlan:providedDirectorPlan=null,
-  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null,continuity=null,typedBriefs:providedTypedBriefs=null,mediaCatalog:providedMediaCatalog=null }) {
+  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null,continuity=null,typedBriefs:providedTypedBriefs=null,mediaCatalog:providedMediaCatalog=null,editGraph:providedEditGraph=null }) {
   const directorPlan=providedDirectorPlan||directorStore({root:DECKS,getDeck,
     sceneTasks:taskStore,projectReadmes:readmeStore,styles,getAssembly:()=>assembly,
     getApproved:(id,scene)=>versions?.approved(id,scene),out:OUT});
@@ -111,6 +114,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
     sceneTasks:taskStore,leases,getRender,versions,out:OUT});
   const typedBriefs=providedTypedBriefs||typedSceneBriefService({getDeck,directorPlan,sceneTasks:taskStore,styles,enabled:process.env.PB_TYPED_SCENE_BRIEFS==='1'});
   const mediaCatalog=providedMediaCatalog||mediaCatalogStore({root:DECKS,getDeck,versions,enabled:process.env.PB_MEDIA_CATALOG==='1'});
+  const editGraph=providedEditGraph||editGraphService({root:DECKS,getDeck,sceneSync,assemblyPlans,versions,enabled:process.env.PB_EDITGRAPH_PREVIEW==='1'});
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
   const visibleTasks=(id,actor)=>taskStore.list(id)
@@ -199,6 +203,17 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'list_scene_versions': scoped(args.id,args.slide_id,actor);return {
         versions:versions.list(args.id,args.slide_id).map(v=>({...v,download_url:baseUrl()+'/'+v.file})),
         approved:versions.pointer(args.id,args.slide_id)};
+      case 'get_edit_graph': {
+        if(actor.role!=='director'){
+          if(!args.slide_id)throw new UserError('Scene ID required for scoped EditGraph',403);
+          scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
+        }
+        return editGraph.read(args.id,{sceneId:actor.role==='director'?null:args.slide_id});
+      }
+      case 'propose_edit_graph': {
+        directorOnly(actor);const {id,...proposal}=args;
+        return editGraph.propose(id,actor,proposal);
+      }
       case 'list_media_assets': {
         scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
         const catalog=mediaCatalog.read(args.id);
