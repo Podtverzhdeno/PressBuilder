@@ -218,3 +218,10 @@
 ## Integration P02/P03 — 2026-11-01
 
 Rebased PR #2 on main without overwriting P07/P08/P09: isolated queue `server/render-queue.mjs`, cancellable Chromium and FFmpeg, visual checks for data-driven captions and frame luma, manual retry, source-fingerprint checks, preview JPEGs attached to immutable P08 versions, existing approved pointers preserved. Production multi-replica and creative QA remain outstanding.
+
+
+## Отдельный OpenSpec / SDD — TOP-60 улучшений качества и эффективности (2026-11-02)
+
+Это **дополнительный backlog**, не замена задачам P01–P24. Строгий рейтинг всех 60 идей, показатели Q/E/F/C/S/L, стоимость/сложность и волны реализации: [docs/TOP60_MONTAGE_RANKING.md](docs/TOP60_MONTAGE_RANKING.md). Машинный реестр: [docs/top60-montage-registry.json](docs/top60-montage-registry.json). Полные контрактные требования по шести направлениям: [openspec/changes/video-quality-top60/](openspec/changes/video-quality-top60/). Детальный SDD — [480 чекпоинтов](openspec/changes/video-quality-top60/tasks.md).
+
+**Все M01–M60 — PROPOSED.** Новое изменение только планирует улучшения, не реализует их и не переводит флаги production; P08 approved MP4/P05 release остаются неизменными. Работы выполняются по dependency waves W0–W4, с отдельным ревью, результатами Docker real MP4/PCM и подписанной приёмкой.
