@@ -36,7 +36,7 @@ const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'sr
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const styles=styleContractStore({root:DECKS,getDeck});
-const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks:sceneTasks,projectReadmes:projectReadmes,styles});
+const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks:sceneTasks,projectReadmes:projectReadmes,styles,getAssembly:()=>assembly,out:OUT});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
@@ -252,6 +252,12 @@ async function api(req,res,url) {
     if(method!=='POST')throw new UserError('Method not allowed',405);
     return json(res,200,directorPlan.replan(
       deckId(escaped(directorReplan[1])),escaped(directorReplan[2]),await readJson(req)));
+  }
+  const directorSignoff=/^\/api\/decks\/([^/]+)\/director\/signoff$/.exec(p);
+  if(directorSignoff){
+    if(method!=='POST')throw new UserError('Method not allowed',405);
+    return json(res,200,directorPlan.signoff(
+      deckId(escaped(directorSignoff[1])),await readJson(req)));
   }
   const taskMatch=/^\/api\/decks\/([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(p);
   if(taskMatch){
