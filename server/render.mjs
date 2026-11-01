@@ -10,9 +10,10 @@ import { spawn } from 'node:child_process';
 import { getDeck, DECKS, OUT } from './cloud-core.mjs';
 
 const sleep=(ms)=>new Promise((r)=>setTimeout(r,ms));
-async function waitUntil(fn,ms,onWait) {
+async function waitUntil(fn,ms,onWait,signal) {
   const end=Date.now()+ms;
   while(Date.now()<end){
+    signal?.throwIfAborted();
     const result=await fn();
     if(result)return result;
     if(onWait)onWait();
@@ -43,8 +44,18 @@ async function browserClient(wsUrl) {
   });
   return {socket,send};
 }
-async function evalBrowser(client,expression,awaitPromise=false){
-  const reply=await client.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise});
+function abortable(task,signal){
+  if(!signal)return task;
+  signal.throwIfAborted();
+  let cancel;
+  const aborted=new Promise((_,reject)=>{
+    cancel=()=>reject(signal.reason instanceof Error?signal.reason:new Error('Render cancelled'));
+    signal.addEventListener('abort',cancel,{once:true});
+  });
+  return Promise.race([task,aborted]).finally(()=>signal.removeEventListener('abort',cancel));
+}
+async function evalBrowser(client,expression,awaitPromise=false,signal){
+  const reply=await abortable(client.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise}),signal);
   if(reply?.exceptionDetails)throw new Error('Browser exception: '+(reply.exceptionDetails.text||'unknown'));
   return reply?.result?.value;
 }
@@ -56,7 +67,9 @@ function getVoice(d) {
   if(!fs.existsSync(file))throw new Error('Voice audio is missing: '+a.file);
   return {file,offset:Number(a.offset||0),volume:Number(a.volume??1)};
 }
-async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProgress}) {
+async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProgress,signal}) {
+  if(!/^[a-z0-9][a-z0-9_-]{0,100}$/.test(outputName))throw new Error('Unsafe render filename');
+  signal?.throwIfAborted();
   const deck=getDeck(id);
   const voice=getVoice(deck);
   const output=path.join(OUT,outputName+'.mp4');
@@ -77,6 +90,8 @@ async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProg
   }
   args.push('-t',String(duration),'-movflags','+faststart',staging);
   const ff=spawn(process.env.FFMPEG||'ffmpeg',args,{stdio:['pipe','ignore','pipe']});
+  const stop=()=>{ff.stdin.destroy();ff.kill('SIGKILL')};
+  signal?.addEventListener('abort',stop,{once:true});
   let logs='',failed=null;
   ff.stderr.on('data',(x)=>logs=(logs+x.toString()).slice(-2000));
   ff.on('error',(e)=>{failed=e});
@@ -85,30 +100,35 @@ async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProg
   if(count<=0||count>24000)throw new Error('Render requires 1..24000 frames');
   try {
     for(let i=0;i<count;i++){
+      signal?.throwIfAborted();
       if(failed)throw failed;
-      const png=await evalBrowser(client,'window.__PB_CLOUD_FRAME__('+(from+i/fps)+','+height+')');
+      const png=await evalBrowser(client,'window.__PB_CLOUD_FRAME__('+(from+i/fps)+','+height+')',false,signal);
       if(typeof png!=='string'||png.length<100)throw new Error('Canvas capture failed at frame '+i);
       const bytes=Buffer.from(png,'base64');
-      if(!ff.stdin.write(bytes))await new Promise((resolve,reject)=>{
+      if(!ff.stdin.write(bytes))await abortable(new Promise((resolve,reject)=>{
         ff.stdin.once('drain',resolve);
         ff.stdin.once('error',reject);
-      });
+      }),signal);
       if(i%10===0)onProgress?.(i/count);
     }
+    signal?.throwIfAborted();
     ff.stdin.end();
     const code=await new Promise((resolve,reject)=>{
       ff.once('close',resolve);ff.once('error',reject);
     });
+    signal?.throwIfAborted();
     if(code!==0)throw new Error('FFmpeg failed (code '+code+'): '+logs);
     fs.renameSync(staging,output);
     onProgress?.(1);
     return {file:output,size:fs.statSync(output).size,fps,height,duration};
   } finally {
+    signal?.removeEventListener('abort',stop);
     if(!ff.killed && ff.exitCode===null)ff.kill('SIGKILL');
     fs.rmSync(staging,{force:true});
   }
 }
-export async function renderWithChrome({id,slideId=null,port,username,password,timeoutMs=900000,onProgress}) {
+export async function renderWithChrome({id,slideId=null,outputName=null,port,username,password,timeoutMs=900000,onProgress,signal}) {
+  signal?.throwIfAborted();
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'pb-render-'));
   const exe=process.env.CHROMIUM_PATH||'/usr/bin/chromium';
   const args=['--headless=new','--no-sandbox','--disable-dev-shm-usage',
@@ -116,6 +136,8 @@ export async function renderWithChrome({id,slideId=null,port,username,password,t
     '--no-first-run','--no-default-browser-check','--remote-debugging-port=0',
     '--user-data-dir='+temp,'about:blank'];
   const child=spawn(exe,args,{stdio:['ignore','ignore','pipe']});
+  const stop=()=>child.kill('SIGKILL');
+  signal?.addEventListener('abort',stop,{once:true});
   let logs='',exited=false;
   child.stderr.on('data',(x)=>logs=(logs+x.toString()).slice(-1800));
   child.on('error',(e)=>logs+=' '+e.message);
@@ -125,7 +147,7 @@ export async function renderWithChrome({id,slideId=null,port,username,password,t
     const portFile=path.join(temp,'DevToolsActivePort');
     const devPort=await waitUntil(()=>fs.existsSync(portFile)?Number(fs.readFileSync(portFile,'utf8').split('\n')[0]):0,15000,()=>{
       if(exited)throw new Error('Chromium exited: '+logs);
-    });
+    },signal);
     const target=await fetch('http://127.0.0.1:'+devPort+'/json/new?about:blank',{method:'PUT'}).then((r)=>r.json());
     if(!target.webSocketDebuggerUrl)throw new Error('Chromium debug target missing');
     client=await browserClient(target.webSocketDebuggerUrl);
@@ -138,8 +160,9 @@ export async function renderWithChrome({id,slideId=null,port,username,password,t
     const deadline=Date.now()+timeoutMs;
     let info;
     while(Date.now()<deadline) {
+      signal?.throwIfAborted();
       if(exited)throw new Error('Chromium exited: '+logs);
-      try {info=await evalBrowser(client,'window.__PB_CLOUD_INFO__?.()',true);if(info?.duration>0)break;}catch{}
+      try {info=await evalBrowser(client,'window.__PB_CLOUD_INFO__?.()',true,signal);if(info?.duration>0)break;}catch(e){if(signal?.aborted)throw e;}
       await sleep(500);
     }
     if(!info?.duration)throw new Error('Video timeline failed to load');
@@ -154,9 +177,10 @@ export async function renderWithChrome({id,slideId=null,port,username,password,t
     const clipDuration=scene?.dur??info.duration;
     if(clipDuration<=0||clipDuration>600)throw new Error('Render clip limited to 10 minutes');
     if(!Number.isFinite(clipStart)||clipStart<0)throw new Error('Invalid scene start time');
-    const outputName=slideId?id+'_'+slideId:id;
-    return await encode(client,{id,outputName,from:clipStart,fps,height,duration:clipDuration,onProgress});
+    const destination=outputName||(slideId?id+'_'+slideId:id);
+    return await encode(client,{id,outputName:destination,from:clipStart,fps,height,duration:clipDuration,onProgress,signal});
   } finally {
+    signal?.removeEventListener('abort',stop);
     if(client)try{client.socket.close()}catch{}
     if(!exited)child.kill('SIGKILL');
     await sleep(250);
