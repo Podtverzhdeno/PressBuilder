@@ -74,7 +74,7 @@ export const TOOLS = [
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
 export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, reviews }) {
-  const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks:taskStore,leases,getRender,out:OUT});
+  const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks:taskStore,leases,getRender,versions,out:OUT});
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
   const assigned=(id,slide,actor)=>{
