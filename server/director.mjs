@@ -379,6 +379,8 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
     const svc=getAssembly?.();
     if(!svc||!out)fail('Assembly verification is not available',501);
     const job=svc.get(id);
+    if(job?.review_valid===false||job?.unresolved_scenes?.length)
+      fail('Unresolved scene review prevents human release signoff',409);
     // The immutable release is persisted on disk, but the worker status is
     // process-local. After a restart, current() + its verified manifest remain
     // authoritative even when get() says not_started.
