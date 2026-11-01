@@ -41,7 +41,7 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0,benchmark=f
     const cancel=()=>{aborted=true;child.kill('SIGKILL')};
     signal?.addEventListener('abort',cancel,{once:true});
     const timer=setTimeout(()=>{aborted=true;child.kill('SIGKILL')},timeout);
-    let progressBuffer='';
+    let progressBuffer='',benchTime=null,benchMemory=null;
     child.stderr.on('data',b=>{
       const data=b.toString();log=(log+data).slice(-2200);
       progressBuffer+=data;
@@ -49,6 +49,12 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0,benchmark=f
       const rows=progressBuffer.split(/\r?\n/);
       progressBuffer=rows.pop()||'';
       for(const row of rows){
+        if(benchmark){
+          const timing=/bench: utime=([\d.]+)s stime=([\d.]+)s rtime=([\d.]+)s/.exec(row);
+          if(timing)benchTime=timing;
+          const memory=/bench: maxrss=(\d+)KiB/.exec(row);
+          if(memory)benchMemory=Number(memory[1]);
+        }
         // FFmpeg reports out_time_ms in microseconds, despite the field name.
         const match=/^out_time_(?:ms|us)=(\d+)$/.exec(row.trim());
         if(match&&duration>0){
@@ -62,14 +68,13 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0,benchmark=f
       signal?.removeEventListener('abort',cancel);
       if(error)return reject(error);
       if(!benchmark)return resolve(null);
-      const timing=/bench: utime=([\d.]+)s stime=([\d.]+)s rtime=([\d.]+)s/.exec(log);
-      const memory=/bench: maxrss=(\d+)KiB/.exec(log);
-      // null means FFmpeg did not print a complete benchmark. Never fake 0.
-      resolve(timing?{scope:'FFMPEG_CHILD_PROCESS',
-        cpu_user_ms:Number((Number(timing[1])*1000).toFixed(2)),
-        cpu_system_ms:Number((Number(timing[2])*1000).toFixed(2)),
-        wall_ms:Number((Number(timing[3])*1000).toFixed(2)),
-        max_rss_kib:memory?Number(memory[1]):null}:null);
+      // Streamed rows survive verbose libx264 statistics after the benchmark.
+      // Null means FFmpeg did not provide the metric; never substitute zero.
+      resolve(benchTime?{scope:'FFMPEG_CHILD_PROCESS',
+        cpu_user_ms:Number((Number(benchTime[1])*1000).toFixed(2)),
+        cpu_system_ms:Number((Number(benchTime[2])*1000).toFixed(2)),
+        wall_ms:Number((Number(benchTime[3])*1000).toFixed(2)),
+        max_rss_kib:benchMemory}:null);
     };
     child.once('error',end);
     child.once('close',code=>end(aborted?new Error(signal?.aborted?'Assembly cancelled':'Assembly timed out'):
