@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P15-C01 and P15-C02 are TESTED by cloud CI (run 41338415912; review pending). P15-C03 is IN_PROGRESS with Studio draft CAS + reviewer workflow (cloud CI run 41342438863: 126 tests, 112 pass, 14 skipped; separate Docker regression pending on initial evidence check); other 57 checkpoints TODO. No P15 feature is deployed or approved for production.
+Progress: P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41344739143: 135 cloud tests, 119 passed, 16 skipped; Docker six-scene H264/AAC and render-smoke PASS). 55 other checkpoints TODO. Synthetic audio != actual human speech alignment or artistic release.
 
 ## Evidence and progression rules
 
@@ -60,7 +60,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C04 — Negative and regression suite
 
-- [ ] P15-C04 — TODO. Deliverable: tests/cloud-rhythm.test.mjs.
+- [ ] P15-C04 — IN_PROGRESS (voice PCM/rights negative security suite run 41344739143; independent review and real speech-source validation outstanding). Deliverable: tests/cloud-rhythm.test.mjs.
 - Actions: Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation. Exercise deliberately broken cases: missing words, nonfinite BPM, stale source, cuts through protected narration.
 - Dependencies: P15-C03.
 - Acceptance: All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.
@@ -72,7 +72,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C05 — Real six-scene E2E and QA
 
-- [ ] P15-C05 — TODO. Deliverable: Docker real media job and immutable artifact.
+- [ ] P15-C05 — IN_PROGRESS (synthetic six-scene H.264/AAC Docker E2E PASS run 41344739143; real human narration, 30000/1001 and artistic A/B outstanding). Deliverable: Docker real media job and immutable artifact.
 - Actions: Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline. Run real media test: 6 scenes at 24 and 30000/1001 fps with real aligned narration, no cut-time drift.
 - Dependencies: P15-C04.
 - Acceptance: Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.
