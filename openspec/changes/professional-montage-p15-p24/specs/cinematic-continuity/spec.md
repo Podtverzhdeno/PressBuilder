@@ -34,9 +34,3 @@ The system SHALL expose before/after previews and rationale at the precise joini
 #### Scenario: Rejected or degraded reviewer boundary compare
 - **WHEN** the downstream scene changes after approval
 - **THEN** the previous transition approval becomes stale and is not reused
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P17.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P17, checkpoints P17-C01…P17-C06 and release gate in `specs/002-professional-montage/tasks.md`.
