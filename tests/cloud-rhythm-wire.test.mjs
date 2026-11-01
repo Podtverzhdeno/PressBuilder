@@ -8,6 +8,20 @@ import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {randomBytes} from 'node:crypto';
 
+function realPcmWav(){
+ const rate=16000,frames=rate*4,b=Buffer.alloc(44+frames*2);
+ b.write('RIFF',0);b.writeUInt32LE(b.length-8,4);
+ b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);
+ b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);
+ b.writeUInt32LE(rate,24);b.writeUInt32LE(rate*2,28);
+ b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);
+ b.write('data',36);b.writeUInt32LE(frames*2,40);
+ for(let i=0;i<frames;i++){
+  const t=i/rate,quiet=(t>=0.5&&t<1.3)||(t>=2.5&&t<3.2);
+  b.writeInt16LE(quiet?0:Math.round(16000*Math.sin(2*Math.PI*440*t)),44+i*2);
+ }
+ return b;
+}
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 async function port(){const s=net.createServer();await new Promise(r=>s.listen(0,'127.0.0.1',r));const p=s.address().port;await new Promise(r=>s.close(r));return p;}
 
@@ -66,12 +80,23 @@ test('P15 live cloud HTTP + MCP: real-source context, role checks and read-only 
   assert.equal(created.status,200,JSON.stringify(created.body));
   const uploaded=await fetch(url+'/api/decks/'+id+'/audio?name=voice.wav',{
    method:'PUT',headers:{Authorization:auth,'Content-Type':'audio/wav'},
-   body:Buffer.from('RIFF P15 synthetic fixture; not decoded audio')});
+   body:realPcmWav()});
   assert.equal(uploaded.status,200,await uploaded.text());
   assert.equal((await http('/api/decks/'+id+'/rhythm/context','GET',undefined,null)).status,401);
   const context=(await http('/api/decks/'+id+'/rhythm/context')).body;
   assert.equal(context.cues.length,2);
   assert.equal(context.duration_us,4_000_000);
+  const measured=await http('/api/decks/'+id+'/rhythm/silence');
+  assert.equal(measured.status,200,JSON.stringify(measured.body));
+  assert.equal(measured.body.analysis,'MEASURED_AUDIO_SILENCE');
+  assert.equal(measured.body.word_alignment_verified,false);
+  assert.equal(measured.body.silences.length,2);
+  assert.deepEqual(measured.body.silences.map(x=>x.scene_id),['s01','s02']);
+  const measuredRpc=await rpc('measure_rhythm_silence',{id});
+  assert.equal(measuredRpc.isError,false,measuredRpc.text);
+  assert.deepEqual(measuredRpc.data.silences,measured.body.silences);
+  assert.equal((await rpc('measure_rhythm_silence',{id},viewerKey)).isError,true);
+  assert.equal((await http('/api/decks/'+id+'/rhythm/silence','GET',undefined,null)).status,401);
   const fixture={
    schema_version:1,project_id:id,
    voice_source_sha256:context.voice_source_sha256,
