@@ -7,6 +7,8 @@ import {sceneVersionStore,fileHash} from '../server/scene-versions.mjs';
 import {sceneReviewStore} from '../server/scene-reviews.mjs';
 import {sceneLeaseStore} from '../server/scene-leases.mjs';
 import {assemblyService} from '../server/assemble-scenes.mjs';
+import {assemblyPlanStore} from '../server/assembly-plan.mjs';
+import {styleContractStore} from '../server/style-contract.mjs';
 import {spawnSync} from 'node:child_process';
 
 const actor=(id,role)=>({id,role,projects:['demo'],scenes:['s01','s02']});
@@ -130,11 +132,20 @@ test('P05 assembles only approved immutable MP4s even if newer unapproved render
     f.v.approve('demo','s02',v2.version_id,0,director);
     const draft=make('s01','newer-draft','green');
     assert.notEqual(draft.sha256,v1.sha256);
+    const styles=styleContractStore({root:f.root,getDeck:f.getDeck});
+    const plans=assemblyPlanStore({root:f.root,getDeck:f.getDeck,getStyle:id=>styles.read(id)});
     const svc=assemblyService({out:f.out,getDeck:f.getDeck,
       getRender:()=>({status:'failed',job_id:'draft-error'}),
       getTask:()=>({status:'done'}),getApproved:(id,scene)=>f.v.approved(id,scene),
       reviewUnresolved:f.reviews.unresolved,
+      getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
       baseUrl:()=> 'http://localhost:3000'});
+    const issue=f.reviews.create('demo','s01',{version_id:v1.version_id,
+      t:0.1,text:'Approved video needs updated framing',severity:'medium'},director,0);
+    assert.throws(()=>svc.start('demo',['s01','s02']),e=>e.status===409,
+      'An open review item must still block assembly on an approved version');
+    f.reviews.transition('demo','s01',issue.item.id,'FIXED','Fixed in validated frame',director,1);
+    f.reviews.transition('demo','s01',issue.item.id,'VERIFIED','Verified approved MP4',director,2);
     svc.start('demo',['s01','s02']);
     let result;
     for(let i=0;i<300;i++){
@@ -143,7 +154,7 @@ test('P05 assembles only approved immutable MP4s even if newer unapproved render
       await new Promise(r=>setTimeout(r,75));
     }
     assert.equal(result.status,'completed',JSON.stringify(result));
-    const manifest=JSON.parse(fs.readFileSync(path.join(f.out,'demo_final.manifest.json'),'utf8'));
+    const manifest=result.manifest;
     assert.equal(manifest.scenes[0].approved_version_id,v1.version_id);
     assert.equal(manifest.scenes[0].sha256,v1.sha256);
     assert.equal(manifest.scenes[1].approved_version_id,v2.version_id);
