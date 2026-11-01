@@ -132,6 +132,14 @@ test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale 
     const lease=await rpc(agent1,'claim_scene',{id:'scene-demo',slide_id:'s01',ttl:60});
     assert.equal(lease.isError,false,JSON.stringify(lease));
     const {fence}=JSON.parse(lease.content[0].text);
+    const denyReassign=await rpc(agent1,'set_scene_task',{id:'scene-demo',slide_id:'s01',fence_token:fence,expected_revision:0,assignee:'agent2'});
+    assert.equal(denyReassign.isError,true,'Worker cannot change assignee');
+    const denySelfApproval=await rpc(agent1,'set_scene_task',{id:'scene-demo',slide_id:'s01',fence_token:fence,expected_revision:0,status:'done'});
+    assert.equal(denySelfApproval.isError,true,'Worker cannot self-approve');
+    const denyRender=await rpc(agent1,'render_scene',{id:'scene-demo',slide_id:'s01'});
+    assert.equal(denyRender.isError,true,'Rendering needs current fenced lease');
+    const denyReviewerRender=await rpc(agent2,'render_scene',{id:'scene-demo',slide_id:'s01'});
+    assert.equal(denyReviewerRender.isError,true,'Other agent cannot render foreign scene');
     const task=await rpc(agent1,'set_scene_task',{id:'scene-demo',slide_id:'s01',fence_token:fence,expected_revision:0,title:'Owned scene'});
     assert.equal(task.isError,false,JSON.stringify(task));
     const otherWrite=await rpc(agent2,'set_scene_task',{id:'scene-demo',slide_id:'s01',fence_token:fence,expected_revision:1,title:'Hijack'});
