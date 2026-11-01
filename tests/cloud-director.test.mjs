@@ -170,8 +170,9 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
     assert.equal((await http('/api/decks/six-stale/director/approve','POST',
       {expected_revision:stale.revision,confirm:'APPROVE'})).status,409);
 
-    const bad=await http('/api/decks/six-good/director/plan','POST',{
-      expected_revision:3,goal:'Драфт',scene_directions:[{
+    await create('six-invalid');
+    const bad=await http('/api/decks/six-invalid/director/plan','POST',{
+      expected_revision:0,goal:'Драфт',scene_directions:[{
         scene_id:'s02',depends_on:['s03']}]});
     assert.equal(bad.status,400,'forward dependency must not be accepted');
     const unavailable=await rpc('approve_director_plan',{id:'six-good',confirm:'APPROVE'});
