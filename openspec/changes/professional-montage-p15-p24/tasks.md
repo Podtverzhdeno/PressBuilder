@@ -1,6 +1,6 @@
 # OpenSpec Tasks — Professional Montage P15–P24
 
-All 60 checkboxes remain unchecked until independent acceptance. P15-C01 and P15-C02 have CI-backed TESTED status in SDD; remaining 58 are TODO.
+All 60 checkboxes remain unchecked until independent acceptance. P15-C01/C02 are TESTED, P15-C03 is IN_PROGRESS with reviewed CI evidence but incomplete secure approval/persistence, remaining 57 TODO.
 
 ## Apply checklist
 
