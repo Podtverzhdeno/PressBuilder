@@ -90,8 +90,11 @@ async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProg
       if(typeof png!=='string'||png.length<100)throw new Error('Canvas capture failed at frame '+i);
       const bytes=Buffer.from(png,'base64');
       if(!ff.stdin.write(bytes))await new Promise((resolve,reject)=>{
-        ff.stdin.once('drain',resolve);
-        ff.stdin.once('error',reject);
+        const cleanup=()=>{ff.stdin.off('drain',onDrain);ff.stdin.off('error',onError)};
+        const onDrain=()=>{cleanup();resolve()};
+        const onError=e=>{cleanup();reject(e)};
+        ff.stdin.once('drain',onDrain);
+        ff.stdin.once('error',onError);
       });
       if(i%10===0)onProgress?.(i/count);
     }
