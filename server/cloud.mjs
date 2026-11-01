@@ -15,7 +15,8 @@ import { sceneTaskStore } from './scene-tasks.mjs';
 import { sceneSyncStore } from './scene-sync.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
-import { inspectMp4 } from './video-qa.mjs';
+import { inspectMp4, mergeVisualQA } from './video-qa.mjs';
+import { makeRenderQueue } from './render-queue.mjs';
 import {styleContractStore,enforceScene3D} from './style-contract.mjs';
 import {sceneLeaseStore,agentDirectory} from './scene-leases.mjs';
 import {assemblyService} from './assemble-scenes.mjs';
@@ -393,128 +394,83 @@ async function api(req,res,url) {
   }
   throw new UserError('Unknown API endpoint',404);
 }
-// P02: bounded FIFO and persistent job metadata in /data.
-// Restarted workers replay interrupted jobs (at most twice), while metadata
-// for completed/failed jobs survives process restarts.
-const jobs=new Map();
-const renderQueue=[];
-const JOBS_DIR=path.join(DATA,'render-jobs');
-fs.mkdirSync(JOBS_DIR,{recursive:true});
-const jobPath=(id,slideId)=>path.join(JOBS_DIR,
-  createHash('sha256').update(id+'\\0'+(slideId||'full')).digest('hex')+'.json');
-function persistJob(j){
-  const file=jobPath(j.id,j.slide_id);
-  const tmp=file+'.'+process.pid+'.tmp';
-  fs.writeFileSync(tmp,JSON.stringify(j,null,2)+'\n',{mode:0o600});
-  fs.renameSync(tmp,file);
-}
-let workerActive=false;
+// Single-worker durable queue: scene jobs are isolated and every approved MP4
+// is immutable. All mutable state is persisted on the Railway data volume.
 const baseUrl=()=>ORIGIN||'http://localhost:'+PORT;
-const renderKey=(id,slideId)=>slideId?id+':'+slideId:id;
-function getRender(id,slideId=null){
-  deckId(id);
-  if(slideId)deckId(slideId);
-  const key=renderKey(id,slideId);
-  return jobs.get(key)||{status:'not_started',id,...(slideId?{slide_id:slideId}:{})};
-}
-async function workQueue(){
-  if(workerActive)return;
-  workerActive=true;
-  try {
-    while(renderQueue.length){
-      const j=renderQueue.shift();
-      const {id,slide_id:slideId}=j;
-      if(j.status==='cancelled')continue;
-      j.status='running';
-      j.startedAt=new Date().toISOString();
-      persistJob(j);
-      let draftFile=null;
-      try {
-        const snapshot=slideId?versions.source(id,slideId):null;
-        // A restarted attempt must never overwrite the artifact from an earlier attempt.
-        const attemptJobId=j.job_id+':attempt:'+String(j.restartAttempts||0);
-        const versionId=slideId?versions.versionId(attemptJobId):null;
-        const outputName=slideId?id+'_'+slideId+'_v'+versionId:null;
-        const rendered=await renderWithChrome({id,slideId,port:PORT,username:WEB_USER,password:WEB_PASS,
-          outputNameOverride:outputName,
-          timeoutMs:900000,onProgress:p=>{
-            const percent=Math.round(p*100);
-            if(Math.floor(percent/10)!==Math.floor((j.progress||0)/10)){
-              j.progress=percent;persistJob(j);
-            }else j.progress=percent;
-          }});
-        const name=outputName||id;
-        const file=path.join(OUT,name+'.mp4');
-        draftFile=slideId?file:null;
-        if(!fs.existsSync(file))throw new Error('Video was not produced');
-        j.qa_report=inspectMp4(file,{fps:rendered.fps,height:rendered.height,duration:rendered.duration});
-        if(j.qa_report.verdict==='FAIL'){
-          throw new Error('Technical video QA failed: '+j.qa_report.issues.map(x=>x.id).join(', '));
-        }
-        if(slideId){
-          const evidence=captureFrameEvidence({file,out:OUT,id,scene:slideId,
-            version:versionId,duration:rendered.duration,fps:rendered.fps});
-          const version=versions.capture({id,scene:slideId,jobId:attemptJobId,file,rendered,
-            qa:j.qa_report,expectedSource:snapshot,frameEvidence:evidence});
-          versions.publishPreview(id,slideId,version);
-          j.version_id=version.version_id;
-        }
-        j.status='completed';
-        j.result={file:'out/'+name+'.mp4',size:fs.statSync(file).size,
-          download_url:baseUrl()+'/out/'+encodeURIComponent(name)+'.mp4'};
-      }catch(e){
-        j.status='failed';
-        j.error=e instanceof Error?e.message:String(e);
-        if(draftFile)fs.rmSync(draftFile,{force:true});
-      }finally{j.finishedAt=new Date().toISOString();persistJob(j)}
-    }
-  }finally{workerActive=false}
-}
-function startRender(id,slideId=null){
+const RENDER_ENGINE_BUILD_ID=(()=>{
+  const entry=path.join(STATIC,'index.html');
+  return fs.existsSync(entry)
+    ? createHash('sha256').update(fs.readFileSync(entry)).digest('hex')
+    : 'local-dev-unbuilt';
+})();
+function sourceFingerprint(id,slideId){
   const d=getDeck(id);
-  if(slideId){
-    deckId(slideId);
-    if(!d.slides.some(s=>s.id===slideId))throw new UserError('Scene not found: '+slideId,404);
+  // A scene's schedule depends on the whole deck, not just its own slide.
+  // The compiled render engine must also be pinned across Railway deployments.
+  const payload={deck:d,render_engine_build_id:RENDER_ENGINE_BUILD_ID,
+    scene3d:slideId?scene3d.read(id,slideId).spec:scene3d.list(id).map(s=>({scene:s.scene_id,spec:s.spec})),
+    style_contract:styles.read(id).contract,
+    // Pin the canonical P08 source snapshot as well as the complete schedule:
+    // future sync/audio/provenance extensions of P08 automatically enter
+    // the queue fingerprint without a second, divergent policy.
+    p08_sources:(slideId?[slideId]:d.slides.map(s=>s.id))
+      .map(scene=>({scene,source:versions.source(id,scene).fingerprint}))};
+  const voice=d.audio?.file;
+  if(voice&&/^voice\.(?:mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/i.test(voice)){
+    const local=path.join(DECKS,id,voice);
+    const seed=path.join(process.cwd(),'src','decks',id,voice);
+    const file=fs.existsSync(local)?local:(fs.existsSync(seed)?seed:null);
+    // Same-size/same-mtime overwrites must also invalidate queued renders.
+    payload.audio=file?{
+      sha256:createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+      size:fs.statSync(file).size,
+    }:{missing:true};
   }
-  const key=renderKey(id,slideId);
-  const previous=jobs.get(key);
-  if(previous&&['queued','running'].includes(previous.status))return {...previous};
-  if(renderQueue.length>=50)throw new UserError('Render queue full (50 pending jobs)',429);
-  const j={id,...(slideId?{slide_id:slideId}:{}),job_id:key+'-'+randomUUID(),
-    status:'queued',queuedAt:new Date().toISOString(),progress:0};
-  jobs.set(key,j);
-  persistJob(j);
-  renderQueue.push(j);
-  void workQueue();
-  return {...j};
+  return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
-// Recover job states without executing a render before the HTTP server listens.
-for(const file of fs.readdirSync(JOBS_DIR).filter(n=>/^[0-9a-f]{64}\.json$/.test(n))){
-  try{
-    const j=JSON.parse(fs.readFileSync(path.join(JOBS_DIR,file),'utf8'));
-    if(!j||typeof j.id!=='string'||typeof j.status!=='string')continue;
-    deckId(j.id);if(j.slide_id)deckId(j.slide_id);
-    // Old completed jobs may be referenced after a restart.
-    if(j.status==='completed' && j.result?.file && !fs.existsSync(path.join(DATA,j.result.file))){
-      j.status='failed';j.error='Output file was removed from the volume';j.finishedAt=new Date().toISOString();
-      persistJob(j);
-    }
-    const key=renderKey(j.id,j.slide_id);
-    jobs.set(key,j);
-    if(['queued','running'].includes(j.status)){
-      j.restartAttempts=(j.restartAttempts||0)+1;
-      if(j.restartAttempts>2){
-        j.status='failed';j.error='Render aborted after repeated process restarts';
-        j.finishedAt=new Date().toISOString();
-      }else{j.status='queued';renderQueue.push(j)}
-      persistJob(j);
-    }
-  }catch(e){console.warn('Invalid persisted render job:',file,String(e))}
-}
+const renderJobs=makeRenderQueue({
+  root:path.join(DATA,'render-jobs'),outputDir:OUT,
+  resolveDeck:getDeck,baseUrl,
+  fingerprint:sourceFingerprint,
+  render:args=>renderWithChrome({...args,port:PORT,username:WEB_USER,password:WEB_PASS,timeoutMs:900000}),
+  outputNameForJob:(id,scene,jobId)=>scene
+    ? id+'_'+scene+'_v'+versions.versionId(jobId)
+    : id+'_'+jobId,
+  publishScene:({job,file,rendered,qa})=>{
+    const scene=job.slide_id;
+    if(job.source_fingerprint!==sourceFingerprint(job.id,scene))
+      throw new UserError('Scene source changed before version capture',409);
+    const snapshot=versions.source(job.id,scene);
+    const evidence=captureFrameEvidence({file,out:OUT,id:job.id,scene,
+      version:versions.versionId(job.job_id),duration:rendered.duration,fps:rendered.fps});
+    const record=versions.capture({id:job.id,scene,jobId:job.job_id,file,rendered,qa,
+      expectedSource:snapshot,frameEvidence:evidence});
+    try{versions.publishPreview(job.id,scene,record)}
+    catch(e){console.warn('Draft preview update failed:',String(e))}
+    return {version_id:record.version_id};
+  },
+  recoverCompleted:(job)=>{
+    const versionId=versions.versionId(job.job_id);
+    try{
+      const artifact=versions.verified(job.id,job.slide_id,versionId);
+      if(artifact.job_id!==job.job_id||artifact.qa?.verdict!=='PASS')return null;
+      return {version_id:versionId,result:{
+        file:artifact.file,size:artifact.size,
+        download_url:baseUrl().replace(/\/$/,'')+'/out/'+path.basename(artifact.file),
+      }};
+    }catch{return null}
+  },
+  inspect:(file,{visualAudit,frameSamples,...expected})=>
+    mergeVisualQA(inspectMp4(file,expected),visualAudit,frameSamples),
+});
+const getRender=(id,slideId=null)=>renderJobs.get(id,slideId);
+const startRender=(id,slideId=null)=>renderJobs.enqueue(id,slideId);
+const cancelRender=(id,slideId,jobId)=>renderJobs.cancel(id,slideId,jobId);
+const retryRender=(id,slideId,jobId)=>renderJobs.retry(id,slideId,jobId);
 const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),
   getApproved:(id,scene)=>versions.approved(id,scene),
   reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl});
-const mcp=makeMcp({startRender,getRender,baseUrl,assembly,versions,reviews,sceneSync});
+const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,assembly,versions,reviews,sceneSync});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
@@ -566,4 +522,4 @@ const server=http.createServer(async(req,res)=>{
     return fileResponse(req,res,file);
   }catch(e){if(!res.headersSent)error(res,e);else res.destroy();}
 });
-server.listen(PORT,HOST,()=>{console.log('PressBuilder cloud listening on '+PORT);void workQueue();});
+server.listen(PORT,HOST,()=>{console.log('PressBuilder cloud listening on '+PORT);renderJobs.start();});

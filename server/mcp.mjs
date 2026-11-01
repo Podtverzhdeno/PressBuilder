@@ -59,13 +59,16 @@ export const TOOLS = [
  { name:'get_assembly_status', description:'Check status, output URL and integrity manifest of final video.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'render_video', description:'Start a server-side Chromium + WebCodecs + FFmpeg render job for a video. Poll get_render_status. Server rendering uses deterministic Chromium Canvas frames encoded with FFmpeg.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'render_scene', description:'Worker with live scene fencing lease or director: queue independent MP4 render; reviewers cannot start expensive jobs.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id']) },
+ { name:'cancel_scene_render', description:'Worker with a live fenced lease or director cancels one scene render using its job_id.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Active job ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','job_id']) },
+ { name:'retry_scene_render', description:'Worker with a live fenced lease or director retries a terminal scene render only if job_id matches.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Previous job ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','job_id']) },
+ { name:'cancel_video_render', description:'Director only: cancel active full video rendering without replacing accepted files.', inputSchema:obj({id:str('Project slug'),job_id:str('Active job ID')},['id','job_id']) },
  { name:'get_scene_qa_report', description:'Read technical MP4 QA after a scene render: codec, resolution, FPS, duration, audio presence, and detected issues. This is not artistic quality scoring.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'get_video_qa_report', description:'Read technical MP4 QA after a full video render. Validates stream metadata, not artistic composition.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_scene_render_status', description:'Check the independent render job status for one scene and get a direct MP4 download URL when complete.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
-export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, reviews, sceneSync }) {
+export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly, versions, reviews, sceneSync }) {
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
   const visibleTasks=(id,actor)=>taskStore.list(id)
@@ -169,6 +172,11 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
       case 'get_assembly_status': return assembly.get(args.id);
       case 'render_video': directorOnly(actor);return startRender(args.id);
       case 'render_scene': return write(args.id,args.slide_id,actor,args.fence_token,'render_scene',()=>startRender(args.id,args.slide_id));
+      case 'cancel_scene_render': return write(args.id,args.slide_id,actor,args.fence_token,
+        'cancel_render',()=>cancelRender(args.id,args.slide_id,args.job_id));
+      case 'retry_scene_render': return write(args.id,args.slide_id,actor,args.fence_token,
+        'retry_render',()=>retryRender(args.id,args.slide_id,args.job_id));
+      case 'cancel_video_render': directorOnly(actor);return cancelRender(args.id,null,args.job_id);
       case 'get_scene_render_status': scoped(args.id,args.slide_id,actor);return getRender(args.id,args.slide_id);
       case 'get_scene_qa_report': {scoped(args.id,args.slide_id,actor);const r=getRender(args.id,args.slide_id);return {id:args.id,slide_id:args.slide_id,status:r.status,report:r.qa_report||null};}
       case 'get_video_qa_report': {const r=getRender(args.id);return {id:args.id,status:r.status,report:r.qa_report||null};}

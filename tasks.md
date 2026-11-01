@@ -215,3 +215,8 @@
 
 ### P08/P09 — интеграция с общим ревью и provenance (2026-11-01)
 Единый архив immutable MP4, 3 JPEG и SHA-256 browser/audio source дополнен маркерами P09 и точным timebase. 3D start_marker влияет на появление объекта, P09 MCP использует scoped leases. Директорский source rollback возвращает marker sheet после проверки. Не закрыты audio mixer/ducking, distributed locking и end-to-end AV drift.
+
+
+## Integration P02/P03 — 2026-11-01
+
+Rebased PR #2 on main without overwriting P07/P08/P09: isolated queue `server/render-queue.mjs`, cancellable Chromium and FFmpeg, visual checks for data-driven captions and frame luma, manual retry, source-fingerprint checks, preview JPEGs attached to immutable P08 versions, existing approved pointers preserved. Production multi-replica and creative QA remain outstanding.

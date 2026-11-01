@@ -141,6 +141,12 @@ test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale 
     assert.deepEqual(JSON.parse(readDeck.content[0].text).scene_tasks.map(t=>t.scene_id),['s01']);
     const directorTasks=await rpc(director,'list_scene_tasks',{id:'scene-demo'});
     assert.deepEqual(JSON.parse(directorTasks.content[0].text).map(t=>t.scene_id),['s01','s02']);
+    const noRenderLease=await rpc(agent1,'render_scene',{id:'scene-demo',slide_id:'s01'});
+    assert.equal(noRenderLease.isError,true);
+    const noCancelLease=await rpc(agent1,'cancel_scene_render',{id:'scene-demo',slide_id:'s01',job_id:'deadbeef'});
+    assert.equal(noCancelLease.isError,true);
+    const noRetryLease=await rpc(agent1,'retry_scene_render',{id:'scene-demo',slide_id:'s01',job_id:'deadbeef'});
+    assert.equal(noRetryLease.isError,true);
     const noFence=await rpc(agent1,'set_scene_checkpoint',{id:'scene-demo',slide_id:'s01',checkpoint_id:'x',done:true});
     assert.equal(noFence.isError,true);
     const lease=await rpc(agent1,'claim_scene',{id:'scene-demo',slide_id:'s01',ttl:60});
