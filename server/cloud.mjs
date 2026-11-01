@@ -326,9 +326,17 @@ async function api(req,res,url) {
 // Single-worker durable queue: scene jobs are isolated and every approved MP4
 // is immutable. All mutable state is persisted on the Railway data volume.
 const baseUrl=()=>ORIGIN||'http://localhost:'+PORT;
+const RENDER_ENGINE_BUILD_ID=(()=>{
+  const entry=path.join(STATIC,'index.html');
+  return fs.existsSync(entry)
+    ? createHash('sha256').update(fs.readFileSync(entry)).digest('hex')
+    : 'local-dev-unbuilt';
+})();
 function sourceFingerprint(id,slideId){
   const d=getDeck(id);
-  const payload={deck:slideId?{...d,slides:d.slides.filter(s=>s.id===slideId)}:d,
+  // A scene's schedule depends on the whole deck, not just its own slide.
+  // The compiled render engine must also be pinned across Railway deployments.
+  const payload={deck:d,render_engine_build_id:RENDER_ENGINE_BUILD_ID,
     scene3d:slideId?scene3d.read(id,slideId).spec:scene3d.list(id).map(s=>({scene:s.scene_id,spec:s.spec})),
     style_contract:styles.read(id).contract};
   const voice=d.audio?.file;
