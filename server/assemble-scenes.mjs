@@ -62,16 +62,35 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
   let assemblySlots=0;
   const releaseRoot=id=>path.join(out,'releases',id);
   const pointer=id=>path.join(releaseRoot(id),'current.json');
+  // Never trust presence alone: previously published files can be truncated
+  // or silently replaced by a broken storage mount or an external process.
+  function verifiedRelease(id,releaseId){
+    if(typeof id!=='string'||!ID.test(id))throw bad('Invalid project ID',400);
+    if(typeof releaseId!=='string'||!/^[a-f0-9-]{36}$/.test(releaseId))
+      throw bad('Invalid release ID',400);
+    const release=path.join(releaseRoot(id),releaseId);
+    const file=path.join(release,'final.mp4'),manifestFile=path.join(release,'manifest.json');
+    if(!fs.existsSync(file)||!fs.existsSync(manifestFile))throw bad('Assembly release not found',404);
+    let manifest;
+    try{manifest=JSON.parse(fs.readFileSync(manifestFile,'utf8'))}
+    catch{throw bad('Corrupted assembly release manifest',409)}
+    if(manifest?.schemaVersion!==1||manifest.project!==id||manifest.release_id!==releaseId||
+       manifest.output?.qa?.verdict!=='PASS'||
+       !Number.isSafeInteger(manifest.output?.bytes)||manifest.output.bytes<1024||
+       !/^[0-9a-f]{64}$/.test(manifest.output?.sha256||''))
+      throw bad('Invalid assembly release manifest',409);
+    const stat=fs.statSync(file);
+    if(!stat.isFile()||stat.size!==manifest.output.bytes||sha256(file)!==manifest.output.sha256)
+      throw bad('Assembly release integrity check failed',409);
+    return {file,manifest};
+  }
   function current(id){
     const p=pointer(id);
     if(!fs.existsSync(p))return null;
     try{
       const c=JSON.parse(fs.readFileSync(p,'utf8'));
       if(!/^[a-f0-9-]{36}$/.test(c.release_id))return null;
-      const rel=path.join(releaseRoot(id),c.release_id);
-      const mp4=path.join(rel,'final.mp4'),manifestFile=path.join(rel,'manifest.json');
-      if(!fs.existsSync(mp4)||!fs.existsSync(manifestFile))return null;
-      const manifest=JSON.parse(fs.readFileSync(manifestFile,'utf8'));
+      const {manifest}=verifiedRelease(id,c.release_id);
       return {release_id:c.release_id,manifest,download_url:baseUrl()+
         '/api/decks/'+encodeURIComponent(id)+'/assembly/releases/'+c.release_id+'/final.mp4'};
     }catch{return null}
@@ -83,10 +102,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
   }
   function download(id,releaseId){
     getDeck(id);
-    if(!/^[0-9a-f-]{36}$/.test(releaseId))throw bad('Invalid release ID');
-    const file=path.join(releaseRoot(id),releaseId,'final.mp4');
-    if(!fs.existsSync(file))throw bad('Assembly release not found',404);
-    return file;
+    return verifiedRelease(id,releaseId).file;
   }
   function cancel(id){
     getDeck(id);
