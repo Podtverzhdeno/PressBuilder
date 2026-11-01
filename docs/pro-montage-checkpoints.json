@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P17 C01/C02 TESTED; C03/C04 IN_PROGRESS with real read-only P08 approved MP4 boundary evidence, 162/162 Docker tests and Studio A/B, awaiting independent security/creative review. P17 C05/C06 TODO; P15/P16 partial; P18-P24 TODO. No P17 media publishing.",
+  "notice": "P17 C01/C02 TESTED, C03/C04 IN_PROGRESS read-only verified MP4 review; P18 C01/C02 TESTED pure motion core on Docker 165/165 (not independently accepted), C03-C06 TODO; P15/P16 partial, P19-P24 TODO. No P18 rendering or publication.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -840,7 +840,7 @@
       "feature": "P18",
       "capability": "professional-motion",
       "name": "Contract and threat model",
-      "status": "TODO",
+      "status": "TESTED",
       "owner_hint": "scene-developer",
       "dependencies": [],
       "inputs": "P15 timebase and scene property IDs",
@@ -858,20 +858,34 @@
       ],
       "negative_tests": "NaN keyframes, large acceleration, huge sample count, speech drift, flashing",
       "proposed_test_file": "tests/cloud-motion-pro.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "production_docker_ci_motion_core",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41353706510",
+          "commit_sha": "0a5b3ef3d2b018063a9c524fb6c43a8aab4a08df",
+          "command": "npm run build && npm run test:cloud (cloud and production Docker); node tests/render-smoke.mjs",
+          "exit_code": 0,
+          "docker_total": 165,
+          "docker_passed": 165,
+          "docker_skipped": 0,
+          "artifact_path": "schemas/montage/professional-motion-v1.schema.json",
+          "note": "Pure deterministic frame planner and schema, including 30000/1001 timing, reduced-motion, negative flash/velocity/acceleration and missing IDs, tested. Existing real Chromium+FFmpeg MP4 regression passed, but the new P18 planner is NOT connected to renderer or P08 authoritative scene and has no independent creative review."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "TESTED data-only contract/core; independent reviewer, server-owned P08 source validation, real keyframe renderer/blur, live six-scene A/B and canary still missing; not ACCEPTED or release eligible.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "0a5b3ef3d2b018063a9c524fb6c43a8aab4a08df"
     },
     {
       "id": "P18-C02",
       "feature": "P18",
       "capability": "professional-motion",
       "name": "Bounded functional vertical slice",
-      "status": "TODO",
+      "status": "TESTED",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P18-C01",
@@ -892,13 +906,27 @@
       ],
       "negative_tests": "NaN keyframes, large acceleration, huge sample count, speech drift, flashing",
       "proposed_test_file": "tests/cloud-motion-pro.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "production_docker_ci_motion_core",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41353706510",
+          "commit_sha": "0a5b3ef3d2b018063a9c524fb6c43a8aab4a08df",
+          "command": "npm run build && npm run test:cloud (cloud and production Docker); node tests/render-smoke.mjs",
+          "exit_code": 0,
+          "docker_total": 165,
+          "docker_passed": 165,
+          "docker_skipped": 0,
+          "artifact_path": "tests/cloud-motion-pro.test.mjs",
+          "note": "Pure deterministic frame planner and schema, including 30000/1001 timing, reduced-motion, negative flash/velocity/acceleration and missing IDs, tested. Existing real Chromium+FFmpeg MP4 regression passed, but the new P18 planner is NOT connected to renderer or P08 authoritative scene and has no independent creative review."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "TESTED data-only contract/core; independent reviewer, server-owned P08 source validation, real keyframe renderer/blur, live six-scene A/B and canary still missing; not ACCEPTED or release eligible.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "0a5b3ef3d2b018063a9c524fb6c43a8aab4a08df"
     },
     {
       "id": "P18-C03",
