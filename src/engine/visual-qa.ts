@@ -16,7 +16,7 @@ export interface VisualAudit{
   uninspected_scenes:string[];
 }
 
-export function auditDataText(deck:DeckData,ctx:CanvasRenderingContext2D):VisualAudit{
+export function auditDataText(deck:DeckData,ctx:CanvasRenderingContext2D,sceneId:string|null=null,excludedSceneIds:string[]=[]):VisualAudit{
   const issues:VisualIssue[]=[];
   const uninspected_scenes:string[]=[];
   let tested=0;
@@ -25,6 +25,8 @@ export function auditDataText(deck:DeckData,ctx:CanvasRenderingContext2D):Visual
     issues.push({id,severity,slide_id,object_id,message,...(metrics?{metrics}:{})});
   };
   for(const slide of deck.slides){
+    if(sceneId&&slide.id!==sceneId)continue;
+    if(excludedSceneIds.includes(slide.id)) {uninspected_scenes.push(slide.id);continue}
     if(!slide.visuals?.length){uninspected_scenes.push(slide.id);continue}
     const rectangles:Array<{id:string,x:number,y:number,w:number,h:number}>=[];
     for(const v of slide.visuals){
