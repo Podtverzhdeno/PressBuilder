@@ -26,6 +26,10 @@ export interface SceneDraftPreview {
   status:'queued'|'running'|'cancelling'|'completed'|'failed'|'cancelled'|'stale'|'not_started';
   job_id?:string;cache_hit?:boolean;source_fingerprint?:string;error?:string;
   width?:number;height?:number;wait_resource_ms?:number;
+  timings_ms?:{prepare?:number;wait_resource?:number;chromium?:number;persist?:number;total?:number};
+  render_timings_ms?:{browser_setup:number;capture_frames:number};
+  process_metrics?:{scope:'PROCESS_DELTA_NOT_JOB_ISOLATED';cpu_user_ms:number;cpu_system_ms:number;
+    rss_before_mb:number;rss_after_mb:number};
   frames?:{index:number;t:number;sha256:string;size:number;url:string}[];
 }
 export interface SceneVersionComparison {

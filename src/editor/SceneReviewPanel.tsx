@@ -171,6 +171,12 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
             {preview&&<small>Статус: {preview.status}{preview.cache_hit?' · из кэша':''}</small>}
           </div>
           {preview?.error&&<p class="task-error">{preview.error}</p>}
+          {preview?.timings_ms?.total!==undefined&&<p class="task-readme-help">
+            Всего: {preview.timings_ms.total.toFixed(0)} мс · ожидание слота: {(preview.timings_ms.wait_resource??0).toFixed(0)} мс
+            · Chromium: {(preview.timings_ms.chromium??0).toFixed(0)} мс
+            {preview.render_timings_ms&&` · запуск браузера: ${preview.render_timings_ms.browser_setup.toFixed(0)} мс / кадры: ${preview.render_timings_ms.capture_frames.toFixed(0)} мс`}
+            {preview.process_metrics&&` · CPU Node: ${(preview.process_metrics.cpu_user_ms+preview.process_metrics.cpu_system_ms).toFixed(0)} мс`}
+          </p>}
           {preview?.status==='completed'&&preview.frames&&
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:'8px',marginTop:'12px'}}>
               {preview.frames.map(f=><div key={f.index}>
