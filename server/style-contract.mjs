@@ -43,6 +43,7 @@ export function validateStyleContract(x){
 }
 export function enforceScene3D(contract,spec){
   if(!contract.enforce)return;
+  if(!plain(spec)||!Array.isArray(spec.objects)||!plain(spec.camera))bad('Invalid 3D scene specification',400);
   const colors=new Set(contract.palette.map(x=>x.toUpperCase()));
   if(spec.objects.some(o=>!colors.has(o.color.toUpperCase())||
      (o.edge_color&&!colors.has(o.edge_color.toUpperCase()))))bad('Scene 3D uses a color outside the project palette',422);
@@ -52,6 +53,7 @@ export function enforceScene3D(contract,spec){
 }
 export function enforceVisuals(contract,elements){
   if(!contract.enforce)return;
+  if(!Array.isArray(elements))bad('Visual elements must be an array',400);
   const {safeArea:s,typography:t}=contract;
   for(const e of elements){
     if(e.kind!=='text')continue;
