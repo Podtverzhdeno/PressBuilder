@@ -15,6 +15,9 @@
 
 ### M40 — Director briefs как исполняемые типизированные контракты (rank #1, 9.70/10, W0)
 
+**Прогресс реализации (без закрытия чекпоинтов):** M40-R01 — source-pinned read-only server projection, REST/MCP with worker assignment scope, Studio, unit and live integration tests в PR #41. Flag OFF by default. Для полноценных C01–C08 нужны отдельное архитектурное/правовое ревью, signed scene updates с P06 lease, real six-scene brief→render E2E, измерения качества/скорости и canary. Не засчитывать обычный Docker render smoke как доказательство этого нового end-to-end.
+
+
 **Тип:** Системная. **Зависимости:** P06, P10, P16, P23. **Базовая оценка усилий:** small, ~2–5 dev-days. **Спецификация:** [Контент и ассеты](./specs/content/spec.md).
 
 **Почему:** Отдельные агенты получают длинный расплывчатый промпт, делают разные стили и повторяют чужую работу.
