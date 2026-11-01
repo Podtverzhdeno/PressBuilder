@@ -238,7 +238,8 @@ async function api(req,res,url) {
   const reviewMatch=/^\/api\/decks\/([^/]+)\/reviews\/([^/]+)(?:\/([^/]+))?$/.exec(p);
   if(reviewMatch){
     const id=deckId(escaped(reviewMatch[1])),scene=deckId(escaped(reviewMatch[2])),itemId=reviewMatch[3]||'';
-    if(method==='GET'&&!itemId)return json(res,200,reviews.read(id,scene));
+    if(method==='GET'&&!itemId)return json(res,200,reviews.list(id,scene));
+    if(method==='GET'&&itemId)return json(res,200,reviews.get(id,scene,escaped(itemId)));
     if(method==='POST'&&!itemId){
       const body=await readJson(req);
       return json(res,200,reviews.create(id,scene,body?.item,director,body?.expected_revision));

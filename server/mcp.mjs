@@ -46,12 +46,13 @@ export const TOOLS = [
  { name:'approve_scene_version', description:'Director only: approve a QA-pass version after completing its task and verifying all review items. Changes the stable accepted scene MP4.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('16-hex version ID'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','version_id','expected_revision']) },
  { name:'restore_scene_version', description:'Director only: rollback to a historically approved version without rendering. Requires approved pointer revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('Previously approved version'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','version_id','expected_revision']) },
  { name:'list_scene_review_items', description:'Review issues anchored to an immutable MP4 version and precise frame time.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
- { name:'add_scene_review_item', description:'Reviewer or director creates a time/frame-specific issue with normalized rectangle; requires current review revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),expected_revision:{type:'integer',minimum:0},version_id:str('Immutable version ID'),t:num('Seconds within scene'),text:str('Concrete issue, 4..2000 characters'),severity:{type:'string',enum:['low','medium','high','blocking']},rect:obj({x:num('0..1'),y:num('0..1'),w:num('0..1'),h:num('0..1')},['x','y','w','h'])},['id','slide_id','expected_revision','version_id','t','text','severity']) },
+ { name:'get_scene_review_item', description:'Read the complete frame review issue, including optional persisted JPEG/PNG thumbnail.', inputSchema:obj({id:str('Project'),slide_id:str('Scene'),item_id:str('Review UUID')},['id','slide_id','item_id']) },
+ { name:'add_scene_review_item', description:'Reviewer or director creates a time/frame-specific issue with normalized rectangle; requires current review revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),expected_revision:{type:'integer',minimum:0},version_id:str('Immutable version ID'),t:num('Seconds within scene'),text:str('Concrete issue, 4..2000 characters'),severity:{type:'string',enum:['low','medium','high','blocking']},rect:obj({x:num('0..1'),y:num('0..1'),w:num('0..1'),h:num('0..1')},['x','y','w','h']),frame_evidence:str('Optional data:image/jpeg;base64 or PNG <=130 KB')},['id','slide_id','expected_revision','version_id','t','text','severity']) },
  { name:'transition_scene_review_item', description:'Worker with live fenced lease marks FIXED; reviewer or director verifies or reopens; every transition is audited.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),item_id:str('Review issue UUID'),status:{type:'string',enum:['FIXED','VERIFIED','REOPENED']},note:str('Evidence or reason'),expected_revision:{type:'integer',minimum:0},fence_token:{type:'integer',minimum:1}},['id','slide_id','item_id','status','note','expected_revision']) },
  { name:'assemble_video', description:'Director only: assemble 2-12 approved, QA-passing scenes by hard cut.', inputSchema:obj({id:str('Project slug'),scene_ids:{type:'array',minItems:2,maxItems:12,items:{type:'string'}}},['id','scene_ids']) },
  { name:'get_assembly_status', description:'Check status, output URL and integrity manifest of final video.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'render_video', description:'Start a server-side Chromium + WebCodecs + FFmpeg render job for a video. Poll get_render_status. Server rendering uses deterministic Chromium Canvas frames encoded with FFmpeg.', inputSchema:obj({id:str('Project slug')},['id']) },
- { name:'render_scene', description:'Queue an independent MP4 render of one existing scene (not the entire video). Uses the timeline exact start and duration; safe to request while other scene renders are queued. Returns queued/running job details and job_id.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
+ { name:'render_scene', description:'Worker with live scene fencing lease or director: queue independent MP4 render; reviewers cannot start expensive jobs.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id']) },
  { name:'get_scene_qa_report', description:'Read technical MP4 QA after a scene render: codec, resolution, FPS, duration, audio presence, and detected issues. This is not artistic quality scoring.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'get_video_qa_report', description:'Read technical MP4 QA after a full video render. Validates stream metadata, not artistic composition.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_scene_render_status', description:'Check the independent render job status for one scene and get a direct MP4 download URL when complete.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
@@ -61,8 +62,14 @@ export const TOOLS = [
 export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, reviews }) {
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
+  const assigned=(id,slide,actor)=>{
+    if(actor.role!=='worker')return;
+    const assignee=taskStore.read(id,slide).assignee?.trim();
+    if(assignee&&assignee!==actor.id)throw new UserError('Scene assigned to another agent',403);
+  };
   const write=(id,slide,actor,fence,action,fn)=>{
     leases.assertWrite(id,slide,actor,fence);
+    assigned(id,slide,actor);
     const result=fn();
     leases.logWrite(id,slide,actor,result?.revision??null,action);
     return result;
@@ -72,6 +79,15 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
     if (!actor || !['director','worker','reviewer','viewer'].includes(actor.role)) throw new UserError('Unauthenticated MCP identity',401);
     if (args.id && actor.role!=='director' && !actor.projects?.includes(args.id))
       throw new UserError('Project is outside agent scope',403);
+    if(actor.role==='worker'&&name==='set_scene_task'&&
+      (Object.hasOwn(args,'assignee')||args.status==='done'))
+      throw new UserError('Workers cannot change assignee or self-approve tasks',403);
+    if(actor.role==='worker'&&name==='update_cue'&&
+      ['say','dur','hold'].some(k=>Object.hasOwn(args,k)))
+      throw new UserError('Only director may change narration and cue timing',403);
+    if(actor.role==='worker'&&name==='update_slide'&&
+      ['lead','tail'].some(k=>Object.hasOwn(args,k)))
+      throw new UserError('Only director may change slide timing',403);
     switch(name) {
       case 'list_decks': return actor.role==='director'?listDecks():listDecks().filter(d=>actor.projects.includes(d.id));
       case 'get_deck': return {...getDeck(args.id),project_readme:readmeStore.read(args.id),scene_tasks:taskStore.list(args.id).map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}))};
@@ -101,7 +117,7 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
       case 'get_style_contract': return styles.read(args.id);
       case 'set_style_contract': directorOnly(actor);return styles.put(args.id,args.contract,args.expected_revision);
       case 'get_scene_lease': scoped(args.id,args.slide_id,actor);return leases.read(args.id,args.slide_id);
-      case 'claim_scene': return leases.claim(args.id,args.slide_id,actor,args.ttl??300);
+      case 'claim_scene': assigned(args.id,args.slide_id,actor);return leases.claim(args.id,args.slide_id,actor,args.ttl??300);
       case 'renew_scene_lease': return leases.renew(args.id,args.slide_id,actor,args.fence_token,args.ttl??300);
       case 'release_scene': return leases.release(args.id,args.slide_id,actor,args.fence_token);
       case 'list_scene_versions': scoped(args.id,args.slide_id,actor);return {
@@ -115,17 +131,18 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
         return versions.approve(args.id,args.slide_id,args.version_id,args.expected_revision,actor,{unresolved:reviews.unresolved});
       case 'restore_scene_version': directorOnly(actor);
         return versions.restore(args.id,args.slide_id,args.version_id,args.expected_revision,actor,{unresolved:reviews.unresolved});
-      case 'list_scene_review_items': scoped(args.id,args.slide_id,actor);return reviews.read(args.id,args.slide_id);
+      case 'list_scene_review_items': scoped(args.id,args.slide_id,actor);return reviews.list(args.id,args.slide_id);
+      case 'get_scene_review_item': scoped(args.id,args.slide_id,actor);return reviews.get(args.id,args.slide_id,args.item_id);
       case 'add_scene_review_item': scoped(args.id,args.slide_id,actor);
         return reviews.create(args.id,args.slide_id,{version_id:args.version_id,t:args.t,text:args.text,
-          severity:args.severity,rect:args.rect},actor,args.expected_revision);
+          severity:args.severity,rect:args.rect,frame_evidence:args.frame_evidence},actor,args.expected_revision);
       case 'transition_scene_review_item': scoped(args.id,args.slide_id,actor);
         return reviews.transition(args.id,args.slide_id,args.item_id,args.status,args.note,actor,
-          args.expected_revision,{assertWorker:()=>leases.assertWrite(args.id,args.slide_id,actor,args.fence_token)});
+          args.expected_revision,{assertWorker:()=>{leases.assertWrite(args.id,args.slide_id,actor,args.fence_token);assigned(args.id,args.slide_id,actor)}});
       case 'assemble_video': directorOnly(actor);return assembly.start(args.id,args.scene_ids);
       case 'get_assembly_status': return assembly.get(args.id);
       case 'render_video': directorOnly(actor);return startRender(args.id);
-      case 'render_scene': scoped(args.id,args.slide_id,actor);return startRender(args.id,args.slide_id);
+      case 'render_scene': return write(args.id,args.slide_id,actor,args.fence_token,'render_scene',()=>startRender(args.id,args.slide_id));
       case 'get_scene_render_status': scoped(args.id,args.slide_id,actor);return getRender(args.id,args.slide_id);
       case 'get_scene_qa_report': {scoped(args.id,args.slide_id,actor);const r=getRender(args.id,args.slide_id);return {id:args.id,slide_id:args.slide_id,status:r.status,report:r.qa_report||null};}
       case 'get_video_qa_report': {const r=getRender(args.id);return {id:args.id,status:r.status,report:r.qa_report||null};}

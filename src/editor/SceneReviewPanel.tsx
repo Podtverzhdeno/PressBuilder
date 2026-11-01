@@ -23,13 +23,14 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
   const [note,setNote]=useState('');
   const [stamp,setStamp]=useState(0);
   const [rect,setRect]=useState<{x:number;y:number;w:number;h:number}|null>(null);
+  const [evidence,setEvidence]=useState<SceneReviewItem|null>(null);
   const videoRef=useRef<HTMLVideoElement>(null);
   const active=versions.find(x=>x.version_id===selected);
   const visible=reviews?.items.filter(x=>x.version_id===selected)??[];
   const unresolved=visible.filter(x=>x.status!=='VERIFIED').length;
   async function refresh(scene:string,keepSelection?:string){
     const [v,r]=await Promise.all([api.getSceneVersions(projectId,scene),api.getSceneReviews(projectId,scene)]);
-    setVersions(v.versions);setApproved(v.approved);setReviews(r);
+    setVersions(v.versions);setApproved(v.approved);setReviews(r);setEvidence(null);
     setSelected(keepSelection&&v.versions.some(x=>x.version_id===keepSelection)
       ?keepSelection:(v.approved.version_id||v.versions.at(-1)?.version_id||''));
   }
@@ -54,7 +55,23 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
     if(!reviews||!active||text.trim().length<4)throw new Error('Укажи версию и конкретное замечание (минимум 4 символа)');
     const video=videoRef.current;
     const t=Math.max(0,Math.min(active.duration-1/active.fps,Number.isFinite(video?.currentTime)?video!.currentTime:stamp));
-    await api.addSceneReview(projectId,slide,{version_id:selected,t,text:text.trim(),severity:issueSeverity,rect},reviews.revision);
+    // The archived JPEG persists even if the approved video later changes.
+    let frame_evidence:string|undefined;
+    if(video?.videoWidth&&video.videoHeight){
+      try{
+        const canvas=document.createElement('canvas');
+        canvas.width=480;canvas.height=270;
+        const ctx=canvas.getContext('2d');
+        if(ctx){
+          ctx.drawImage(video,0,0,canvas.width,canvas.height);
+          const encoded=canvas.toDataURL('image/jpeg',0.65);
+          if(encoded.length<=180000)frame_evidence=encoded;
+        }
+      }catch{ /* Browser may forbid screenshot; time and rectangle remain valid. */ }
+    }
+    await api.addSceneReview(projectId,slide,{
+      version_id:selected,t,text:text.trim(),severity:issueSeverity,rect,frame_evidence
+    },reviews.revision);
     setText('');setRect(null);setNotice('Замечание привязано к текущей версии и кадру');
     await refresh(slide,selected);
   });
@@ -74,6 +91,11 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
     const video=videoRef.current;
     if(video){video.pause();video.currentTime=item.t;}
     setStamp(item.t);setRect(item.rect);
+    setEvidence(null);
+    if(item.has_frame_evidence){
+      void api.getSceneReviewItem(projectId,slide,item.id).then(setEvidence)
+        .catch(e=>setError('Не удалось открыть сохранённый кадр: '+String(e)));
+    }
   }
   function pickRect(event:MouseEvent){
     const el=event.currentTarget as HTMLVideoElement;
@@ -146,7 +168,16 @@ export function SceneReviewPanel({projectId,initialSlide,onClose}:Props){
                 </button>
                 <strong> {item.status} · {item.severity}</strong>
                 <p>{item.text}</p>
-                <small>Автор: {item.created_by} · событий: {item.history.length}</small>
+                <small>Автор: {item.created_by} · событий: {item.history.length}
+                  {item.has_frame_evidence?' · сохранённый JPEG':''}</small>
+                {evidence?.id===item.id&&evidence.frame_evidence&&
+                  <div style={{position:'relative',maxWidth:'480px',aspectRatio:'16/9',background:'#111',marginTop:'8px'}}>
+                    <img src={evidence.frame_evidence} alt={'Сохранённый кадр '+item.frame}
+                      style={{width:'100%',height:'100%',objectFit:'contain',display:'block'}} />
+                    {evidence.rect&&<div style={{position:'absolute',pointerEvents:'none',border:'2px solid #ffb454',
+                      left:(evidence.rect.x*100)+'%',top:(evidence.rect.y*100)+'%',
+                      width:(evidence.rect.w*100)+'%',height:(evidence.rect.h*100)+'%'}}/>}
+                  </div>}
                 <div style={{display:'flex',gap:'6px',marginTop:'8px',flexWrap:'wrap'}}>
                   {(item.status==='OPEN'||item.status==='REOPENED')&&<button type="button" class="btn" disabled={busy} onClick={()=>transition(item,'FIXED')}>Исправлено</button>}
                   {item.status==='FIXED'&&<button type="button" class="btn" disabled={busy} onClick={()=>transition(item,'VERIFIED')}>Проверено</button>}

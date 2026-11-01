@@ -70,9 +70,17 @@ test('P07 frame review checks version boundaries, role transitions, fencing and 
   const f=fixture(),director=actor('director','director'),reviewer=actor('rev','reviewer'),worker=actor('worker','worker');
   try{
     const v=f.render('demo','s01','job1');
+    const jpeg='data:image/jpeg;base64,'+Buffer.from([255,216,255,224,0,16,74,70,73,70,0,1,2,3]).toString('base64');
     const c=f.reviews.create('demo','s01',{version_id:v.version_id,t:1.25,text:'Text overlaps the key visual',
-      severity:'high',rect:{x:0.2,y:0.3,w:0.3,h:0.2}},reviewer,0);
+      severity:'high',rect:{x:0.2,y:0.3,w:0.3,h:0.2},frame_evidence:jpeg},reviewer,0);
     assert.equal(c.item.frame,30);assert.equal(c.item.status,'OPEN');
+    const list=f.reviews.list('demo','s01');
+    assert.equal(list.items[0].has_frame_evidence,true);
+    assert.equal(list.items[0].frame_evidence,undefined,'Bulk list never leaks large JPEG bytes');
+    assert.equal(f.reviews.get('demo','s01',c.item.id).frame_evidence,jpeg);
+    assert.throws(()=>f.reviews.create('demo','s01',{version_id:v.version_id,t:0.5,
+      text:'Invalid JPG payload',severity:'high',frame_evidence:'data:image/jpeg;base64,SGVsbG8='},reviewer,1));
+
     assert.ok(f.reviews.unresolved('demo','s01',v.version_id));
     assert.throws(()=>f.v.approve('demo','s01',v.version_id,0,director,
       {unresolved:f.reviews.unresolved}),e=>e.status===409);
