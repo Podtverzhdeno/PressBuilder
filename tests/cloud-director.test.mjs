@@ -94,6 +94,10 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
       {expected_revision:proposed.revision,confirm:'APPROVE'});
     assert.equal(result.status,200,JSON.stringify(result.json));
     assert.equal(result.json.status,'approved');
+    const afterApproveDraft=await rpc('propose_director_plan',{id:'six-good',
+      expected_revision:2,goal:'Нельзя подменять утверждённый план'});
+    assert.equal(afterApproveDraft.error,true);
+    assert.equal((await http('/api/decks/six-good/director/plan')).json.status,'approved');
     assert.equal(result.json.revision,2);
     assert.equal(result.json.progress.total,6);
     assert.equal(result.json.progress.done,0);
