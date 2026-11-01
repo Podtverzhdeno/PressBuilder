@@ -6,12 +6,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { buildSchedule } from '../src/engine/schedule.ts';
+import { resolveSceneSync } from './scene-sync.mjs';
 
 const SLUG=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const VERSION=/^v-[a-f0-9]{24}$/;
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status})};
 export const sha256=b=>createHash('sha256').update(b).digest('hex');
-const digestFile=file=>sha256(fs.readFileSync(file));
+function digestFile(file){
+  const h=createHash('sha256'),fd=fs.openSync(file,'r'),buf=Buffer.allocUnsafe(1024*1024);
+  try{for(;;){const n=fs.readSync(fd,buf,0,buf.length,null);if(!n)break;h.update(buf.subarray(0,n))}}
+  finally{fs.closeSync(fd)}
+  return h.digest('hex');
+}
 function atomic(file,data){
   fs.mkdirSync(path.dirname(file),{recursive:true});
   const tmp=file+'.'+process.pid+'.'+randomUUID()+'.tmp';
@@ -47,7 +53,11 @@ export function sceneVersionStore({root,outDir,getDeck,putDeck,scene3d,syncStore
       schema:1,
       slide:structuredClone(deck.slides[index]),
       scene3d:structuredClone(scene3d.read(id,sid).spec),
-      sync_markers:structuredClone(syncStore.read(id,sid).markers),
+      sync_markers:structuredClone((()=>{
+        const sync=syncStore.read(id,sid);
+        if(sync.validation_error)fail('Fix orphaned audio/motion markers first: '+sync.validation_error,409);
+        return sync.markers;
+      })()),
       render_context:{style:deck.style||'terevo',format:deck.format,
         clip_start:sc.start,clip_duration:sc.dur,project_target:deck.target,
         lead:deck.lead??null,tail:deck.tail??null,voice,
@@ -147,6 +157,9 @@ export function sceneVersionStore({root,outDir,getDeck,putDeck,scene3d,syncStore
     // The cue sheet must be validated against the restored cue IDs, not the
     // currently edited ones. Markers are archived only after validation.
     latest.slides[slot]=structuredClone(snap.slide);
+    const preflight=resolveSceneSync(latest,sid,snap.sync_markers);
+    if(preflight.events.some(x=>x.out_of_range))
+      fail('Restored cue markers fall outside the new scene timing',409);
     putDeck(id,latest);
     scene3d.put(id,sid,snap.scene3d,three.revision);
     syncStore.put(id,sid,snap.sync_markers,sync.revision);
