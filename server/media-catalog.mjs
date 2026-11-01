@@ -41,7 +41,8 @@ function atomic(file,body){
  try{fs.renameSync(tmp,file)}finally{fs.rmSync(tmp,{force:true})}
 }
 export function mediaCatalogStore({root,getDeck,versions,enabled=false,now=()=>Date.now()}){
- if(!versions||typeof versions.approved!=='function')throw new Error('M32 requires verified P08 approved source interface');
+ // Tests sometimes construct MCP without P08. Missing dependencies must fail
+ // closed only when this feature is actually called, not on MCP initialization.
  function location(id){
   if(!ID.test(id??''))BAD('MEDIA_INVALID_PROJECT',400);
   getDeck(id);
@@ -55,6 +56,7 @@ export function mediaCatalogStore({root,getDeck,versions,enabled=false,now=()=>D
  }
  function active(){
   if(!enabled)BAD('MEDIA_CATALOG_DISABLED',501);
+  if(!versions||typeof versions.approved!=='function')BAD('MEDIA_CATALOG_NOT_CONFIGURED',501);
  }
  function read(id){
   active();
