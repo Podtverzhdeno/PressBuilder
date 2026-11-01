@@ -423,14 +423,16 @@ window.addEventListener('pb:scenes', (e) => {
  */
 declare global {
   interface Window {
-    __PB_CLOUD_INFO__?: () => Promise<{ duration: number }>;
+    __PB_CLOUD_INFO__?: () => Promise<{ duration: number; slides: Array<{id:string;start:number;dur:number}> }>;
     __PB_CLOUD_FRAME__?: (at: number, height: number) => string;
   }
 }
 window.__PB_CLOUD_INFO__ = async () => {
   await Promise.all([assetsReady(), document.fonts.ready]);
   if (!player || !deck.peek()) throw new Error('Video project is not loaded');
-  return { duration: player.duration };
+  return { duration: player.duration,
+    slides:(player.timeline?.schedule.slides??[]).map(s=>({id:s.slide.id,start:s.start,dur:s.dur}))
+  };
 };
 window.__PB_CLOUD_FRAME__ = (at: number, height: number) => {
   if (!player || !deck.peek()) throw new Error('Video project is not loaded');
