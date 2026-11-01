@@ -111,3 +111,19 @@ test('M32 strict CAS, duplicate IDs/SHA, malicious fields, symlinks and unauthor
   error(()=>disabled.read('demo'),'MEDIA_CATALOG_DISABLED');
  }finally{f.cleanup()}
 });
+
+test('M32 fails before catalog mutation if audit log is symlinked; missing P08 is inert on startup',()=>{
+ const f=fixture();try{
+  const noP08=mediaCatalogStore({root:f.root,getDeck:f.getDeck,versions:null,enabled:true});
+  error(()=>noP08.read('demo'),'MEDIA_CATALOG_NOT_CONFIGURED');
+  const v=f.emit('job-1');
+  f.catalog.propose('demo',director,f.proposal(v));
+  const journal=path.join(f.root,'demo','.media-catalog','events.jsonl');
+  fs.unlinkSync(journal);fs.symlinkSync('/etc/passwd',journal);
+  error(()=>f.catalog.attest('demo','take01',director,{
+   expected_revision:1,expected_asset_revision:1,source_sha256:v.artifact.sha256,
+   confirm:'ATTEST_RIGHTS'}),'MEDIA_UNSAFE_AUDIT_LOG');
+  assert.equal(f.catalog.read('demo').revision,1);
+  assert.equal(f.catalog.read('demo').assets[0].status,'PENDING_ATTESTATION');
+ }finally{f.cleanup()}
+});
