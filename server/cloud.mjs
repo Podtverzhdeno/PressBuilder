@@ -22,6 +22,7 @@ import {directorDispatchStore} from './director-dispatch.mjs';
 import {typedSceneBriefService} from './typed-scene-brief.mjs';
 import {mediaCatalogStore} from './media-catalog.mjs';
 import {editGraphService} from './edit-graph.mjs';
+import {editOperationService} from './edit-operations.mjs';
 import { sceneSyncStore } from './scene-sync.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
@@ -92,6 +93,7 @@ const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scen
   }});
 const mediaCatalog=mediaCatalogStore({root:DECKS,getDeck,versions,enabled:process.env.PB_MEDIA_CATALOG==='1'});
 const editGraph=editGraphService({root:DECKS,getDeck,sceneSync,assemblyPlans,versions,enabled:process.env.PB_EDITGRAPH_PREVIEW==='1'});
+const editOps=editOperationService({root:DECKS,editGraph,enabled:process.env.PB_EDITGRAPH_PREVIEW==='1'});
 const continuity=continuityBoundaryService({versions,enabled:process.env.PB_CONTINUITY_REVIEW==='1'});
 const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
 const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,
@@ -437,6 +439,13 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const editOpsMatch=/^\/api\/decks\/([^/]+)\/edit-graph\/operations$/.exec(p);
+  if(editOpsMatch){
+    const id=deckId(escaped(editOpsMatch[1]));
+    if(method==='GET')return json(res,200,editOps.read(id));
+    if(method==='POST')return json(res,200,editOps.change(id,director,await readJson(req)));
+    throw new UserError('Method not allowed',405);
+  }
   const editGraphMatch=/^\/api\/decks\/([^/]+)\/edit-graph$/.exec(p);
   if(editGraphMatch){
     const id=deckId(escaped(editGraphMatch[1]));
@@ -674,7 +683,7 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
   benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
-  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph});
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
