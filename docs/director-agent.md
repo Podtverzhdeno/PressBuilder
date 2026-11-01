@@ -60,10 +60,23 @@ Do not send web credentials to an untrusted scene agent. POST must be made to th
 | GET /api/decks/:id/director/plan | Read current plan with web auth |
 | POST /api/decks/:id/director/plan | Create a draft with web auth |
 | POST /api/decks/:id/director/approve | Explicitly approve the current draft with web auth, confirm: APPROVE |
+| POST /api/decks/:id/director/replan/:scene | Web-editor-only revision of exactly one blocked/review scene. Requires plan and task revisions. |
 | MCP get_scene_task | Read the published instructions for one scene |
 | MCP set_scene_checkpoint | Record an independently verified result, with evidence |
 
-Plan states: none → draft → approved. A subsequent proposal creates a new draft; existing assignments are **not** silently replaced. Publishing over populated or changed assignments is rejected. This MVP does not offer scene-specific replanning.
+Plan states: none → draft → approved. A subsequent proposal creates a new draft; existing assignments are **not** silently replaced. Publishing over populated or changed assignments is rejected. A blocked or in-review scene may be replanned independently through POST /api/decks/:id/director/replan/:scene. Provide expected_plan_revision, expected_task_revision, reason, optional direction and reset_checkpoint_ids. Only explicitly selected checkpoint done flags are reset; their notes remain as historical evidence. The updated task returns to todo, other scenes do not change, and the plan records each revision. Maximum three manual replans per scene; no automatic agent retry or execution.
+
+Example HTTP replan after inspecting the current plan and task revisions:
+
+~~~json
+{
+  "expected_plan_revision": 2,
+  "expected_task_revision": 3,
+  "reason": "The title overlaps the camera subject",
+  "direction": "Move title into the safe area",
+  "reset_checkpoint_ids": ["technical_qa"]
+}
+~~~
 
 Every scene has six uncompleted checkpoints: storyboard, assets, animation, render, technical QA, human review. A dependency may refer only to an earlier scene, so the dependency graph is acyclic. Other scenes are independently assignable. Progress is derived from actual tasks and is not an execution log.
 
@@ -72,7 +85,7 @@ Every scene has six uncompleted checkpoints: storyboard, assets, animation, rend
 - No external LLM calls, creative evaluation, or actual autonomous agent process spawning.
 - Director does not invent or overwrite a P04 style contract; style enforcement follows the currently configured P04 enforce flag.
 - No reliable worker leasing or authentication per agent (P06 pending).
-- No retry/replan per failed scene, cost/iteration budgets or event-sourced orchestration (P10.3/P10.4).
+- No **automatic** agent retry, worker scheduler, cost/time budgets or event-sourced orchestration (P10.3/P10.4); only bounded, manual scene-specific replanning is implemented.
 - No automatic QA-to-signoff/release gate or deterministic final MP4 assembly (P05/P10.5).
 - No full six-render failure-injection end-to-end test (P10.6). Integration tests validate plan, authorization, task isolation and conflict rejection, **not final video output**.
 
