@@ -62,7 +62,7 @@ for(let i=0;i<110;i++){
 }
 if(draft?.status!=='completed'||draft.frames?.length!==3)throw new Error('Chromium draft stills did not complete');
 for(const f of draft.frames){
-  const response=await fetch(f.url,{headers:{Authorization:basic}});
+  const response=await fetch(BASE+new URL(f.url,BASE).pathname,{headers:{Authorization:basic}});
   if(!response.ok)throw new Error('Protected draft PNG unavailable: '+response.status);
   const bytes=new Uint8Array(await response.arrayBuffer());
   if(bytes.length!==f.size||bytes[0]!==137||bytes[1]!==80)throw new Error('Draft preview PNG corrupted');
