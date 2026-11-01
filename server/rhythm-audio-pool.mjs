@@ -3,7 +3,6 @@
  * Worker threads absorb spawnSync so the API event loop remains responsive.
  */
 import {Worker} from 'node:worker_threads';
-import {fileURLToPath} from 'node:url';
 
 const ENTRY=new URL('./rhythm-audio-worker.mjs',import.meta.url);
 const fail=(code,status=503)=>Object.assign(new Error(code),{code,status});
@@ -61,7 +60,7 @@ export function rhythmAudioPool({
         else{
           const pos=waiting.indexOf(job);if(pos>=0)waiting.splice(pos,1);
           job.done=true;reject(fail('AUDIO_CANCELLED',499));
-          signal.removeEventListener('abort',job.abort);
+          signal?.removeEventListener('abort',job.abort);
         }
       };
       signal?.addEventListener('abort',job.abort,{once:true});
