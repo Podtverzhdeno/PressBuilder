@@ -81,9 +81,17 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
     if (!actor || !['director','worker','reviewer','viewer'].includes(actor.role)) throw new UserError('Unauthenticated MCP identity',401);
     if (args.id && actor.role!=='director' && !actor.projects?.includes(args.id))
       throw new UserError('Project is outside agent scope',403);
-    if(actor.role==='worker'&&name==='set_scene_task'&&
-      (Object.hasOwn(args,'assignee')||args.status==='done'))
-      throw new UserError('Workers cannot change assignee or self-approve tasks',403);
+    if(actor.role==='worker'&&name==='set_scene_task'){
+      // Only director defines the brief and acceptance checklist. A worker can
+      // report progress but must not rewrite its own acceptance criteria.
+      const allowed=new Set(['id','slide_id','fence_token','expected_revision','status']);
+      if(Object.keys(args).some(key=>!allowed.has(key))||
+         (args.status!==undefined&&!['todo','in_progress','review','blocked'].includes(args.status)))
+        throw new UserError('Workers may update task status only, not its assignment or acceptance criteria',403);
+    }
+    if(actor.role==='worker'&&name==='set_scene_checkpoint'&&args.done===true&&
+       (typeof args.note!=='string'||args.note.trim().length<3))
+      throw new UserError('Workers must provide checkpoint completion evidence in note',403);
     if(actor.role==='worker'&&name==='update_cue'&&
       ['say','dur','hold'].some(k=>Object.hasOwn(args,k)))
       throw new UserError('Only director may change narration and cue timing',403);
