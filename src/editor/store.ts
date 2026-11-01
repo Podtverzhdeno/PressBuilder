@@ -426,7 +426,7 @@ declare global {
   interface Window {
     __PB_CLOUD_INFO__?: () => Promise<{ duration: number; slides: Array<{id:string;start:number;dur:number}> }>;
     __PB_CLOUD_FRAME__?: (at: number, height: number) => string;
-    __PB_CLOUD_VISUAL_QA__?: () => VisualAudit;
+    __PB_CLOUD_VISUAL_QA__?: (slideId?:string|null) => VisualAudit;
     __PB_CLOUD_FRAME_STATS__?: (at:number) => FrameLuminance;
   }
 }
@@ -448,12 +448,12 @@ window.__PB_CLOUD_FRAME__ = (at: number, height: number) => {
 };
 
 /** Read-only production QA hooks. No user-supplied JS is executed. */
-window.__PB_CLOUD_VISUAL_QA__ = () => {
+window.__PB_CLOUD_VISUAL_QA__ = (slideId:string|null=null) => {
   const current=deck.peek();
   if(!current)throw new Error('Project not loaded');
   const context=document.createElement('canvas').getContext('2d');
   if(!context)throw new Error('Canvas context unavailable');
-  return auditDataText(current,context);
+  return auditDataText(current,context,slideId,[...scenes.peek().keys()]);
 };
 window.__PB_CLOUD_FRAME_STATS__ = (at:number) => {
   if(!player||!deck.peek())throw new Error('Project not loaded');
