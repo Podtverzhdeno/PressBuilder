@@ -28,6 +28,9 @@ export function rhythmPreviewService(input:{
   root:string;
   getDeck:(id:string)=>unknown;
   enabled?:boolean;
+  audioEvidenceEnabled?:boolean;
+  rightsVerifier?:{verify(projectId:string,music:Record<string,unknown>):{verified:boolean}}|null;
+  audioInspector?:(args:Record<string,unknown>)=>unknown;
 }):{
   context(id:string):RhythmServerContext;
   preview(id:string,manifest:Record<string,unknown>):RhythmServerResult;
