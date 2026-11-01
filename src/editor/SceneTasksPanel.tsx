@@ -44,6 +44,19 @@ export function SceneTasksPanel({projectId,initialSlide,onClose}:Props){
     return ()=>{alive=false};
   },[projectId]);
 
+  async function refresh(){
+    if(busy)return;
+    if(dirty&&!confirm('Несохранённые изменения исчезнут при обновлении. Продолжить?'))return;
+    setBusy(true);setError('');
+    try {
+      const rows=await api.listSceneTasks(projectId);
+      const selected=rows.some(x=>x.scene_id===active)?active:rows[0]?.scene_id||'';
+      setTasks(rows);setActive(selected);
+      setDraft(rows.find(x=>x.scene_id===selected)||null);
+      setDirty(false);
+    }catch(e){setError(e instanceof Error?e.message:String(e))}
+    finally{setBusy(false)}
+  }
   function select(id:string){
     if(busy)return;
     if(dirty&&!confirm('У этой сцены есть несохранённые изменения. Переключиться без сохранения?'))return;
@@ -97,9 +110,12 @@ export function SceneTasksPanel({projectId,initialSlide,onClose}:Props){
     <div class="task-window">
       <header class="task-header">
         <div><strong>Задания агентам</strong><span>{projectId} · {done}/{tasks.length} сцен готово · {cpDone}/{cpTotal} чекпоинтов</span></div>
-        <button type="button" class="btn" onClick={()=>{
-          if(!dirty||confirm('Есть несохранённые изменения. Закрыть?'))onClose();
-        }}>Закрыть</button>
+        <div class="task-head-actions">
+          <button type="button" class="btn" disabled={busy} onClick={()=>void refresh()}>Обновить прогресс</button>
+          <button type="button" class="btn" onClick={()=>{
+            if(!dirty||confirm('Есть несохранённые изменения. Закрыть?'))onClose();
+          }}>Закрыть</button>
+        </div>
       </header>
       <div class="task-layout">
         <nav class="task-list" aria-label="Сцены проекта">
