@@ -24,8 +24,9 @@ function save(file,record){
   try{fs.renameSync(tmp,file)}finally{fs.rmSync(tmp,{force:true})}
 }
 function fingerprint(deck){
-  return digest({id:deck.id,title:deck.title,text:deck.text,style:deck.style,format:deck.format,
-    target:deck.target,slides:deck.slides.map(s=>({id:s.id,label:s.label,cues:s.cues}))});
+  // Include every deck field: lead/tail, cue holds, visual metadata and format
+  // can change the final timing even when the spoken script stays identical.
+  return digest(deck);
 }
 const state=(status)=>['todo','in_progress','review','done','blocked'].includes(status);
 
