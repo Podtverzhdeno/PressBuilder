@@ -7,6 +7,21 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface TypedSceneBrief {
+ schema_version:2;kind:'P10_SCENE_EXECUTION_BRIEF';status:'READ_ONLY';
+ project_id:string;scene_id:string;approved_plan_id:string;approved_plan_revision:number;
+ script_sha256:string;task_revision:number;brief_sha256:string;
+ source_cues:Array<{cue_id:string;spoken_text:string;visible_text:string|null;source_quote_sha256:string}>;
+ approved_task_title:string;approved_task_brief_untrusted_text:string;assignee:string;
+ dependencies:string[];checkpoints:Array<{checkpoint_id:string;title:string;reported_done:boolean;evidence_note:string}>;
+ style_contract_revision:number|null;approval_basis:'DIRECTOR_PLAN_APPROVED_ONLY';
+ authorizations:Record<string,string|boolean>;
+ goals:{project_goal:string;scene_goal:string;user_authored_direction:string};
+ factual_integrity:{mandatory_source_cue_ids:string[];claims_evidence_status:'UNVERIFIED';must_not_invent_facts:true};
+ acceptance:{checkpoints_are_self_reports:true;human_independent_review_required:true;approved_mp4_proven:false;publication_allowed:false;auto_approval_allowed:false};
+ next_actions:string[];warnings:string[];
+}
+
 export interface ContinuityBoundaryFrame {
   frame:number;image_sha256:string;jpeg_size:number;jpeg_base64:string;
 }
@@ -177,6 +192,8 @@ const body = (data: unknown): RequestInit => ({
 
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
+  getTypedSceneBrief: (id:string,slideId:string) =>
+    call<TypedSceneBrief>('/api/decks/'+encodeURIComponent(id)+'/director/brief/'+encodeURIComponent(slideId)),
   getContinuityBoundaryContext: (id:string,left:string,right:string) =>
     call<ContinuityBoundaryContext>(
       '/api/decks/'+encodeURIComponent(id)+'/continuity/context?left='+encodeURIComponent(left)+'&right='+encodeURIComponent(right)),
