@@ -84,6 +84,19 @@ const versions=unwrap(await rpc('tools/call',{name:'list_scene_versions',argumen
 if(versions.versions.length!==1)throw new Error('P08 immutable render version not recorded');
 const version=versions.versions[0];
 if(version.qa.verdict!=='PASS'||!/^[0-9a-f]{16}$/.test(version.version_id))throw new Error('P08 immutable metadata is invalid');
+if(version.frame_evidence?.frames?.length!==3||version.frame_evidence.scope!=='FRAME_HEURISTICS_ONLY')
+  throw new Error('P03 real MP4 has no three-frame diagnostic evidence');
+for(const evidence of version.frame_evidence.frames){
+  const response=await fetch(BASE+'/'+evidence.file,{headers:{Authorization:basic}});
+  if(!response.ok)throw new Error('P03 archived JPEG unavailable: '+evidence.file);
+  const jpegBytes=new Uint8Array(await response.arrayBuffer());
+  if(jpegBytes.length!==evidence.size||jpegBytes[0]!==0xff||jpegBytes[1]!==0xd8)
+    throw new Error('P03 archived JPEG corrupted: '+evidence.file);
+  const {createHash}=await import('node:crypto');
+  if(createHash('sha256').update(jpegBytes).digest('hex')!==evidence.sha256)
+    throw new Error('P03 archived JPEG hash mismatch: '+evidence.file);
+}
+console.log('PASS P03 three real immutable JPEG storyboards and integrity hashes');
 const immutable=await fetch(BASE+'/'+version.file,{headers:{Authorization:basic}});
 if(!immutable.ok || (await immutable.arrayBuffer()).byteLength<1000)throw new Error('P08 immutable MP4 not downloadable');
 // Evidence from an actual Docker-rendered H.264 frame, not a synthetic JPEG.
