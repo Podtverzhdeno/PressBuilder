@@ -99,6 +99,9 @@ test('reviewer rejects and newer author revision invalidates previous endorsemen
     const replaced=x.service.submit(x.id,author,x.manifest(),2,'Revised proposal after rejection');
     assert.equal(replaced.review,null);assert.equal(replaced.status,'submitted');
     assert.equal(replaced.history.length,1);assert.equal(replaced.history[0].status,'rejected');
+    assert.deepEqual(replaced.history[0].cuts,
+      one.proposal.cuts.map(c=>({frame:c.frame,reason:c.reason})),
+      'reviewer must compare actual before/after frame decisions');
     assert.equal(replaced.publication_allowed,false);
   }finally{x.close()}
 });
