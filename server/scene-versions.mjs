@@ -114,7 +114,7 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreS
       bad('Scene source changed; reload and retry restoration',409);
     const targetSettings=saved.project_settings,live=before.snapshot.project_settings;
     const targetAssets=saved.assets,liveAssets=before.snapshot.assets;
-    if(saved.project_target!==live.project_target || saved.project_lead!==live.project_lead || saved.project_tail!==live.project_tail)
+    if(saved.project_target!==before.snapshot.project_target || saved.project_lead!==before.snapshot.project_lead || saved.project_tail!==before.snapshot.project_tail)
       bad('Shared project timebase changed; isolated source restore refused',409);
     // Project-level inputs apply to ALL scenes. Never silently overwrite shared settings,
     // narration, or deployed JS/CSS while restoring a single scene.
