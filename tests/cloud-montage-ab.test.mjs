@@ -40,7 +40,7 @@ function createFixture(root,incrementalHardCuts){
     getPlan:id=>plan.read(id),getStyle:id=>style.read(id),
     getRender:()=>({status:'completed',qa_report:{verdict:'PASS'}}),
     getTask:()=>({status:'done'}),baseUrl:()=> 'https://example.test',
-    incrementalHardCuts});
+    incrementalHardCuts,benchmarkFfmpeg:true});
   return {out,service};
 }
 async function complete(service){
@@ -131,6 +131,15 @@ test('P14 A/B: after scene change, fast hard cuts retain source picture, time an
       incremental.incremental_fallback_reason);
     assert.equal(incremental.incremental.segments_reused,2);
     assert.equal(incremental.incremental.segments_encoded,1);
+    assert.equal(baseline.ffmpeg_benchmark?.scope,'FFMPEG_CHILD_PROCESS',
+      'Legacy FFmpeg CPU data must be measured, not assumed');
+    assert.equal(incremental.ffmpeg_benchmark?.scope,
+      'FFMPEG_CHILDREN_SUMMED_CPU_MAX_SINGLE_RSS');
+    assert.equal(incremental.ffmpeg_benchmark.measured_processes,2,
+      'One changed segment encode plus one mux FFmpeg child');
+    assert.ok(baseline.ffmpeg_benchmark.cpu_user_ms>=0);
+    assert.ok(incremental.ffmpeg_benchmark.cpu_user_ms>=0);
+    assert.ok(incremental.ffmpeg_benchmark.peak_single_process_rss_kib>0);
     const classicFile=classic.service.download('demo',baseline.result.release_id),
       fastFile=fast.service.download('demo',incremental.result.release_id);
     const [v1,v2]=[rgbFrames(classicFile),rgbFrames(fastFile)];
@@ -170,7 +179,13 @@ test('P14 A/B: after scene change, fast hard cuts retain source picture, time an
       audio_duration_delta_ms:Number((Math.abs(a1.length-a2.length)/SAMPLE_RATE*1000).toFixed(2)),
       classic_encode_ms:baseline.timings_ms.encode,
       incremental_encode_ms:incremental.timings_ms.encode,
-      reused_segments:incremental.incremental.segments_reused
+      reused_segments:incremental.incremental.segments_reused,
+      classic_ffmpeg_cpu_ms:baseline.ffmpeg_benchmark.cpu_user_ms+
+        baseline.ffmpeg_benchmark.cpu_system_ms,
+      incremental_ffmpeg_cpu_ms:incremental.ffmpeg_benchmark.cpu_user_ms+
+        incremental.ffmpeg_benchmark.cpu_system_ms,
+      classic_ffmpeg_max_rss_kib:baseline.ffmpeg_benchmark.max_rss_kib,
+      incremental_ffmpeg_peak_child_rss_kib:incremental.ffmpeg_benchmark.peak_single_process_rss_kib
     };
     console.log('P14_MONTAGE_AB_QUALITY '+JSON.stringify(report));
   }finally{fs.rmSync(root,{recursive:true,force:true})}
