@@ -1,6 +1,6 @@
 # OpenSpec Tasks — Professional Montage P15–P24
 
-All 60 checkboxes remain unchecked until independent acceptance. P15 C01/C02 TESTED and C03/C04/C05 IN_PROGRESS; P16 C01/C02 TESTED and C03/C04 IN_PROGRESS (cloud evidence run 41349714899), remaining 51 TODO. No actual narrated storyboard, human P16 approval or publication has been accepted.
+All 60 checkboxes remain unchecked until independent acceptance. P15 C01/C02 TESTED and C03/C04/C05 IN_PROGRESS; P16 C01/C02 TESTED and C03/C04 IN_PROGRESS (cloud evidence run 41349714899), remaining 49 TODO. P17 C01/C02 pure continuity core TESTED; no P08 approved media attestation, signed boundary comparison or actual transition publication has been accepted.
 
 ## Apply checklist
 

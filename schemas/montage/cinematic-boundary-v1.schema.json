@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pressbuilder.local/schemas/montage/cinematic-boundary-v1.schema.json",
+  "title": "P17 approved-version boundary transition request; data-only review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "left",
+    "right",
+    "transition"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "transition": {
+      "enum": [
+        "hard_cut",
+        "match_on_action",
+        "j_cut",
+        "l_cut"
+      ]
+    },
+    "overlap_frames": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 120
+    },
+    "left": {
+      "$ref": "#/$defs/source"
+    },
+    "right": {
+      "$ref": "#/$defs/source"
+    }
+  },
+  "$defs": {
+    "fps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "num",
+        "den"
+      ],
+      "properties": {
+        "num": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "den": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frame",
+        "image_sha256",
+        "camera_yaw_deg",
+        "subject_anchor",
+        "motion_vector",
+        "mean_luma",
+        "hue_deg",
+        "audio_rms_dbfs"
+      ],
+      "properties": {
+        "frame": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "image_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "camera_yaw_deg": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "subject_anchor": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1
+          }
+        },
+        "motion_vector": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1
+          }
+        },
+        "mean_luma": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "hue_deg": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "audio_rms_dbfs": {
+          "type": "number",
+          "minimum": -120,
+          "maximum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scene_id",
+        "source_sha256",
+        "approved_version_id",
+        "fps",
+        "frames",
+        "entry",
+        "exit",
+        "audio_prehandle_frames",
+        "audio_posthandle_frames"
+      ],
+      "properties": {
+        "scene_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+        },
+        "approved_version_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "fps": {
+          "$ref": "#/$defs/fps"
+        },
+        "frames": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 432000
+        },
+        "entry": {
+          "$ref": "#/$defs/boundary"
+        },
+        "exit": {
+          "$ref": "#/$defs/boundary"
+        },
+        "audio_prehandle_frames": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 240
+        },
+        "audio_posthandle_frames": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 240
+        }
+      }
+    }
+  },
+  "description": "Core service consumes bounded trusted approved source metadata only. This schema does not authenticate source approvals; no public endpoint exposes data-only preview before server-side proof."
+}

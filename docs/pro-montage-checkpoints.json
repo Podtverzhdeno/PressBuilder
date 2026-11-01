@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15 C01/C02 TESTED; C03/C04/C05 IN_PROGRESS. P16 C01/C02 TESTED; C03/C04 IN_PROGRESS; C05/C06 TODO. All other P17–P24 TODO. Neither natural speech/creative quality nor any P16 publication is accepted.",
+  "notice": "P15 C01/C02 TESTED, C03/C04/C05 IN_PROGRESS; P16 C01/C02 TESTED, C03/C04 IN_PROGRESS; P17 C01/C02 TESTED (pure core only), C03–C06 TODO. Unaccepted technical validation cannot authorize publication.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -556,7 +556,7 @@
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "Contract and threat model",
-      "status": "TODO",
+      "status": "TESTED",
       "owner_hint": "scene-developer",
       "dependencies": [],
       "inputs": "P05/P08 approved scene source and boundary states",
@@ -574,20 +574,31 @@
       ],
       "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
       "proposed_test_file": "tests/cloud-continuity.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "p17_pure_continuity_core_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41350354920",
+          "commit_sha": "7a556a04d2fd5f89cae71fb2c46eb8ca8aebb687",
+          "command": "npm run build && npm run test:cloud",
+          "exit_code": 0,
+          "artifact_path": "schemas/montage/cinematic-boundary-v1.schema.json",
+          "note": "Deterministic frame and source-boundary data-only contract, J/L handle validation and 30000/1001 precise frame times tested on synthetic signed-shaped metadata. Does NOT verify real server-owned P08 approvals, P03 evidence, physical footage or human acceptance."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Trusted server-side P08 approved version/frame-attestation integration and independent review outstanding.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "7a556a04d2fd5f89cae71fb2c46eb8ca8aebb687"
     },
     {
       "id": "P17-C02",
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "Bounded functional vertical slice",
-      "status": "TODO",
+      "status": "TESTED",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P17-C01",
@@ -609,13 +620,24 @@
       ],
       "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
       "proposed_test_file": "tests/cloud-continuity.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "p17_pure_continuity_core_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41350354920",
+          "commit_sha": "7a556a04d2fd5f89cae71fb2c46eb8ca8aebb687",
+          "command": "npm run build && npm run test:cloud",
+          "exit_code": 0,
+          "artifact_path": "tests/cloud-cinematic-continuity.test.mjs",
+          "note": "Deterministic frame and source-boundary data-only contract, J/L handle validation and 30000/1001 precise frame times tested on synthetic signed-shaped metadata. Does NOT verify real server-owned P08 approvals, P03 evidence, physical footage or human acceptance."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Pure frame-safe core is tested; actual source media/mixed audio, visual transitions, reviewer and real E2E pending.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "7a556a04d2fd5f89cae71fb2c46eb8ca8aebb687"
     },
     {
       "id": "P17-C03",
