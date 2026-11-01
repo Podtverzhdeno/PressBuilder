@@ -8,6 +8,7 @@ import {assemblyService} from '../server/assemble-scenes.mjs';
 import {assemblyPlanStore} from '../server/assembly-plan.mjs';
 import {styleContractStore} from '../server/style-contract.mjs';
 import {inspectMp4} from '../server/video-qa.mjs';
+import {pruneSegmentCache} from '../server/incremental-hardcut.mjs';
 
 const ready=['ffmpeg','ffprobe'].every(cmd=>spawnSync(cmd,['-version'],{stdio:'ignore'}).status===0);
 const sleep=ms=>new Promise(r=>setTimeout(r,80));
@@ -123,4 +124,37 @@ test('P13 corrupted segment cache cannot be reused; forced and crossfade exports
     assert.equal(crossfade.incremental,undefined);
     assert.equal(service.current('demo').release_id,crossfade.result.release_id);
   }finally{f.cleanup()}
+});
+
+
+test('P13 cache governor evicts oldest unprotected segments, keeps current release and reports overage',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-p13-gc-'));
+  const dir=path.join(root,'out','assembly-segments','demo','s01');
+  fs.mkdirSync(dir,{recursive:true});
+  try{
+    const files=[];
+    for(let i=0;i<3;i++){
+      const f=path.join(dir,String(i+1).repeat(64)+'.mp4');
+      fs.writeFileSync(f,Buffer.alloc(2000,65+i));
+      fs.writeFileSync(f.slice(0,-4)+'.json','{}');
+      const time=new Date(1700000000000+i*1000);
+      fs.utimesSync(f,time,time);
+      files.push(f);
+    }
+    const report=pruneSegmentCache({out:path.join(root,'out'),protect:[files[2]],
+      maxBytes:4500,maxSegments:2});
+    assert.equal(report.evicted,1);
+    assert.equal(report.segments_after,2);
+    assert.equal(report.budget_exceeded,false);
+    assert.equal(fs.existsSync(files[0]),false,'Oldest unprotected segment is evicted');
+    assert.equal(fs.existsSync(files[0].slice(0,-4)+'.json'),false);
+    assert.equal(fs.existsSync(files[2]),true,'Current release segment is protected');
+    const constrained=pruneSegmentCache({out:path.join(root,'out'),protect:[files[2]],
+      maxBytes:1000,maxSegments:0});
+    assert.equal(constrained.evicted,1);
+    assert.equal(constrained.budget_exceeded,true,'Protected bytes can exceed soft cap');
+    assert.equal(fs.existsSync(files[2]),true);
+    assert.equal(fs.existsSync(files[1]),false);
+    assert.equal(pruneSegmentCache({out:path.join(root,'missing'),maxBytes:1000}).segments_after,0);
+  }finally{fs.rmSync(root,{recursive:true,force:true})}
 });

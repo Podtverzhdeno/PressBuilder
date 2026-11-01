@@ -10,6 +10,49 @@ import {createHash,randomUUID} from 'node:crypto';
 import {inspectMp4} from './video-qa.mjs';
 
 const VERSION='p13-h264-veryfast-crf20-no-b-v1';
+const SAFE_ID=/^[a-z0-9][a-z0-9_-]{0,40}$/;
+const SHA_NAME=/^[0-9a-f]{64}\.mp4$/;
+const DEFAULT_CACHE_BUDGET=512*1024*1024; // 512 MiB across all projects
+const DEFAULT_CACHE_SEGMENTS=200;
+export function pruneSegmentCache({out,protect=[],maxBytes=DEFAULT_CACHE_BUDGET,
+  maxSegments=DEFAULT_CACHE_SEGMENTS}){
+  if(!Number.isSafeInteger(maxBytes)||maxBytes<0||
+     !Number.isSafeInteger(maxSegments)||maxSegments<0)
+    throw new Error('Invalid segment cache budget');
+  const base=path.join(out,'assembly-segments');
+  if(!fs.existsSync(base))return {evicted:0,bytes_after:0,segments_after:0,budget_exceeded:false};
+  const safeDirs=dir=>{
+    try{return fs.readdirSync(dir,{withFileTypes:true}).filter(x=>
+      x.isDirectory()&&SAFE_ID.test(x.name)).map(x=>path.join(dir,x.name))}
+    catch{return []}
+  };
+  const keep=new Set(protect.map(x=>path.resolve(x))),entries=[];
+  for(const project of safeDirs(base))for(const scene of safeDirs(project)){
+    let files;try{files=fs.readdirSync(scene,{withFileTypes:true})}catch{continue}
+    for(const f of files){
+      if(!f.isFile()||!SHA_NAME.test(f.name))continue;
+      const media=path.join(scene,f.name),manifest=media.slice(0,-4)+'.json';
+      try{
+        const st=fs.lstatSync(media),meta=fs.existsSync(manifest)?fs.lstatSync(manifest):null;
+        if(!st.isFile()||st.isSymbolicLink()||meta&&!meta.isFile())continue;
+        entries.push({media,manifest,bytes:st.size+(meta?.size||0),mtime:st.mtimeMs,
+          protected:keep.has(path.resolve(media))});
+      }catch{}
+    }
+  }
+  let total=entries.reduce((sum,e)=>sum+e.bytes,0),count=entries.length,evicted=0;
+  const candidates=entries.filter(e=>!e.protected).sort((a,b)=>a.mtime-b.mtime);
+  for(const entry of candidates){
+    if(total<=maxBytes&&count<=maxSegments)break;
+    try{
+      fs.rmSync(entry.media);
+      fs.rmSync(entry.manifest,{force:true});
+      total-=entry.bytes;count--;evicted++;
+    }catch{/* Failed cleanup never invalidates published MP4 or protected inputs. */}
+  }
+  return {evicted,bytes_after:total,segments_after:count,
+    budget_exceeded:total>maxBytes||count>maxSegments};
+}
 const digest=obj=>createHash('sha256').update(JSON.stringify(obj)).digest('hex');
 const sha=file=>{
   const h=createHash('sha256'),fd=fs.openSync(file,'r'),buf=Buffer.allocUnsafe(1048576);
@@ -94,7 +137,7 @@ export async function encodeIncrementalHardCuts({out,id,work,sourcePaths,inputs,
   if(inputs.length<2||inputs.length>12||sourcePaths.length!==inputs.length)
     throw err('invalid clip count');
   const started=performance.now();
-  const chunks=[];let reused=0,encoded=0,commonSignature=null;
+  const chunks=[],protectedSegments=[];let reused=0,encoded=0,commonSignature=null;
   for(let i=0;i<inputs.length;i++){
     signal?.throwIfAborted();
     const chunk=await buildSegment({out,id,item:inputs[i],source:sourcePaths[i],
@@ -103,6 +146,7 @@ export async function encodeIncrementalHardCuts({out,id,work,sourcePaths,inputs,
     if(chunk.info.signature!==commonSignature)throw err('different video codec parameters');
     reused+=Number(chunk.reused);
     encoded+=Number(!chunk.reused);
+    protectedSegments.push(chunk.file);
     // Only generated local basenames appear in the safe concat list.
     const local='seg'+i+'.mp4',dest=path.join(work,local);
     fs.copyFileSync(chunk.file,dest);
@@ -151,8 +195,11 @@ export async function encodeIncrementalHardCuts({out,id,work,sourcePaths,inputs,
      Math.abs(vd-ad)>Math.max(.12,3/fps)||
      Math.abs(vd-target)>Math.max(.15,3/fps))
     throw err('A/V duration mismatch; use full FFmpeg montage');
+  // Single governor slot serializes P13 writers. Protect all segments
+  // used for this release while pruning other projects' expired artifacts.
+  const cache=pruneSegmentCache({out,protect:protectedSegments});
   const elapsedMs=Number((performance.now()-started).toFixed(2));
-  return {strategy:'incremental-hardcut-v1',segments_reused:reused,
+  return {strategy:'incremental-hardcut-v1',cache_cleanup:cache,segments_reused:reused,
     segments_encoded:encoded,normalize_ms:normalizeMs,mux_ms:muxMs,
     total_ms:elapsedMs};
 }
