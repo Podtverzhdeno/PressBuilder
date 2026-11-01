@@ -1,5 +1,9 @@
 # PresBuilder
 
+## Professional Montage P15–P24 — OpenSpec + SDD (план, не реализованные функции)
+
+Для новых задач по качественному монтажу сначала прочитай `openspec/changes/professional-montage-p15-p24/proposal.md`, `design.md`, точную capability-спецификацию и `specs/002-professional-montage/spec.md`, `plan.md`, `tasks.md`. Полный протокол независимых агентов и доказательств: [docs/PRO_MONTAGE_AGENTS.md](docs/PRO_MONTAGE_AGENTS.md). Машинный реестр: `docs/pro-montage-checkpoints.json`, **60 этапов начально TODO**. Эти документы не означают, что P15–P24 реализованы, и не дают права ставить `done` без реального тестирования и reviewer signoff. Проверь `node --test tests/pro-montage-spec.test.mjs` и OpenSpec strict после изменений. Не переписывай чужие сценовые задания, `deck.json` и принятые версии MP4.
+
 Редактор анимированных роликов из текста озвучки: Canvas 2D + TypeScript + Vite, интерфейс на Preact.
 Кадр 1920×1080, четыре стиля оформления (`style` в deck.json, пресеты — `src/engine/styles.ts`):
 `terevo` (по умолчанию: тёмный графит, Sofia Sans Extra Condensed в small-caps), `midnight` (тёмно-синяя
