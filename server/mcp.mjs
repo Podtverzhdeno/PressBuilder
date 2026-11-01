@@ -3,7 +3,7 @@ import { createDeck, DECKS, getDeck, listDecks, patchCue, patchDeck, patchObject
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import path from 'node:path';
-const taskStore=sceneTaskStore({root:DECKS,getDeck});
+const taskStore=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const readmeStore=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 
 const obj = (properties, required=[]) => ({ type:'object', properties, required, additionalProperties:false });
