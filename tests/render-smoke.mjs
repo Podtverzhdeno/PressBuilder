@@ -141,4 +141,34 @@ if(approved.version_id!==version.version_id||approved.revision!==1)throw new Err
 const approvedRest=await fetch(BASE+'/api/decks/'+id+'/versions/'+firstSlide,{headers:{Authorization:basic}});
 if(!approvedRest.ok||(await approvedRest.json()).approved.version_id!==version.version_id)throw new Error('P08 REST approved pointer unavailable');
 console.log('PASS P07 review workflow + P08 immutable version approval and authenticated download');
+const sourceSnapshot=unwrap(await rpc('tools/call',{name:'get_scene_source_snapshot',arguments:{
+  id,slide_id:firstSlide,version_id:version.version_id
+}}));
+if(sourceSnapshot.fingerprint!==version.source.fingerprint||
+  sourceSnapshot.source?.slide?.id!==firstSlide||
+  sourceSnapshot.source?.assets?.browser?.available!==true)
+  throw new Error('P08 immutable deployed-source provenance snapshot not available');
+const sourceStateBefore=unwrap(await rpc('tools/call',{name:'get_scene_source_state',arguments:{
+  id,slide_id:firstSlide
+}}));
+if(sourceStateBefore.fingerprint!==sourceSnapshot.fingerprint)
+  throw new Error('P08 live source fingerprint disagrees with immutable snapshot');
+unwrap(await rpc('tools/call',{name:'update_slide',arguments:{
+  id,slide_id:firstSlide,label:'Temporary modified slide for source rollback'
+}}));
+const changedSource=unwrap(await rpc('tools/call',{name:'get_scene_source_state',arguments:{
+  id,slide_id:firstSlide
+}}));
+if(changedSource.fingerprint===sourceStateBefore.fingerprint)
+  throw new Error('P08 source edits did not change fingerprint');
+const restoredSource=unwrap(await rpc('tools/call',{name:'restore_scene_source',arguments:{
+  id,slide_id:firstSlide,version_id:version.version_id,
+  expected_fingerprint:changedSource.fingerprint,
+  expected_scene3d_revision:changedSource.scene3d_revision
+}}));
+if(!restoredSource.ok)throw new Error('P08 scene source rollback failed');
+const deckAfter=unwrap(await rpc('tools/call',{name:'get_deck',arguments:{id}}));
+if(deckAfter.slides.find(s=>s.id===firstSlide)?.label!==sourceSnapshot.source.slide.label)
+  throw new Error('P08 scene label was not restored from immutable source');
+console.log('PASS P08 real MP4 source provenance + director-only scene data restoration');
 
