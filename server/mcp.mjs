@@ -41,6 +41,13 @@ export const TOOLS = [
  { name:'claim_scene', description:'Acquire scene lease as worker and get fencing token.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),ttl:{type:'integer',minimum:30,maximum:3600}},['id','slide_id']) },
  { name:'renew_scene_lease', description:'Extend live lease with matching fencing token.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1},ttl:{type:'integer',minimum:30,maximum:3600}},['id','slide_id','fence_token']) },
  { name:'release_scene', description:'Release the lease and invalidate old fencing tokens.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','fence_token']) },
+ { name:'list_scene_versions', description:'List immutable QA-passing rendered versions of a scene, plus the explicitly approved pointer.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
+ { name:'get_scene_version', description:'Inspect an immutable scene version and protected MP4 download URL.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('16-hex version ID')},['id','slide_id','version_id']) },
+ { name:'approve_scene_version', description:'Director only: approve a QA-pass version after completing its task and verifying all review items. Changes the stable accepted scene MP4.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('16-hex version ID'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','version_id','expected_revision']) },
+ { name:'restore_scene_version', description:'Director only: rollback to a historically approved version without rendering. Requires approved pointer revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),version_id:str('Previously approved version'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','version_id','expected_revision']) },
+ { name:'list_scene_review_items', description:'Review issues anchored to an immutable MP4 version and precise frame time.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
+ { name:'add_scene_review_item', description:'Reviewer or director creates a time/frame-specific issue with normalized rectangle; requires current review revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),expected_revision:{type:'integer',minimum:0},version_id:str('Immutable version ID'),t:num('Seconds within scene'),text:str('Concrete issue, 4..2000 characters'),severity:{type:'string',enum:['low','medium','high','blocking']},rect:obj({x:num('0..1'),y:num('0..1'),w:num('0..1'),h:num('0..1')},['x','y','w','h'])},['id','slide_id','expected_revision','version_id','t','text','severity']) },
+ { name:'transition_scene_review_item', description:'Worker with live fenced lease marks FIXED; reviewer or director verifies or reopens; every transition is audited.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),item_id:str('Review issue UUID'),status:{type:'string',enum:['FIXED','VERIFIED','REOPENED']},note:str('Evidence or reason'),expected_revision:{type:'integer',minimum:0},fence_token:{type:'integer',minimum:1}},['id','slide_id','item_id','status','note','expected_revision']) },
  { name:'assemble_video', description:'Director only: assemble 2-12 approved, QA-passing scenes by hard cut.', inputSchema:obj({id:str('Project slug'),scene_ids:{type:'array',minItems:2,maxItems:12,items:{type:'string'}}},['id','scene_ids']) },
  { name:'get_assembly_status', description:'Check status, output URL and integrity manifest of final video.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'render_video', description:'Start a server-side Chromium + WebCodecs + FFmpeg render job for a video. Poll get_render_status. Server rendering uses deterministic Chromium Canvas frames encoded with FFmpeg.', inputSchema:obj({id:str('Project slug')},['id']) },
@@ -51,7 +58,7 @@ export const TOOLS = [
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
-export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
+export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, reviews }) {
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
   const write=(id,slide,actor,fence,action,fn)=>{
@@ -97,6 +104,24 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
       case 'claim_scene': return leases.claim(args.id,args.slide_id,actor,args.ttl??300);
       case 'renew_scene_lease': return leases.renew(args.id,args.slide_id,actor,args.fence_token,args.ttl??300);
       case 'release_scene': return leases.release(args.id,args.slide_id,actor,args.fence_token);
+      case 'list_scene_versions': scoped(args.id,args.slide_id,actor);return {
+        versions:versions.list(args.id,args.slide_id).map(v=>({...v,download_url:baseUrl()+'/'+v.file})),
+        approved:versions.pointer(args.id,args.slide_id)};
+      case 'get_scene_version': scoped(args.id,args.slide_id,actor);{
+        const v=versions.read(args.id,args.slide_id,args.version_id);return {...v,download_url:baseUrl()+'/'+v.file};
+      }
+      case 'approve_scene_version': directorOnly(actor);
+        if(taskStore.read(args.id,args.slide_id).status!=='done')throw new UserError('Scene task is not complete',409);
+        return versions.approve(args.id,args.slide_id,args.version_id,args.expected_revision,actor,{unresolved:reviews.unresolved});
+      case 'restore_scene_version': directorOnly(actor);
+        return versions.restore(args.id,args.slide_id,args.version_id,args.expected_revision,actor,{unresolved:reviews.unresolved});
+      case 'list_scene_review_items': scoped(args.id,args.slide_id,actor);return reviews.read(args.id,args.slide_id);
+      case 'add_scene_review_item': scoped(args.id,args.slide_id,actor);
+        return reviews.create(args.id,args.slide_id,{version_id:args.version_id,t:args.t,text:args.text,
+          severity:args.severity,rect:args.rect},actor,args.expected_revision);
+      case 'transition_scene_review_item': scoped(args.id,args.slide_id,actor);
+        return reviews.transition(args.id,args.slide_id,args.item_id,args.status,args.note,actor,
+          args.expected_revision,{assertWorker:()=>leases.assertWrite(args.id,args.slide_id,actor,args.fence_token)});
       case 'assemble_video': directorOnly(actor);return assembly.start(args.id,args.scene_ids);
       case 'get_assembly_status': return assembly.get(args.id);
       case 'render_video': directorOnly(actor);return startRender(args.id);
