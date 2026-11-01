@@ -12,6 +12,7 @@ import { makeMcp } from './mcp.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
+import { directorStore } from './director.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 import { inspectMp4 } from './video-qa.mjs';
@@ -35,6 +36,7 @@ const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'sr
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const styles=styleContractStore({root:DECKS,getDeck});
+const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks:sceneTasks,projectReadmes:projectReadmes,styles});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
@@ -233,6 +235,16 @@ async function api(req,res,url) {
       leases.logWrite(id,slideId,director,saved.revision,'write_3d');
       return json(res,200,saved);
     }
+    throw new UserError('Method not allowed',405);
+  }
+  // A director may propose over MCP, but publication requires human web authentication.
+  const directorMatch=/^\/api\/decks\/([^/]+)\/director\/(plan|approve)$/.exec(p);
+  if(directorMatch){
+    const id=deckId(escaped(directorMatch[1]));
+    const action=directorMatch[2];
+    if(action==='plan'&&method==='GET')return json(res,200,directorPlan.read(id));
+    if(action==='plan'&&method==='POST')return json(res,200,directorPlan.propose(id,await readJson(req)));
+    if(action==='approve'&&method==='POST')return json(res,200,directorPlan.approve(id,await readJson(req)));
     throw new UserError('Method not allowed',405);
   }
   const taskMatch=/^\/api\/decks\/([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(p);
