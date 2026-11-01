@@ -12,6 +12,7 @@ import { makeMcp } from './mcp.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
+import { sceneSyncStore } from './scene-sync.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 import { inspectMp4 } from './video-qa.mjs';
@@ -37,12 +38,13 @@ fs.mkdirSync(OUT, {recursive:true});
 const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
+const sceneSync=sceneSyncStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const styles=styleContractStore({root:DECKS,getDeck});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
 const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scene)=>scene3d.read(id,scene),
-  getStyle:id=>styles.read(id)});
+  getStyle:id=>styles.read(id),getSceneSync:(id,scene)=>sceneSync.read(id,scene)});
 const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
 
 function secureEq(a,b) {
@@ -250,6 +252,17 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  // P09: scene-only cue/beat markers that share the precise renderer timebase.
+  const syncMatch=/^\/api\/decks\/([^/]+)\/sync\/([^/]+)$/.exec(p);
+  if(syncMatch){
+    const id=deckId(escaped(syncMatch[1])),scene=deckId(escaped(syncMatch[2]));
+    if(method==='GET')return json(res,200,sceneSync.read(id,scene));
+    if(method==='PUT'){
+      const body=await readJson(req);
+      return json(res,200,sceneSync.put(id,scene,body?.markers,body?.expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const scene3dMatch=/^\/api\/decks\/([^/]+)\/scene3d(?:\/([^/]+))?$/.exec(p);
   if(scene3dMatch){
     const id=deckId(escaped(scene3dMatch[1]));
@@ -261,7 +274,7 @@ async function api(req,res,url) {
     if(method==='GET')return json(res,200,scene3d.read(id,slideId));
     if(method==='PUT'){
       const payload=await readJson(req);
-      enforceScene3D(styles.read(id).contract,payload?.spec);
+      if(payload?.spec!==null)enforceScene3D(styles.read(id).contract,payload?.spec);
       const saved=scene3d.put(id,slideId,payload?.spec,payload?.expected_revision);
       leases.logWrite(id,slideId,director,saved.revision,'write_3d');
       return json(res,200,saved);
@@ -472,7 +485,7 @@ for(const file of fs.readdirSync(JOBS_DIR).filter(n=>/^[0-9a-f]{64}\.json$/.test
 }
 const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),
   getApproved:(id,scene)=>versions.approved(id,scene),baseUrl});
-const mcp=makeMcp({startRender,getRender,baseUrl,assembly,versions,reviews});
+const mcp=makeMcp({startRender,getRender,baseUrl,assembly,versions,reviews,sceneSync});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
