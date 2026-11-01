@@ -12,6 +12,8 @@ import { makeMcp } from './mcp.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
+import {directorStore} from './director.mjs';
+import {directorDispatchStore} from './director-dispatch.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 import { inspectMp4 } from './video-qa.mjs';
@@ -39,7 +41,10 @@ const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'sr
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const styles=styleContractStore({root:DECKS,getDeck});
+const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks,projectReadmes,styles,
+  getAssembly:()=>assembly,getApproved:(id,scene)=>versions.approved(id,scene),out:OUT});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
+const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,getRender,out:OUT});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
 const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scene)=>scene3d.read(id,scene),
@@ -292,6 +297,32 @@ async function api(req,res,url) {
       return json(res,200,saved);
     }
     throw new UserError('Method not allowed',405);
+  }
+  // Human approval/replanning/release require separate authenticated web credentials.
+  const directorMatch=/^\/api\/decks\/([^/]+)\/director\/(plan|approve)$/.exec(p);
+  if(directorMatch){
+    const id=deckId(escaped(directorMatch[1]));
+    if(directorMatch[2]==='plan'&&method==='GET')return json(res,200,directorPlan.read(id));
+    if(directorMatch[2]==='plan'&&method==='POST')return json(res,200,directorPlan.propose(id,await readJson(req)));
+    if(directorMatch[2]==='approve'&&method==='POST')return json(res,200,directorPlan.approve(id,await readJson(req)));
+    throw new UserError('Method not allowed',405);
+  }
+  const directorReplan=/^\/api\/decks\/([^/]+)\/director\/replan\/([^/]+)$/.exec(p);
+  if(directorReplan){
+    if(method!=='POST')throw new UserError('Method not allowed',405);
+    return json(res,200,directorPlan.replan(
+      deckId(escaped(directorReplan[1])),escaped(directorReplan[2]),await readJson(req)));
+  }
+  const directorSignoff=/^\/api\/decks\/([^/]+)\/director\/signoff$/.exec(p);
+  if(directorSignoff){
+    if(method!=='POST')throw new UserError('Method not allowed',405);
+    return json(res,200,directorPlan.signoff(
+      deckId(escaped(directorSignoff[1])),await readJson(req)));
+  }
+  const dispatchMatch=/^\/api\/decks\/([^/]+)\/director\/work$/.exec(p);
+  if(dispatchMatch){
+    if(method!=='GET')throw new UserError('Method not allowed',405);
+    return json(res,200,dispatch.snapshot(deckId(escaped(dispatchMatch[1])),director));
   }
   const taskMatch=/^\/api\/decks\/([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(p);
   if(taskMatch){
