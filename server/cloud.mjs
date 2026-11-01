@@ -572,7 +572,9 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   getTask:(id,scene)=>sceneTasks.read(id,scene),
   getApproved:(id,scene)=>versions.approved(id,scene),
   reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl,
-  getPlan:id=>assemblyPlans.read(id),getStyle:id=>styles.read(id)});
+  getPlan:id=>assemblyPlans.read(id),getStyle:id=>styles.read(id),
+  // Fail closed by default; enable after validating real deployment clips.
+  incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
   assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews});
 const server=http.createServer(async(req,res)=>{
