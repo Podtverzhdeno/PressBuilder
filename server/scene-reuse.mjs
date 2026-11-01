@@ -7,6 +7,11 @@ import path from 'node:path';
 export function findReusableScene({id,slide_id,source_fingerprint,versions,reviews,baseUrl}){
   if(!/^[a-f0-9]{64}$/.test(source_fingerprint||''))return null;
   const entries=versions.list(id,slide_id);
+  // Review findings concern the rendered output, not just its version ID.
+  // A reopened issue on ANY version with the same frozen source must veto
+  // reuse of older matching versions too; otherwise an archive can evade P07.
+  const matching=entries.filter(v=>v.render_fingerprint===source_fingerprint);
+  if(matching.some(v=>reviews.unresolved(id,slide_id,v.version_id)))return null;
   for(let i=entries.length-1;i>=0;i--){
     const candidate=entries[i];
     // Legacy P08 archives lack the full render engine fingerprint. Treat as
