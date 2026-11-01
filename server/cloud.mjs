@@ -62,7 +62,8 @@ const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scen
     putDeck(id,deck);
   }});
 const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
-const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,getRender,versions,out:OUT});
+const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,
+  getRender:(id,scene)=>getRender(id,scene),versions,out:OUT});
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
