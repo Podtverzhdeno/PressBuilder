@@ -279,30 +279,59 @@ async function api(req,res,url) {
   }
   throw new UserError('Unknown API endpoint',404);
 }
+// P02: bounded in-process FIFO. Workers run one Chromium render at a time.
+// Jobs for different scenes queue independently instead of returning HTTP 409.
 const jobs=new Map();
-let busy=false;
+const renderQueue=[];
+let workerActive=false;
 const baseUrl=()=>ORIGIN||'http://localhost:'+PORT;
-function getRender(id){
+const renderKey=(id,slideId)=>slideId?id+':'+slideId:id;
+function getRender(id,slideId=null){
   deckId(id);
-  return jobs.get(id)||{status:'not_started',id};
+  if(slideId)deckId(slideId);
+  const key=renderKey(id,slideId);
+  return jobs.get(key)||{status:'not_started',id,...(slideId?{slide_id:slideId}:{})};
 }
-function startRender(id){
-  getDeck(id);
-  if(busy)throw new UserError('Render worker is busy; poll the existing job',409);
-  busy=true;
-  const j={id,status:'queued',startedAt:new Date().toISOString()};
-  jobs.set(id,j);
-  void (async()=>{
-    try {
+async function workQueue(){
+  if(workerActive)return;
+  workerActive=true;
+  try {
+    while(renderQueue.length){
+      const j=renderQueue.shift();
+      const {id,slide_id:slideId}=j;
       j.status='running';
-      await renderWithChrome({id,port:PORT,username:WEB_USER,password:WEB_PASS,timeoutMs:900000,onProgress:(p)=>{j.progress=Math.round(p*100)}});
-      const file=path.join(OUT,id+'.mp4');
-      if(!fs.existsSync(file))throw new Error('Video was not produced');
-      j.status='completed';
-      j.result={file:'out/'+id+'.mp4',size:fs.statSync(file).size,download_url:baseUrl()+'/out/'+encodeURIComponent(id)+'.mp4'};
-    }catch(e){j.status='failed';j.error=e instanceof Error?e.message:String(e)}
-    finally{j.finishedAt=new Date().toISOString();busy=false}
-  })();
+      j.startedAt=new Date().toISOString();
+      try {
+        await renderWithChrome({id,slideId,port:PORT,username:WEB_USER,password:WEB_PASS,
+          timeoutMs:900000,onProgress:p=>{j.progress=Math.round(p*100)}});
+        const name=slideId?id+'_'+slideId:id;
+        const file=path.join(OUT,name+'.mp4');
+        if(!fs.existsSync(file))throw new Error('Video was not produced');
+        j.status='completed';
+        j.result={file:'out/'+name+'.mp4',size:fs.statSync(file).size,
+          download_url:baseUrl()+'/out/'+encodeURIComponent(name)+'.mp4'};
+      }catch(e){
+        j.status='failed';
+        j.error=e instanceof Error?e.message:String(e);
+      }finally{j.finishedAt=new Date().toISOString()}
+    }
+  }finally{workerActive=false}
+}
+function startRender(id,slideId=null){
+  const d=getDeck(id);
+  if(slideId){
+    deckId(slideId);
+    if(!d.slides.some(s=>s.id===slideId))throw new UserError('Scene not found: '+slideId,404);
+  }
+  const key=renderKey(id,slideId);
+  const previous=jobs.get(key);
+  if(previous&&['queued','running'].includes(previous.status))return {...previous};
+  if(renderQueue.length>=50)throw new UserError('Render queue full (50 pending jobs)',429);
+  const j={id,...(slideId?{slide_id:slideId}:{}),job_id:key+'-'+Date.now(),
+    status:'queued',queuedAt:new Date().toISOString(),progress:0};
+  jobs.set(key,j);
+  renderQueue.push(j);
+  void workQueue();
   return {...j};
 }
 const mcp=makeMcp({startRender,getRender,baseUrl});
