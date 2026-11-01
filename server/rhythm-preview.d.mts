@@ -34,4 +34,5 @@ export function rhythmPreviewService(input:{
 }):{
   context(id:string):RhythmServerContext;
   preview(id:string,manifest:Record<string,unknown>):RhythmServerResult;
+  previewAsync(id:string,manifest:Record<string,unknown>):Promise<RhythmServerResult>;
 };

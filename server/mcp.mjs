@@ -245,13 +245,13 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
         return rhythmPreview.context(args.id);
       case 'preview_rhythm_cuts': directorOnly(actor);
         if(!rhythmPreview)throw new UserError('Rhythm preview disabled',501);
-        return rhythmPreview.preview(args.id,args.manifest);
+        return rhythmPreview.previewAsync(args.id,args.manifest);
       case 'get_rhythm_draft':
         if(!rhythmDrafts)throw new UserError('Rhythm drafts disabled',501);
         return rhythmDrafts.status(args.id,actor);
       case 'submit_rhythm_draft': directorOnly(actor);
         if(!rhythmDrafts)throw new UserError('Rhythm drafts disabled',501);
-        return rhythmDrafts.submit(args.id,actor,args.manifest,args.expected_revision,args.note);
+        return rhythmDrafts.submitAsync(args.id,actor,args.manifest,args.expected_revision,args.note);
       case 'review_rhythm_draft':
         if(!rhythmDrafts)throw new UserError('Rhythm drafts disabled',501);
         return rhythmDrafts.decide(args.id,actor,args);

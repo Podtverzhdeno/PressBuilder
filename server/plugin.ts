@@ -192,7 +192,7 @@ export function presbuilder(): Plugin {
           let payload;
           try{payload=JSON.parse(raw.toString('utf8'))}
           catch{return fail(res,400,'Неверный JSON')}
-          return json(res,rhythmDrafts.submit(id,actor,payload?.manifest,
+          return json(res,await rhythmDrafts.submitAsync(id,actor,payload?.manifest,
             payload?.expected_revision,payload?.note));
         }
         return fail(res,405,'method');
@@ -224,7 +224,7 @@ export function presbuilder(): Plugin {
           let body;
           try{body=JSON.parse(raw.toString('utf8'))}
           catch{ return fail(res,400,'Invalid JSON rhythm manifest') }
-          return json(res,rhythmPreview.preview(id,body?.manifest));
+          return json(res,await rhythmPreview.previewAsync(id,body?.manifest));
         }
         return fail(res,405,'method');
       }catch(e){

@@ -66,3 +66,13 @@ The client `music.source_sha256` and `music.license_ref` must exactly match **on
 `P15-C03` is IN_PROGRESS. `P15-C04` and `P15-C05` have specific technical fixture coverage **but remain unaccepted** pending independent reviewer, human-speech fixtures and quality calibration. Do not check stage boxes based solely on green synthetic-media CI.
 
 The presence of this document must not change Railway deployment. No endpoint can publish, render or approve new MP4 versions as a side effect of the evidence analysis.
+
+## Async worker admission and safe shutdown (PR #33)
+
+The network-accessible cloud REST, Studio Vite API and director MCP rhythm endpoints dispatch the optional PCM verification through `rhythmAudioPool` and `previewAsync`. A worker thread performs the existing bounded `spawnSync(ffmpeg)` inspection **off the main HTTP event loop**. The synchronous inspector remains for isolated offline compatibility tests only, never as the cloud route.
+
+**Default guardrails:** maximum 1 running worker, 2 queued requests, 10-second worker timeout, maximum 64-MiB V8 old-generation allowance per worker, deterministic overload rejection, abort support and termination on shutdown. The underlying FFmpeg decode still has its tighter 8-second and 2-MiB PCM buffer caps. Every job rechecks both audio SHA-256 and the cue clock *after* leaving the queue. Changes while waiting result in REVIEW, zero cuts and no authority to publish. Exact track offsets other than 0 currently fail closed with AUDIO_OFFSET_UNSUPPORTED: timeline-relative and source-relative coordinates are not yet safely equivalent.
+
+**Verification:** `tests/cloud-rhythm-audio-pool.test.mjs` tests backpressure, cancellation, hard timeout, shutdown, actual worker-thread WAV decoding, mutated voice while waiting, and a shifted narration track. `tests/cloud-rhythm-worker-wire.test.mjs` runs an HTTP/MCP server with `PB_RHYTHM_AUDIO_VERIFY=1`, a real WAV, a concurrent `/health` request, real REST preview and CAS draft write. The test must pass in the Docker FFmpeg CI image; on generic runners without FFmpeg it may be skipped with an explicit count.
+
+**Release policy:** changing `PB_RHYTHM_AUDIO_VERIFY` to 1 remains a separately reviewed operations action even after the asynchronous worker code deploys. Worker isolation does not prove correct word-level alignment, music legal ownership, editorial pacing or safety under production traffic. Staging CPU/p95, cancellation, peak memory and canary rollback gates remain mandatory. Turn the flag back to 0 as an immediate safe rollback without altering published MP4 or the `/data` volume.

@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15 C01/C02 TESTED, C03/C04/C05 IN_PROGRESS; 55 TODO. Synthetic six-scene Docker and operator rights gates technically tested; no natural-speech alignment, artistic acceptance or production publish.",
+  "notice": "P15 C01/C02 TESTED, C03/C04/C05 IN_PROGRESS with worker-backed audio CI (147 Docker tests PASS, 0 skipped); C06 TODO; 55 overall TODO. No real-human word alignment or artistic ACCEPTED review.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -149,6 +149,18 @@
           "tests_skipped": 14,
           "artifact_path": "server/rhythm-drafts.mjs",
           "note": "CAS sidecar, restart re-read, prior revision history, separate reviewer role, full-scene scope and no production publish; real HTTP/MCP and unit tests passed. This CI entry refers only to the cloud job, not Docker or artistic E2E."
+        },
+        {
+          "kind": "async_audio_worker_e2e",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41348091992",
+          "commit_sha": "e6bac123c2128e77cd1204a9a412727e34e53a9e",
+          "command": "npm run build && npm run test:cloud in production Docker; render-smoke",
+          "exit_code": 0,
+          "tests_total": 147,
+          "tests_passed": 147,
+          "tests_skipped": 0,
+          "artifact_path": "tests/cloud-rhythm-worker-wire.test.mjs",
+          "note": "Cloud HTTP/MCP async preview and CAS submission successfully tested with real WAV through bounded worker; approved/published states remain impossible; still no verified words or independent artistic approval."
         }
       ],
       "reviewer": null,
@@ -157,7 +169,7 @@
       "blocked_reason": "P15-C03 now includes read-only preview, Studio CAS draft persistence and separate nonpublishable reviewer workflow; remains IN_PROGRESS because independent reviewer signoff, authenticated actual-audio alignment, trusted music rights, full six-scene media QA and rollback remain missing.",
       "accepted_release": null,
       "release_eligible": false,
-      "source_commit_sha": "35fd4c0c84264167a5cc8322376f8db04e868bda"
+      "source_commit_sha": "e6bac123c2128e77cd1204a9a412727e34e53a9e"
     },
     {
       "id": "P15-C04",
@@ -196,6 +208,18 @@
           "cloud_skipped": 16,
           "artifact_path": "tests/cloud-rhythm-audio-evidence.test.mjs",
           "note": "Security and regression tests for source-byte hashing, hardlinks/symlink checks, rights expiry, unsupported FFmpeg, audible false pauses and stale source. Independent security reviewer and negative tests on production roles/remote deployment pending."
+        },
+        {
+          "kind": "async_audio_worker_e2e",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41348091992",
+          "commit_sha": "e6bac123c2128e77cd1204a9a412727e34e53a9e",
+          "command": "npm run build && npm run test:cloud in production Docker; render-smoke",
+          "exit_code": 0,
+          "tests_total": 147,
+          "tests_passed": 147,
+          "tests_skipped": 0,
+          "artifact_path": "tests/cloud-rhythm-audio-pool.test.mjs",
+          "note": "Worker queue max 1+2 with strict timeout/cancellation/source drift and fail-closed offset. CI 147 Docker tests pass, zero skipped; independent adversarial security review and human voice fixtures still missing."
         }
       ],
       "reviewer": null,
@@ -204,7 +228,7 @@
       "blocked_reason": "C03 upstream not accepted; no independent security QA, multi-instance/persistence audit, full word-level source verification or release authority. All checks remain non-publishable.",
       "accepted_release": null,
       "release_eligible": false,
-      "source_commit_sha": "f3316e71aaac3123b0b1276736720fa292329a38"
+      "source_commit_sha": "e6bac123c2128e77cd1204a9a412727e34e53a9e"
     },
     {
       "id": "P15-C05",

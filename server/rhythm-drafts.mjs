@@ -109,9 +109,20 @@ export function rhythmDraftStore({root,getDeck,previewService,now=()=>new Date()
   function submit(id,actor,manifest,expected_revision,note){
     checkActor(actor,id,'director');
     if(!text(note,1000))fail('RHYTHM_NOTE_REQUIRED',400);
-    const old=current(id);
-    guardRevision(expected_revision,old);
+    guardRevision(expected_revision,current(id));
     const candidate=previewService.preview(id,manifest);
+    return commitCandidate(id,actor,expected_revision,note,candidate);
+  }
+  async function submitAsync(id,actor,manifest,expected_revision,note){
+    checkActor(actor,id,'director');
+    if(!text(note,1000))fail('RHYTHM_NOTE_REQUIRED',400);
+    guardRevision(expected_revision,current(id));
+    const candidate=await previewService.previewAsync(id,manifest);
+    return commitCandidate(id,actor,expected_revision,note,candidate);
+  }
+  function commitCandidate(id,actor,expected_revision,note,candidate){
+    checkActor(actor,id,'director');
+    guardRevision(expected_revision,current(id));
     if(candidate.status!=='READY_FOR_REVIEW'||candidate.cuts.length<1||
        !SHA.test(candidate.plan_sha256))fail('RHYTHM_NOT_READY',409);
     if(candidate.provenance?.word_alignment_verified!==false||
@@ -175,5 +186,5 @@ export function rhythmDraftStore({root,getDeck,previewService,now=()=>new Date()
     const {file}=safeFile(root,id);atomic(file,next);
     return {...next,source_state:'CURRENT',publication_allowed:false};
   }
-  return {status,submit,decide};
+  return {status,submit,submitAsync,decide};
 }

@@ -225,7 +225,7 @@ async function api(req,res,url) {
     if(method==='GET')return json(res,200,rhythmDrafts.status(id,director));
     if(method==='POST'){
       const body=await readJson(req);
-      return json(res,200,rhythmDrafts.submit(id,director,body?.manifest,
+      return json(res,200,await rhythmDrafts.submitAsync(id,director,body?.manifest,
         body?.expected_revision,body?.note));
     }
     throw new UserError('Method not allowed',405);
@@ -237,7 +237,7 @@ async function api(req,res,url) {
       return json(res,200,rhythmPreview.context(id));
     if(rhythmMatch[2]==='preview' && method==='POST'){
       const body=await readJson(req);
-      return json(res,200,rhythmPreview.preview(id,body?.manifest));
+      return json(res,200,await rhythmPreview.previewAsync(id,body?.manifest));
     }
     throw new UserError('Method not allowed',405);
   }

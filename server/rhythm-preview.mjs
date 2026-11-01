@@ -8,6 +8,7 @@ import {createHash} from 'node:crypto';
 import {buildSchedule} from '../src/engine/schedule.ts';
 import {proposeRhythmCuts, RhythmInputError} from './rhythm-plan.mjs';
 import {inspectRhythmSilence} from './rhythm-audio-evidence.mjs';
+import {rhythmAudioPool} from './rhythm-audio-pool.mjs';
 
 const PROJECT=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const VOICE=/^voice\.(?:mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/;
@@ -57,8 +58,10 @@ function voiceHash(root,id,filename){
 
 export function rhythmPreviewService({
   root,getDeck,enabled=false,audioEvidenceEnabled=false,
-  rightsVerifier=null,audioInspector=inspectRhythmSilence
+  rightsVerifier=null,audioInspector=inspectRhythmSilence,
+  asyncAudioPool=null
 }){
+  const pool=audioEvidenceEnabled?(asyncAudioPool??rhythmAudioPool()):null;
   function context(id){
     if(!enabled)deny('RHYTHM_PREVIEW_DISABLED',501);
     if(typeof id!=='string'||!PROJECT.test(id))deny('INVALID_PROJECT',400);
@@ -92,7 +95,7 @@ export function rhythmPreviewService({
       cues:cueMap,voice_verified:true,word_alignment_verified:false,
       note:'Actual local voice bytes and current deck cue clock verified; supplied word alignment and music license remain unverified.'};
   }
-  function preview(id,input){
+  function preview(id,input,{skipAudio=false}={}){
     if(!input||typeof input!=='object'||Array.isArray(input))deny('INVALID_RHYTHM_INPUT',400);
     if(JSON.stringify(input).length>MAX_REQUEST)deny('RHYTHM_INPUT_TOO_LARGE',413);
     const c=context(id);
@@ -151,7 +154,7 @@ export function rhythmPreviewService({
         music_rights_evidence=rightsVerifier.verify(id,input.music);
       }catch(e) {issues.push(e?.code??'MUSIC_RIGHTS_UNVERIFIED')}
     }
-    if(audioEvidenceEnabled&&Array.isArray(input.pauses)&&input.pauses.length) {
+    if(audioEvidenceEnabled&&!skipAudio&&Array.isArray(input.pauses)&&input.pauses.length) {
       try {
         audio_evidence=audioInspector({
           root,project_id:id,filename:getDeck(id).audio.file,
@@ -185,5 +188,47 @@ export function rhythmPreviewService({
       caller_markers_unverified:true
     },publication_allowed:false};
   }
-  return {context,preview};
+  /** The network-facing path: bounded worker pool, no blocking ffmpeg on
+   * the HTTP loop. Never skips source revalidation after background work.
+   */
+  async function previewAsync(id,input,{signal}={}){
+    // Source/cue policy and operator rights still checked synchronously.
+    const initial=preview(id,input,{skipAudio:true});
+    if(!audioEvidenceEnabled||!Array.isArray(input?.pauses)||!input.pauses.length||
+       initial.status!=='READY_FOR_REVIEW')return initial;
+    const narrationOffset=getDeck(id).audio?.offset??0;
+    // PCM spans are source-relative whereas browser/export track offsets are
+    // timeline-relative. Until true offset mapping is validated, fail closed.
+    if(!Number.isFinite(narrationOffset)||narrationOffset!==0)
+      return {...initial,status:'REVIEW',cuts:[],plan_sha256:undefined,
+        issues:[...initial.issues,'AUDIO_OFFSET_UNSUPPORTED'],
+        provenance:{...initial.provenance,pause_audio_verified:false},
+        approved:false,persisted:false,publication_allowed:false};
+    const original=context(id);
+    let audio_evidence=null,problem=null;
+    try{
+      audio_evidence=await pool.inspect({
+        root,project_id:id,filename:getDeck(id).audio.file,
+        voice_source_sha256:original.voice_source_sha256,
+        duration_us:original.duration_us,spans:input.pauses
+      },{signal});
+      if(audio_evidence.status!=='PAUSES_SUPPORTED')
+        problem='PAUSE_AUDIO_NOT_SILENT';
+    }catch(e){problem=e?.code??'AUDIO_EVIDENCE_UNAVAILABLE'}
+    // A project may change while queued. Never return a usable stale plan.
+    try{
+      const latest=context(id);
+      if(latest.voice_source_sha256!==original.voice_source_sha256||
+         latest.timebase_revision!==original.timebase_revision)
+        problem='CUE_CLOCK_OR_AUDIO_STALE';
+    }catch{problem='CUE_CLOCK_OR_AUDIO_STALE'}
+    if(problem)return {...initial,status:'REVIEW',cuts:[],plan_sha256:undefined,
+      issues:[...initial.issues,problem],audio_evidence,
+      provenance:{...initial.provenance,pause_audio_verified:false},
+      approved:false,persisted:false,publication_allowed:false};
+    return {...initial,audio_evidence,
+      provenance:{...initial.provenance,pause_audio_verified:true},
+      approved:false,persisted:false,publication_allowed:false};
+  }
+  return {context,preview,previewAsync};
 }
