@@ -11,23 +11,25 @@ const CHECK_ID=/^[a-zA-Z0-9_-]{1,50}$/;
 const STATES=new Set(['todo','in_progress','review','done','blocked']);
 const MAX_CHECKPOINTS=60;
 
-export function sceneTaskStore({root,getDeck}) {
+export function sceneTaskStore({root,getDeck,seedRoot}) {
   function locate(deckId,slideId) {
     if(!SLUG.test(deckId)||!SLUG.test(slideId))throw Object.assign(new Error('Invalid deck or scene ID'),{status:400});
     const deck=getDeck(deckId);
     const scene=deck?.slides?.find(s=>s.id===slideId);
     if(!scene)throw Object.assign(new Error('Scene not found'),{status:404});
-    return {deck,scene,file:path.join(root,deckId,'.scene-tasks',slideId+'.json')};
+    return {deck,scene,file:path.join(root,deckId,'.scene-tasks',slideId+'.json'),
+      seedFile:seedRoot?path.join(seedRoot,deckId,'.scene-tasks',slideId+'.json'):null};
   }
   function fallback(scene) {
     return {scene_id:scene.id,title:String(scene.label||scene.id),assignee:'',status:'todo',
       brief:'',deliverables:'',checkpoints:[],revision:0,updated_at:null};
   }
   function read(deckId,slideId) {
-    const {scene,file}=locate(deckId,slideId);
-    if(!fs.existsSync(file))return fallback(scene);
+    const {scene,file,seedFile}=locate(deckId,slideId);
+    const source=fs.existsSync(file)?file:(seedFile&&fs.existsSync(seedFile)?seedFile:null);
+    if(!source)return fallback(scene);
     try {
-      const t=JSON.parse(fs.readFileSync(file,'utf8'));
+      const t=JSON.parse(fs.readFileSync(source,'utf8'));
       return {...fallback(scene),...t,scene_id:scene.id};
     }catch{throw Object.assign(new Error('Scene assignment cannot be read'),{status:500})}
   }
