@@ -20,6 +20,7 @@ import {sceneLeaseStore,agentDirectory} from './scene-leases.mjs';
 import {assemblyService} from './assemble-scenes.mjs';
 import {sceneVersionStore} from './scene-versions.mjs';
 import {sceneReviewStore} from './scene-reviews.mjs';
+import {captureFrameEvidence} from './frame-qa.mjs';
 import {randomUUID} from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -414,7 +415,10 @@ async function workQueue(){
           throw new Error('Technical video QA failed: '+j.qa_report.issues.map(x=>x.id).join(', '));
         }
         if(slideId){
-          const version=versions.capture({id,scene:slideId,jobId:attemptJobId,file,rendered,qa:j.qa_report,expectedSource:snapshot});
+          const evidence=captureFrameEvidence({file,out:OUT,id,scene:slideId,
+            version:versionId,duration:rendered.duration,fps:rendered.fps});
+          const version=versions.capture({id,scene:slideId,jobId:attemptJobId,file,rendered,
+            qa:j.qa_report,expectedSource:snapshot,frameEvidence:evidence});
           versions.publishPreview(id,slideId,version);
           j.version_id=version.version_id;
         }
@@ -503,7 +507,9 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/out/')){
       const name=escaped(p.slice('/out/'.length));
-      if(!/^[a-z0-9][a-z0-9_-]{0,125}\.mp4$/.test(name))throw new UserError('Invalid filename');
+      const validMp4=/^[a-z0-9][a-z0-9_-]{0,125}\\.mp4$/.test(name);
+      const validEvidence=/^[a-z0-9][a-z0-9_-]{0,40}_[a-z0-9][a-z0-9_-]{0,40}_v[0-9a-f]{16}_f[012]\\.jpg$/.test(name);
+      if(!validMp4&&!validEvidence)throw new UserError('Invalid filename');
       const file=inside(OUT,name);
       if(!file || !fs.existsSync(file))throw new UserError('Video not found',404);
       return fileResponse(req,res,file);
