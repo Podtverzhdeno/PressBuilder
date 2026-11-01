@@ -156,3 +156,31 @@ test('cue-clock fingerprints are stable over no-op reads',()=>{
   assert.equal(a.voice_source_sha256,b.voice_source_sha256);
  }finally{x.close()}
 });
+
+
+test('review finding: changing narration offset invalidates prior cue timebase',()=>{
+ const x=fixture();try{
+  const manifest=x.request();
+  const old=x.svc.context(x.id).timebase_revision;
+  x.deck.audio.offset=0.45;
+  assert.notEqual(x.svc.context(x.id).timebase_revision,old);
+  rejects('CUE_CLOCK_STALE',()=>x.svc.preview(x.id,manifest));
+ }finally{x.close()}
+});
+test('review finding: unique unqualified cue ID is normalized exactly once',()=>{
+ const x=fixture();try{
+  x.deck.slides[1].cues[0].id='c02';
+  const m=x.request();
+  m.words[1].cue_id='c02';
+  m.pauses[1].cue_id='c02';
+  const explicit=x.svc.preview(x.id,m);
+  assert.equal(explicit.status,'READY_FOR_REVIEW');
+  const shorthand=structuredClone(m);
+  delete shorthand.words[0].scene_id;
+  delete shorthand.pauses[0].scene_id;
+  const normalized=x.svc.preview(x.id,shorthand);
+  assert.equal(normalized.status,'READY_FOR_REVIEW');
+  assert.deepEqual(normalized.cuts,explicit.cuts);
+  assert.equal(normalized.plan_sha256,explicit.plan_sha256);
+ }finally{x.close()}
+});
