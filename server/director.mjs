@@ -368,27 +368,35 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
       fail('Render, QA and human review checkpoints require evidence notes',409);
     const svc=getAssembly?.();
     if(!svc||!out)fail('Assembly verification is not available',501);
-    const job=svc.get(id),manifest=job.manifest;
-    if(job.status!=='completed'||job.job_id!==args.assembly_job_id||
-      !manifest||manifest.job_id!==job.job_id||
+    const job=svc.get(id);
+    // The immutable release is persisted on disk, but the worker status is
+    // process-local. After a restart, current() + its verified manifest remain
+    // authoritative even when get() says not_started.
+    const immutable=typeof svc.current==='function'||typeof svc.download==='function';
+    const active=immutable&&typeof svc.current==='function'?svc.current(id):null;
+    const manifest=immutable?active?.manifest:job.manifest;
+    if(immutable&&['queued','running'].includes(job.status))
+      fail('An assembly job is still in progress; signoff requires a stable release',409);
+    if(!immutable&&(job.status!=='completed'||job.job_id!==args.assembly_job_id))
+      fail('No completed legacy assembly job matches signoff request',409);
+    if(!manifest||manifest.job_id!==args.assembly_job_id||
       manifest.project!==id||manifest.output?.qa?.verdict!=='PASS'||
       JSON.stringify(manifest.scenes?.map(x=>x.id))!==JSON.stringify(expected))
-      fail('No matching completed six-scene assembly with passing QA',409);
+      fail('No matching six-scene release with passing QA',409);
     // P05 immutable crossfade releases use an active release pointer and
     // output.bytes. Preserve legacy support only for an older assembly service
     // that has neither current() nor download().
-    const immutable=typeof svc.current==='function'||typeof svc.download==='function';
     if(immutable&&!(typeof svc.current==='function'&&typeof svc.download==='function'))
       fail('Assembly release interface is incomplete',501);
     let releaseId=null,file,verifiedManifest=manifest;
     if(immutable){
-      const active=svc.current(id);
       releaseId=active?.release_id;
       if(!releaseId||!(/^[a-f0-9-]{36}$/.test(releaseId))||
          active?.manifest?.job_id!==args.assembly_job_id||
          active?.manifest?.project!==id||
          active?.manifest?.output?.qa?.verdict!=='PASS'||
-         job.result?.release_id!==releaseId)
+         (job.status==='completed'&&job.job_id===args.assembly_job_id&&
+          job.result?.release_id!==releaseId))
         fail('No matching active immutable assembly release',409);
       verifiedManifest=active.manifest;
       if(manifest.output?.sha256!==verifiedManifest.output?.sha256||
@@ -425,7 +433,7 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
       release_receipt:{file:immutable?'out/releases/'+id+'/'+releaseId+'/final.mp4':
         'out/'+id+'_final.mp4',
         ...(releaseId?{release_id:releaseId}:{}),
-        size:st.size,mtime_ms:st.mtimeMs,sha256,assembly_job_id:job.job_id,
+        size:st.size,mtime_ms:st.mtimeMs,sha256,assembly_job_id:manifest.job_id,
         plan_id:plan.plan_id,released_at}});
     return read(id);
   }
