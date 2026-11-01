@@ -12,6 +12,7 @@ import { makeMcp } from './mcp.mjs';
 import {rhythmPreviewService} from './rhythm-preview.mjs';
 import {musicRightsVerifier} from './rhythm-music-rights.mjs';
 import {rhythmDraftStore} from './rhythm-drafts.mjs';
+import {creativeStoryboardService} from './creative-storyboard.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
@@ -67,6 +68,10 @@ const styles=styleContractStore({root:DECKS,getDeck});
 const assemblyPlans=assemblyPlanStore({root:DECKS,getDeck,getStyle:id=>styles.read(id)});
 const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks,projectReadmes,styles,
   getAssembly:()=>assembly,getApproved:(id,scene)=>versions.approved(id,scene),out:OUT});
+const creativeStory=creativeStoryboardService({
+  getDeck,getDirectorPlan:id=>directorPlan.read(id),
+  enabled:process.env.PB_CREATIVE_STORY_PREVIEW==='1'
+});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
@@ -219,6 +224,17 @@ async function api(req,res,url) {
     return json(res,200,{file:f,size:b.length});
   }
   // Per-scene assignments live apart from deck.json to support parallel agents.
+  const creativeMatch=/^\\/api\\/decks\\/([^/]+)\\/creative\\/(context|preview)$/.exec(p);
+  if(creativeMatch){
+    const id=deckId(escaped(creativeMatch[1]));
+    if(method==='GET'&&creativeMatch[2]==='context')
+      return json(res,200,creativeStory.context(id));
+    if(method==='POST'&&creativeMatch[2]==='preview'){
+      const body=await readJson(req);
+      return json(res,200,creativeStory.preview(id,body?.manifest));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const rhythmDraftMatch=/^\/api\/decks\/([^/]+)\/rhythm\/draft$/.exec(p);
   if(rhythmDraftMatch){
     const id=deckId(escaped(rhythmDraftMatch[1]));
@@ -613,7 +629,7 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
   benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
-  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts});
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
