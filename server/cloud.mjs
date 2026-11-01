@@ -10,6 +10,7 @@ import { timingSafeEqual, createHash } from 'node:crypto';
 import { DATA, DECKS, OUT, UserError, createDeck, deckId, getDeck, hasDeck, listDecks, putDeck } from './cloud-core.mjs';
 import { makeMcp } from './mcp.mjs';
 import {rhythmPreviewService} from './rhythm-preview.mjs';
+import {musicRightsVerifier} from './rhythm-music-rights.mjs';
 import {rhythmDraftStore} from './rhythm-drafts.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
@@ -51,7 +52,16 @@ const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'sr
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const sceneSync=sceneSyncStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
-const rhythmPreview=rhythmPreviewService({root:DECKS,getDeck,enabled:process.env.PB_RHYTHM_PREVIEW==='1'});
+const rhythmRights=(process.env.PB_RHYTHM_RIGHTS_CATALOG&&process.env.PB_RHYTHM_MUSIC_ROOT)
+ ? musicRightsVerifier({
+     catalogFile:process.env.PB_RHYTHM_RIGHTS_CATALOG,
+     assetRoot:process.env.PB_RHYTHM_MUSIC_ROOT,projectRoot:DECKS
+   }) : null;
+const rhythmPreview=rhythmPreviewService({
+  root:DECKS,getDeck,enabled:process.env.PB_RHYTHM_PREVIEW==='1',
+  audioEvidenceEnabled:process.env.PB_RHYTHM_AUDIO_VERIFY==='1',
+  rightsVerifier:rhythmRights
+});
 const rhythmDrafts=rhythmDraftStore({root:DECKS,getDeck,previewService:rhythmPreview});
 const styles=styleContractStore({root:DECKS,getDeck});
 const assemblyPlans=assemblyPlanStore({root:DECKS,getDeck,getStyle:id=>styles.read(id)});
