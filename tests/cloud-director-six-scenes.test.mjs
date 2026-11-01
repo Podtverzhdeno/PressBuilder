@@ -9,6 +9,7 @@ import {directorStore} from '../server/director.mjs';
 import {sceneTaskStore} from '../server/scene-tasks.mjs';
 import {projectReadmeStore} from '../server/project-readme.mjs';
 import {assemblyService} from '../server/assemble-scenes.mjs';
+import {assemblyPlanStore} from '../server/assembly-plan.mjs';
 
 const sha=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const ffmpeg=process.env.FFMPEG||'ffmpeg';
@@ -31,6 +32,7 @@ test('P10 six real H.264 scenes: review, approved immutable P08 inputs, P05 asse
   const taskStore=sceneTaskStore({root,getDeck});
   const readmeStore=projectReadmeStore({root,getDeck});
   const styles={read:()=>({revision:0,contract:{schemaVersion:1,enforce:false}})};
+  const plans=assemblyPlanStore({root,getDeck,getStyle:id=>styles.read(id)});
   const approved=new Map();
   let assembly;
   const director=directorStore({root,getDeck,sceneTasks:taskStore,projectReadmes:readmeStore,
@@ -66,6 +68,7 @@ test('P10 six real H.264 scenes: review, approved immutable P08 inputs, P05 asse
       getRender:(project,scene)=>({status:'completed',job_id:'render-'+scene,qa_report:{verdict:'PASS'}}),
       getTask:(project,scene)=>taskStore.read(project,scene),
       getApproved:(project,scene)=>approved.get(scene),
+      getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
       baseUrl:()=> 'https://example.test'});
     // Missing human-approved immutable version blocks assembly.
     const saved=approved.get('s03');
@@ -84,7 +87,7 @@ test('P10 six real H.264 scenes: review, approved immutable P08 inputs, P05 asse
     assert.equal(state.manifest.scenes.length,6);
     assert.ok(state.manifest.scenes.every(s=>s.approved_version_id));
     assert.equal(state.manifest.output.qa.verdict,'PASS');
-    const final=path.join(out,id+'_final.mp4');
+    const final=assembly.download(id,state.result.release_id);
     assert.equal(sha(final),state.manifest.output.sha256);
     assert.equal(director.read(id).progress.release_status,'manual_review_required');
     const shifted=approved.get('s04');
