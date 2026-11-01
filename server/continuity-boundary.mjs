@@ -53,7 +53,7 @@ async function exactJpeg(file,frame,ffmpeg,exec){
     '-frames:v','1','-c:v','mjpeg','-q:v','4','-f','image2pipe','pipe:1'],exec);
   if(bytes.length<150||bytes.length>1024*1024||bytes[0]!==0xff||bytes[1]!==0xd8||
     bytes.at(-2)!==0xff||bytes.at(-1)!==0xd9)fail('BOUNDARY_FRAME_DECODE_INVALID',422);
-  return {frame,image_sha256:digest(bytes),jpeg_size:bytes.length};
+  return {frame,image_sha256:digest(bytes),jpeg_size:bytes.length,jpeg_base64:bytes.toString('base64')};
 }
 export function continuityBoundaryService({versions,enabled=false,ffmpeg='ffmpeg',ffprobe='ffprobe',exec=spawn}){
   function allowed(id,left,right){
