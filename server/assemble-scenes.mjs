@@ -59,7 +59,8 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0}={}){
     if(signal?.aborted)cancel();
   });
 }
-export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,baseUrl,getPlan,getStyle,reviewUnresolved=()=>false}){
+export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,baseUrl,
+  getPlan,getStyle,reviewUnresolved=()=>false,acquireResource=async()=>()=>{}}){
   const jobs=new Map(),controllers=new Map();
   // The journal is durable on the same volume as release artifacts. It does not
   // provide distributed consensus: production must enforce a single writer.
@@ -251,8 +252,12 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     void (async()=>{
       const root=releaseRoot(id),work=path.join(root,'.partial-'+job.job_id);
       const releaseId=randomUUID(),release=path.join(root,releaseId);
-      let published=false;
+      let published=false,releaseResource=null;
       try{
+        const waitStart=Date.now();
+        releaseResource=await acquireResource({kind:'assembly',id,signal:controller.signal});
+        job.timings_ms.wait_resource=Date.now()-waitStart;
+        if(controller.signal.aborted)throw new Error('Assembly cancelled');
         job.status='running';
         saveJob(job);
         const snapshotStartedAt=Date.now();
@@ -367,6 +372,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
         job.status=controller.signal.aborted?'cancelled':'failed';
         job.error=e instanceof Error?e.message:String(e);
       }finally{
+        try{releaseResource?.()}catch(e){console.error('Assembly resource release failed',e)}
         fs.rmSync(work,{recursive:true,force:true});
         if(published&&job.status!=='completed')fs.rmSync(release,{recursive:true,force:true});
         job.finished_at=new Date().toISOString();
