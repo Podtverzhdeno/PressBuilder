@@ -102,7 +102,7 @@ async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProg
     if(code!==0)throw new Error('FFmpeg failed (code '+code+'): '+logs);
     fs.renameSync(staging,output);
     onProgress?.(1);
-    return {file:output,size:fs.statSync(output).size};
+    return {file:output,size:fs.statSync(output).size,fps,height,duration};
   } finally {
     if(!ff.killed && ff.exitCode===null)ff.kill('SIGKILL');
     fs.rmSync(staging,{force:true});
