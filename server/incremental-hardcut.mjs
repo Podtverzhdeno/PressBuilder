@@ -206,7 +206,10 @@ export async function encodeIncrementalHardCuts({out,id,work,sourcePaths,inputs,
     measured_processes:measurements.length,
     cpu_user_ms:Number(measurements.reduce((n,v)=>n+v.cpu_user_ms,0).toFixed(2)),
     cpu_system_ms:Number(measurements.reduce((n,v)=>n+v.cpu_system_ms,0).toFixed(2)),
-    peak_single_process_rss_kib:Math.max(...measurements.map(v=>v.max_rss_kib||0))
+    peak_single_process_rss_kib:(()=>{
+      const rss=measurements.map(v=>v.max_rss_kib).filter(v=>Number.isFinite(v)&&v>0);
+      return rss.length?Math.max(...rss):null;
+    })()
   }:null;
   return {strategy:'incremental-hardcut-v1',cache_cleanup:cache,
     ...(ffmpeg_benchmark?{ffmpeg_benchmark}:{}),segments_reused:reused,
