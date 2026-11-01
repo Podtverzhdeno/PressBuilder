@@ -26,14 +26,22 @@ function writeAtomic(file,obj){
   try{fs.writeFileSync(tmp,JSON.stringify(obj,null,2)+'\n',{mode:0o600});fs.renameSync(tmp,file)}
   finally{fs.rmSync(tmp,{force:true})}
 }
-function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0}={}){
+function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0,benchmark=false}={}){
   return new Promise((resolve,reject)=>{
-    const child=spawn(process.env.FFMPEG||'ffmpeg',args,{stdio:['ignore','ignore','pipe']});
+    // FFmpeg -benchmark emits utime/stime/rtime/maxrss for its own process,
+    // unlike Node process.cpuUsage(), which excludes FFmpeg child CPU.
+    const argv=benchmark?['-benchmark',...args]:args;
+    if(benchmark){
+      const level=argv.indexOf('-loglevel');
+      if(level>=0)argv[level+1]='info';
+      else argv.unshift('-loglevel','info');
+    }
+    const child=spawn(process.env.FFMPEG||'ffmpeg',argv,{stdio:['ignore','ignore','pipe']});
     let log='',finished=false,aborted=false;
     const cancel=()=>{aborted=true;child.kill('SIGKILL')};
     signal?.addEventListener('abort',cancel,{once:true});
     const timer=setTimeout(()=>{aborted=true;child.kill('SIGKILL')},timeout);
-    let progressBuffer='';
+    let progressBuffer='',benchTime=null,benchMemory=null;
     child.stderr.on('data',b=>{
       const data=b.toString();log=(log+data).slice(-2200);
       progressBuffer+=data;
@@ -41,6 +49,12 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0}={}){
       const rows=progressBuffer.split(/\r?\n/);
       progressBuffer=rows.pop()||'';
       for(const row of rows){
+        if(benchmark){
+          const timing=/bench: utime=([\d.]+)s stime=([\d.]+)s rtime=([\d.]+)s/.exec(row);
+          if(timing)benchTime=timing;
+          const memory=/bench: maxrss=(\d+)(?:KiB|kB)?/.exec(row);
+          if(memory)benchMemory=Number(memory[1]);
+        }
         // FFmpeg reports out_time_ms in microseconds, despite the field name.
         const match=/^out_time_(?:ms|us)=(\d+)$/.exec(row.trim());
         if(match&&duration>0){
@@ -52,7 +66,15 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0}={}){
     const end=(error)=>{
       if(finished)return;finished=true;clearTimeout(timer);
       signal?.removeEventListener('abort',cancel);
-      error?reject(error):resolve();
+      if(error)return reject(error);
+      if(!benchmark)return resolve(null);
+      // Streamed rows survive verbose libx264 statistics after the benchmark.
+      // Null means FFmpeg did not provide the metric; never substitute zero.
+      resolve(benchTime?{scope:'FFMPEG_CHILD_PROCESS',
+        cpu_user_ms:Number((Number(benchTime[1])*1000).toFixed(2)),
+        cpu_system_ms:Number((Number(benchTime[2])*1000).toFixed(2)),
+        wall_ms:Number((Number(benchTime[3])*1000).toFixed(2)),
+        max_rss_kib:benchMemory}:null);
     };
     child.once('error',end);
     child.once('close',code=>end(aborted?new Error(signal?.aborted?'Assembly cancelled':'Assembly timed out'):
@@ -62,7 +84,7 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0}={}){
 }
 export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,baseUrl,
   getPlan,getStyle,reviewUnresolved=()=>false,acquireResource=async()=>()=>{},
-  incrementalHardCuts=false}){
+  incrementalHardCuts=false,benchmarkFfmpeg=false}){
   const jobs=new Map(),controllers=new Map();
   // The journal is durable on the same volume as release artifacts. It does not
   // provide distributed consensus: production must enforce a single writer.
@@ -280,9 +302,10 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
           try{
             incremental=await encodeIncrementalHardCuts({
               out,id,work,sourcePaths,inputs,fps,height,target,encoderProfile:ENCODER_PROFILE,
-              signal:controller.signal,ffmpegRun
+              signal:controller.signal,ffmpegRun,benchmarkFfmpeg
             });
             job.incremental=incremental;
+            if(incremental.ffmpeg_benchmark)job.ffmpeg_benchmark=incremental.ffmpeg_benchmark;
             job.encode_strategy='incremental-hardcut-v1';
             job.timings_ms.encode=incremental.total_ms;
           }catch(e){
@@ -339,7 +362,10 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
           '-c:a','aac','-ar','48000','-ac','2','-b:a','192k','-movflags','+faststart',mp4);
         const encodeStartedAt=Date.now();
         try{
-          await ffmpegRun(args,{signal:controller.signal,duration:target,onProgress:p=>{job.progress=Math.max(job.progress,p)}});
+          const benchmark=await ffmpegRun(args,{signal:controller.signal,
+            duration:target,benchmark:benchmarkFfmpeg,
+            onProgress:p=>{job.progress=Math.max(job.progress,p)}});
+          if(benchmark)job.ffmpeg_benchmark=benchmark;
         }finally{job.timings_ms.encode=Date.now()-encodeStartedAt}
         job.encode_strategy='full-filter';
         }
