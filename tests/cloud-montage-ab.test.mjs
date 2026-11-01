@@ -20,7 +20,9 @@ function ffmpeg(args,limit=25000){
   return cp.stdout;
 }
 function sourceClip(file,color,frequency){
-  const args=['-y','-f','lavfi','-i','color=c='+color+':s=320x180:r=24:d=1.5'];
+  const videoSource=color==='motion'?'testsrc2=s=320x180:r=24:d=1.5':
+    'color=c='+color+':s=320x180:r=24:d=1.5';
+  const args=['-y','-f','lavfi','-i',videoSource];
   if(frequency)args.push('-f','lavfi','-i',
     'sine=frequency='+frequency+':sample_rate=48000:duration=1.5');
   args.push('-t','1.5','-c:v','libx264','-preset','veryfast','-crf','19','-pix_fmt','yuv420p');
@@ -106,7 +108,7 @@ test('P14 A/B: after scene change, fast hard cuts retain source picture, time an
     fast=createFixture(path.join(root,'fast'),true);
   try{
     for(const [scene,color,tone] of [
-      ['s01','red',440],['s02','blue',null],['s03','green',880]]){
+      ['s01','motion',440],['s02','blue',null],['s03','motion',880]]){
       const a=path.join(classic.out,'demo_'+scene+'.mp4');
       sourceClip(a,color,tone);
       fs.copyFileSync(a,path.join(fast.out,path.basename(a)));
@@ -151,7 +153,14 @@ test('P14 A/B: after scene change, fast hard cuts retain source picture, time an
     const boundaryIndices=[0,1,34,35,36,37,38,70,71,72,73,74,106,107];
     const pixelErrors=boundaryIndices.map(i=>maeAt(v1,v2,i));
     const peak=Math.max(...pixelErrors);
-    assert.ok(peak<15,'A/B decoded video diverged at a cut: '+JSON.stringify({peak,pixelErrors}));
+    assert.ok(peak<25,'A/B decoded video diverged at a cut: '+JSON.stringify({peak,pixelErrors}));
+    // Motion in scenes 1/3 makes this sensitive to frame swaps/offsets
+    // that identical-color scene fixtures would otherwise mask.
+    const motionIndices=[6,12,18,24,30,42,78,84,90,96,102];
+    const motionErrors=motionIndices.map(i=>maeAt(v1,v2,i));
+    const motionPeak=Math.max(...motionErrors);
+    assert.ok(motionPeak<25,
+      'Motion frames differ too much from legacy: '+JSON.stringify({motionPeak,motionErrors}));
     const [a1,a2]=[audioPcm(classicFile),audioPcm(fastFile)];
     assert.ok(Math.abs(a1.length-a2.length)<=0.08*SAMPLE_RATE,
       'Audio lengths diverge by >80 ms');
@@ -171,9 +180,10 @@ test('P14 A/B: after scene change, fast hard cuts retain source picture, time an
     for(const t of [0.5,1.34,3.10,4.05])
       assert.ok(rms(a2,t)>0.025,'Expected tone missing: '+t);
     const report={
-      scenario:'3x1.5s,24fps,720p,color/sine/silence,changed middle scene',
+      scenario:'3x1.5s,24fps,720p,motion/sine/silence,changed middle scene',
       frame_count:count2,
       boundary_video_mae_peak:peak,
+      motion_video_mae_peak:motionPeak,
       boundary_video_mae_mean:Number((pixelErrors.reduce((a,b)=>a+b,0)/pixelErrors.length).toFixed(3)),
       max_rms_delta:Number(Math.max(...audioChecks.map(x=>Math.abs(x.fast_rms-x.classic_rms))).toFixed(6)),
       audio_duration_delta_ms:Number((Math.abs(a1.length-a2.length)/SAMPLE_RATE*1000).toFixed(2)),
