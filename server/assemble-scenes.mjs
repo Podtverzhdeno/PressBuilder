@@ -27,7 +27,7 @@ async function ffmpegRun(argv,{timeout=600000}={}){
       if(code===0)resolve();else reject(new Error('Assembly FFmpeg failed: '+output));});
   });
 }
-export function assemblyService({out,getDeck,getRender,getTask,baseUrl}){
+export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,baseUrl}){
   const jobs=new Map();
   function get(id){
     if(!valid.test(id))bad('Invalid project ID');
@@ -65,15 +65,18 @@ export function assemblyService({out,getDeck,getRender,getTask,baseUrl}){
       bad('Unsupported output settings');
     const items=scene_ids.map(scene=>{
       if(getTask(id,scene).status!=='done')bad('Scene not approved: '+scene,409);
-      const job=getRender(id,scene);
+      const approved=getApproved?.(id,scene);
+      if(getApproved&&!approved?.artifact)bad('Scene has no approved immutable version: '+scene,409);
+      const job=approved?.artifact?{status:'completed',job_id:approved.artifact.job_id,
+        qa_report:approved.artifact.qa}:getRender(id,scene);
       if(job.status!=='completed'||job.qa_report?.verdict!=='PASS')bad('Scene has no passed render: '+scene,409);
-      const file=path.join(out,id+'_'+scene+'.mp4');
+      const file=approved?.artifact?.absolute_file||path.join(out,id+'_'+scene+'.mp4');
       if(!fs.existsSync(file))bad('Scene MP4 missing: '+scene,409);
       const qa=inspectMp4(file,{fps:deck.format.fps,height:deck.format.height});
       if(qa.verdict!=='PASS')bad('Input scene failed QA: '+scene,422);
       if(qa.metadata.duration>600)bad('Scene too long: '+scene);
       return {scene,file,duration:qa.metadata.duration,hasAudio:qa.metadata.has_audio,
-        render_job_id:job.job_id,sha256:digest(file)};
+        approved_version_id:approved?.artifact?.version_id||null,render_job_id:job.job_id,sha256:digest(file)};
     });
     if(items.reduce((s,x)=>s+x.duration,0)>600)bad('Assembly exceeds 10 minutes');
     const job={id,job_id:id+'-'+randomUUID(),status:'queued',scene_ids,created_at:new Date().toISOString()};
@@ -106,11 +109,12 @@ export function assemblyService({out,getDeck,getRender,getTask,baseUrl}){
         // If source MP4 changed during encoding, abort rather than publishing a mixed revision.
         if(items.some(x=>!fs.existsSync(x.file)||digest(x.file)!==x.sha256||
            getTask(id,x.scene).status!=='done'||
-           getRender(id,x.scene).status!=='completed'||
-           getRender(id,x.scene).job_id!==x.render_job_id))
+           (getApproved
+             ? getApproved(id,x.scene)?.artifact?.version_id!==x.approved_version_id
+             : getRender(id,x.scene).status!=='completed'||getRender(id,x.scene).job_id!==x.render_job_id)))
           bad('Scene approval or source artifact changed during assembly',409);
         const manifest={version:1,project:id,job_id:job.job_id,transition:'hard-cut',
-          scenes:items.map(x=>({id:x.scene,render_job_id:x.render_job_id,sha256:x.sha256,duration:x.duration,has_audio:x.hasAudio})),
+          scenes:items.map(x=>({id:x.scene,approved_version_id:x.approved_version_id,render_job_id:x.render_job_id,sha256:x.sha256,duration:x.duration,has_audio:x.hasAudio})),
           output:{sha256:digest(stage),size:fs.statSync(stage).size,qa},created_at:new Date().toISOString()};
         // Previous accepted final.mp4 remains available until final file is ready.
         fs.renameSync(stage,final);

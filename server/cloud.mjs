@@ -19,6 +19,9 @@ import { inspectMp4, mergeVisualQA } from './video-qa.mjs';
 import {styleContractStore,enforceScene3D} from './style-contract.mjs';
 import {sceneLeaseStore,agentDirectory} from './scene-leases.mjs';
 import {assemblyService} from './assemble-scenes.mjs';
+import {sceneVersionStore} from './scene-versions.mjs';
+import {sceneReviewStore} from './scene-reviews.mjs';
+import {randomUUID} from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = '0.0.0.0';
@@ -39,6 +42,9 @@ const styles=styleContractStore({root:DECKS,getDeck});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
 const director={id:'web-director',role:'director'};
+const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scene)=>scene3d.read(id,scene),
+  getStyle:id=>styles.read(id)});
+const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
@@ -218,6 +224,33 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const versionMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)(?:\/([^/]+))?$/.exec(p);
+  if(versionMatch){
+    const id=deckId(escaped(versionMatch[1])),scene=deckId(escaped(versionMatch[2])),action=versionMatch[3]||'';
+    if(method==='GET'&&!action)return json(res,200,{versions:versions.list(id,scene),approved:versions.pointer(id,scene)});
+    if(method==='POST'&&(action==='approve'||action==='restore')){
+      const body=await readJson(req);
+      if(action==='approve'&&sceneTasks.read(id,scene).status!=='done')throw new UserError('Scene must be marked done before approval',409);
+      const fn=action==='restore'?versions.restore:versions.approve;
+      return json(res,200,fn(id,scene,body?.version_id,body?.expected_revision,director,{unresolved:reviews.unresolved}));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const reviewMatch=/^\/api\/decks\/([^/]+)\/reviews\/([^/]+)(?:\/([^/]+))?$/.exec(p);
+  if(reviewMatch){
+    const id=deckId(escaped(reviewMatch[1])),scene=deckId(escaped(reviewMatch[2])),itemId=reviewMatch[3]||'';
+    if(method==='GET'&&!itemId)return json(res,200,reviews.list(id,scene));
+    if(method==='GET'&&itemId)return json(res,200,reviews.get(id,scene,escaped(itemId)));
+    if(method==='POST'&&!itemId){
+      const body=await readJson(req);
+      return json(res,200,reviews.create(id,scene,body?.item,director,body?.expected_revision));
+    }
+    if(method==='PATCH'&&itemId){
+      const body=await readJson(req);
+      return json(res,200,reviews.transition(id,scene,escaped(itemId),body?.status,body?.note,director,body?.expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const scene3dMatch=/^\/api\/decks\/([^/]+)\/scene3d(?:\/([^/]+))?$/.exec(p);
   if(scene3dMatch){
     const id=deckId(escaped(scene3dMatch[1]));
@@ -351,6 +384,17 @@ const renderJobs=makeRenderQueue({
   resolveDeck:getDeck,baseUrl,
   fingerprint:sourceFingerprint,
   render:args=>renderWithChrome({...args,port:PORT,username:WEB_USER,password:WEB_PASS,timeoutMs:900000}),
+  outputNameForJob:(id,scene,jobId)=>scene
+    ? id+'_'+scene+'_v'+versions.versionId(jobId)
+    : id+'_'+jobId,
+  publishScene:({job,file,rendered,qa})=>{
+    const scene=job.slide_id;
+    const record=versions.capture({id:job.id,scene,jobId:job.job_id,file,rendered,qa,
+      expectedSource:versions.source(job.id,scene)});
+    try{versions.publishPreview(job.id,scene,record)}
+    catch(e){console.warn('Draft preview update failed:',String(e))}
+    return {version_id:record.version_id};
+  },
   inspect:(file,{visualAudit,frameSamples,...expected})=>
     mergeVisualQA(inspectMp4(file,expected),visualAudit,frameSamples),
 });
@@ -359,7 +403,9 @@ const startRender=(id,slideId=null)=>renderJobs.enqueue(id,slideId);
 const cancelRender=(id,slideId,jobId)=>renderJobs.cancel(id,slideId,jobId);
 const retryRender=(id,slideId,jobId)=>renderJobs.retry(id,slideId,jobId);
 const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),baseUrl});
-const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,assembly});
+const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),
+  getApproved:(id,scene)=>versions.approved(id,scene),baseUrl});
+const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,assembly,versions,reviews});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
@@ -390,7 +436,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/out/')){
       const name=escaped(p.slice('/out/'.length));
-      if(!/^[a-z0-9][a-z0-9_-]{0,100}\.mp4$/.test(name))throw new UserError('Invalid filename');
+      if(!/^[a-z0-9][a-z0-9_-]{0,125}\.mp4$/.test(name))throw new UserError('Invalid filename');
       const file=inside(OUT,name);
       if(!file || !fs.existsSync(file))throw new UserError('Video not found',404);
       return fileResponse(req,res,file);
