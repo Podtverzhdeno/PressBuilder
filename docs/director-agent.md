@@ -101,7 +101,7 @@ Following Director approval, **external workers** can pull their authorized scen
 | `fail_director_job` | Fenced worker | Persist a failure reason and block only its scene |
 | `GET /api/decks/:id/director/work` | Authenticated editor | View complete dispatch board |
 
-Safety and limits: three claim attempts per scene/replan epoch; no monetary cost metering yet. A worker cannot modify another scene, a stale fencing token cannot advance a job, and a failed render cannot be promoted to review. The append-only local event log lives in `.director/dispatch-events.jsonl`. File atomic replacement is only safe for a **single process**; distributed workers sharing a volume require transactional storage, fencing at the storage layer and an explicit multi-instance design. This is a *durable pull coordinator*, not an autonomous AI-agent launcher or distributed task queue.
+Safety and limits: three claim attempts per scene/replan epoch; no monetary cost metering yet. A worker cannot modify another scene, a stale fencing token cannot advance a job, and a failed render cannot be promoted to review. The append-only local event log lives in `.director/dispatch-events.jsonl`. If the process stops between moving a scene into `review`/`blocked` and recording its dispatch outcome, restart classifies the job as `needs_reconciliation` and records an explicit event. It never assumes successful QA from the recovered status alone; the director must inspect or replan the affected scene. File atomic replacement is only safe for a **single process**; distributed workers sharing a volume require transactional storage, fencing at the storage layer and an explicit multi-instance design. This is a *durable pull coordinator*, not an autonomous AI-agent launcher or distributed task queue.
 
 ## Final delivery / human sign-off
 
@@ -130,4 +130,4 @@ to POST /api/decks/:id/director/signoff with web-editor credentials. Sign-off re
 
 ## Verification
 
-Run npm run test:cloud and npm run build. In addition to the planning/sign-off checks, cloud-director-dispatch.test.mjs tests retry budgets, P06 fencing, restart replay and QA→review; cloud-director-dispatch-http.test.mjs verifies real MCP worker scopes, project dependency gates, HTTP approval and manual replan across an HTTP server restart.
+Run npm run test:cloud and npm run build, and execute the Docker render smoke in CI. The additional `cloud-director-six-scenes.test.mjs` exercises six actual H.264 scene files, assembly, immutable provenance and Director sign-off when ffmpeg/ffprobe are installed. A passing syntax or mocked state-machine check alone is not a substitute for this CI. In addition to the planning/sign-off checks, cloud-director-dispatch.test.mjs tests retry budgets, P06 fencing, restart replay and QA→review; cloud-director-dispatch-http.test.mjs verifies real MCP worker scopes, project dependency gates, HTTP approval and manual replan across an HTTP server restart.
