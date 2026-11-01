@@ -52,7 +52,7 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0,benchmark=f
         if(benchmark){
           const timing=/bench: utime=([\d.]+)s stime=([\d.]+)s rtime=([\d.]+)s/.exec(row);
           if(timing)benchTime=timing;
-          const memory=/bench: maxrss=(\d+)KiB/.exec(row);
+          const memory=/bench: maxrss=(\d+)(?:KiB|kB)?/.exec(row);
           if(memory)benchMemory=Number(memory[1]);
         }
         // FFmpeg reports out_time_ms in microseconds, despite the field name.
