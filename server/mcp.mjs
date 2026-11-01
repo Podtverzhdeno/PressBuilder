@@ -85,12 +85,15 @@ export const TOOLS = [
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_rhythm_context', description:'P15 director-only read-only preview prerequisites: real on-disk voice SHA and current cue clock. No word alignment is authenticated and no release is changed.', inputSchema:obj({id:str('Project ID')},['id']) },
  { name:'preview_rhythm_cuts', description:'P15 director-only draft cuts from pinned voice/cues and caller-supplied markers. No approval, storage or rendering. Default disabled until PB_RHYTHM_PREVIEW=1.', inputSchema:obj({id:str('Project ID'),manifest:{type:'object',description:'P15 rhythm-v1 manifest based on get_rhythm_context'}},['id','manifest']) },
+ { name:'get_rhythm_draft', description:'P15 director or full-scene reviewer: inspect saved draft and source freshness. Never a released edit.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'submit_rhythm_draft', description:'P15 director only: persist a source-pinned non-publishable candidate with expected_revision CAS. Does not edit deck or MP4.', inputSchema:obj({id:str('Project slug'),manifest:{type:'object'},expected_revision:{type:'integer',minimum:0},note:str('Reason for draft, 10..1000 chars')},['id','manifest','expected_revision','note']) },
+ { name:'review_rhythm_draft', description:'P15 independent reviewer with access to ALL project scenes: endorse for further validation or reject, revision and plan SHA required. Never grants production publication.', inputSchema:obj({id:str('Project slug'),expected_revision:{type:'integer',minimum:0},plan_sha256:str('64 hex SHA of proposal'),decision:{type:'string',enum:['endorse','reject']},note:str('Independent review evidence')},['id','expected_revision','plan_sha256','decision','note']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
 export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly,
   assemblyPlans,versions,reviews,sceneSync,comparisons=null,previews=null,
   directorPlan:providedDirectorPlan=null,
-  dispatch:providedDispatch=null,rhythmPreview=null }) {
+  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null }) {
   const directorPlan=providedDirectorPlan||directorStore({root:DECKS,getDeck,
     sceneTasks:taskStore,projectReadmes:readmeStore,styles,getAssembly:()=>assembly,
     getApproved:(id,scene)=>versions?.approved(id,scene),out:OUT});
@@ -243,6 +246,15 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'preview_rhythm_cuts': directorOnly(actor);
         if(!rhythmPreview)throw new UserError('Rhythm preview disabled',501);
         return rhythmPreview.preview(args.id,args.manifest);
+      case 'get_rhythm_draft':
+        if(!rhythmDrafts)throw new UserError('Rhythm drafts disabled',501);
+        return rhythmDrafts.status(args.id,actor);
+      case 'submit_rhythm_draft': directorOnly(actor);
+        if(!rhythmDrafts)throw new UserError('Rhythm drafts disabled',501);
+        return rhythmDrafts.submit(args.id,actor,args.manifest,args.expected_revision,args.note);
+      case 'review_rhythm_draft':
+        if(!rhythmDrafts)throw new UserError('Rhythm drafts disabled',501);
+        return rhythmDrafts.decide(args.id,actor,args);
       case 'get_editor_link': getDeck(args.id); return { url:baseUrl().replace(/\/$/,'')+'/?deck='+encodeURIComponent(args.id), note:'Opens a password-protected editor. New projects use placeholder visuals unless scene code is deployed.' };
       default: throw new UserError('Unknown tool: '+name,404);
     }
