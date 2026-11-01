@@ -127,6 +127,20 @@ test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale 
     const visible=await rpc(agent1,'list_decks',{});
     assert.equal(visible.isError,false);
     assert.deepEqual(JSON.parse(visible.content[0].text).map(p=>p.id),['scene-demo']);
+    const sceneTasks=await rpc(agent1,'list_scene_tasks',{id:'scene-demo'});
+    assert.equal(sceneTasks.isError,false);
+    assert.deepEqual(JSON.parse(sceneTasks.content[0].text).map(t=>t.scene_id),['s01'],
+      'Worker must not receive another agent full assignment');
+    const context=await rpc(agent1,'get_project_context',{id:'scene-demo'});
+    assert.equal(context.isError,false);
+    assert.deepEqual(JSON.parse(context.content[0].text).scene_tasks.map(t=>t.scene_id),['s01']);
+    const foreignContext=await rpc(agent1,'get_project_context',{id:'scene-demo',slide_id:'s02'});
+    assert.equal(foreignContext.isError,true,'Cannot request foreign full task through project context');
+    const readDeck=await rpc(agent1,'get_deck',{id:'scene-demo'});
+    assert.equal(readDeck.isError,false);
+    assert.deepEqual(JSON.parse(readDeck.content[0].text).scene_tasks.map(t=>t.scene_id),['s01']);
+    const directorTasks=await rpc(director,'list_scene_tasks',{id:'scene-demo'});
+    assert.deepEqual(JSON.parse(directorTasks.content[0].text).map(t=>t.scene_id),['s01','s02']);
     const noFence=await rpc(agent1,'set_scene_checkpoint',{id:'scene-demo',slide_id:'s01',checkpoint_id:'x',done:true});
     assert.equal(noFence.isError,true);
     const lease=await rpc(agent1,'claim_scene',{id:'scene-demo',slide_id:'s01',ttl:60});
