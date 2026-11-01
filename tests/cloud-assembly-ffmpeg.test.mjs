@@ -80,6 +80,26 @@ test('P05: FFmpeg montage, FPS normalization, silent audio, crossfade, immutable
     assert.equal(cancelled.status,'cancelled',cancelled.error);
     assert.equal(assembly.get('demo').current_release.release_id,before);
     assert.equal(fs.existsSync(assembly.download('demo',release1)),true);
+    // Same-size corruption must be detected using SHA-256, not only fs.stat.
+    const approvedOld=fs.readFileSync(originalFile);
+    const tamperedOld=Buffer.from(approvedOld);
+    tamperedOld[100]^=0x01;
+    fs.writeFileSync(originalFile,tamperedOld);
+    assert.throws(()=>assembly.download('demo',release1),/integrity check failed/);
+    assert.equal(assembly.get('demo').current_release.release_id,release1===before?release1:before,
+      'corrupt older immutable release must not invalidate the current one');
+    fs.writeFileSync(originalFile,approvedOld);
+    assert.equal(assembly.download('demo',release1),originalFile);
+    const currentFile=assembly.download('demo',before);
+    const approvedCurrent=fs.readFileSync(currentFile);
+    const tamperedCurrent=Buffer.from(approvedCurrent);
+    tamperedCurrent[100]^=0x01;
+    fs.writeFileSync(currentFile,tamperedCurrent);
+    assert.equal(assembly.get('demo').current_release,null,
+      'a corrupted active release must never be advertised as valid');
+    assert.throws(()=>assembly.download('demo',before),/integrity check failed/);
+    fs.writeFileSync(currentFile,approvedCurrent);
+    assert.equal(assembly.get('demo').current_release.release_id,before);
   }finally{fs.rmSync(root,{recursive:true,force:true})}
 });
 
