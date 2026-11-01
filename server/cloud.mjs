@@ -574,7 +574,8 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl,
   getPlan:id=>assemblyPlans.read(id),getStyle:id=>styles.read(id),
   // Fail closed by default; enable after validating real deployment clips.
-  incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1'});
+  incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
+  benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
   assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews});
 const server=http.createServer(async(req,res)=>{
