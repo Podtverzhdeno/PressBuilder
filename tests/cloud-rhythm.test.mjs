@@ -201,3 +201,43 @@ test('manifest object key order does not change semantic fingerprint',()=>{
  }};
  assert.equal(proposeRhythmCuts(a).plan_sha256,proposeRhythmCuts(b).plan_sha256);
 });
+
+
+test('review finding: a cut at 24 fps cannot land inside off-grid spoken tail',()=>{
+ const request=example({
+  words:[
+   {id:'w1',cue_id:'c1',start_us:0,end_us:1_020_000},
+   {id:'w2',cue_id:'c2',start_us:3_000_000,end_us:4_000_000},
+   {id:'w3',cue_id:'c3',start_us:5_000_000,end_us:6_000_000}],
+  manual_cut_frames:[24],beats:[],music:undefined
+ });
+ const result=proposeRhythmCuts(request);
+ assert.equal(result.status,'REVIEW');
+ assert.deepEqual(result.cuts,[]);
+ assert.deepEqual(result.issues,['MANUAL_CUT_CUT_THROUGH_WORD']);
+ const exact=proposeRhythmCuts({...request,words:[
+   {...request.words[0],end_us:1_000_000},
+   ...request.words.slice(1)]});
+ assert.equal(exact.status,'READY_FOR_REVIEW');
+ assert.equal(exact.cuts[0].frame,24);
+});
+test('review finding: density compares real 10-second windows, not a 20s neighborhood',()=>{
+ const r=proposeRhythmCuts(example({
+   duration_us:20_000_000,
+   words:[
+    {id:'w1',cue_id:'c1',start_us:0,end_us:500_000},
+    {id:'w2',cue_id:'c2',start_us:9_000_000,end_us:9_500_000},
+    {id:'w3',cue_id:'c3',start_us:18_000_000,end_us:18_500_000}
+   ],
+   pauses:[{cue_id:'c2',start_us:9_500_000,end_us:10_500_000}],
+   manual_cut_frames:[24,456],
+   beats:[],music:undefined,
+   policy:{min_shot_frames:1,max_cuts_per_10s:2,max_cuts:5}
+ }));
+ assert.equal(r.status,'READY_FOR_REVIEW');
+ assert.deepEqual(r.cuts.map(x=>x.frame),[24,240,456]);
+});
+test('review finding: underscores in existing deck project IDs remain valid',()=>{
+ const r=proposeRhythmCuts(example({project_id:'owned_video'}));
+ assert.equal(r.status,'READY_FOR_REVIEW');
+});
