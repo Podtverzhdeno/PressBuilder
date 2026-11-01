@@ -87,6 +87,18 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
       (!out?'signed_off_unverified':(!stat?'artifact_missing':
         (stat.size===receipt.size&&stat.mtimeMs===receipt.mtime_ms?'signed_off':'artifact_changed'))):
       'manual_review_required';
+    const taskById=new Map(tasks.map(t=>[t.scene_id,t]));
+    const plannedById=new Map((plan.scenes||[]).map(s=>[s.scene_id,s]));
+    const statuses=tasks.map(t=>{
+      const deps=plannedById.get(t.scene_id)?.depends_on??[];
+      const waiting_on=deps.filter(dep=>taskById.get(dep)?.status!=='done');
+      return {scene_id:t.scene_id,assignee:t.assignee,
+        status:state(t.status)?t.status:'unknown',revision:t.revision,
+        depends_on:deps,waiting_on,
+        ready_to_start:plan.status==='approved'&&t.status==='todo'&&waiting_on.length===0,
+        checkpoints_done:t.checkpoints.filter(c=>c.done).length,
+        checkpoints_total:t.checkpoints.length};
+    });
     return {...plan,progress:{
       total:tasks.length,
       done:tasks.filter(t=>t.status==='done').length,
@@ -95,9 +107,8 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes,styles,get
       checkpoints_done:tasks.reduce((n,t)=>n+t.checkpoints.filter(c=>c.done).length,0),
       checkpoints_total:tasks.reduce((n,t)=>n+t.checkpoints.length,0),
       release_status:releaseStatus,
-      scene_statuses:tasks.map(t=>({scene_id:t.scene_id,assignee:t.assignee,status:state(t.status)?t.status:'unknown',
-        revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,
-        checkpoints_total:t.checkpoints.length}))
+      ready_to_start:statuses.filter(s=>s.ready_to_start).map(s=>s.scene_id),
+      scene_statuses:statuses
     }};
   }
   function propose(id,args){
