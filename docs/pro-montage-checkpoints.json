@@ -4,14 +4,14 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "No checkpoint has been implemented or accepted by this planning commit.",
+  "notice": "P15-C01 and P15-C02 are TESTED by CI but not accepted; other 58 checkpoints remain TODO. No production feature enabled.",
   "checkpoints": [
     {
       "id": "P15-C01",
       "feature": "P15",
       "capability": "rhythm-engine",
       "name": "Contract and threat model",
-      "status": "TODO",
+      "status": "TESTED",
       "owner_hint": "scene-developer",
       "dependencies": [],
       "inputs": "P09 cue/word alignment + owned music beats",
@@ -29,20 +29,35 @@
       ],
       "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
       "proposed_test_file": "tests/cloud-rhythm.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "cloud_ci_test",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41338415912",
+          "commit_sha": "92fd3b74b7bfa81ddaaae398faa63fb92321a1a9",
+          "command": "npm run test:cloud",
+          "exit_code": 0,
+          "tests_total": 105,
+          "tests_passed": 91,
+          "tests_skipped": 14,
+          "observed_at": "2026-11-01T18:47:58Z",
+          "note": "CI cloud job succeeded; P15 offline contract/core only. Does not establish independent reviewer approval, live MCP integration, rights verification, or six-scene P15 real-media E2E.",
+          "artifact_path": "schemas/montage/rhythm-v1.schema.json"
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Awaiting independent reviewer architecture/code signoff. P15 is not enabled in production.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "92fd3b74b7bfa81ddaaae398faa63fb92321a1a9"
     },
     {
       "id": "P15-C02",
       "feature": "P15",
       "capability": "rhythm-engine",
       "name": "Bounded functional vertical slice",
-      "status": "TODO",
+      "status": "TESTED",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P15-C01"
@@ -62,13 +77,28 @@
       ],
       "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
       "proposed_test_file": "tests/cloud-rhythm.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "cloud_ci_test",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41338415912",
+          "commit_sha": "92fd3b74b7bfa81ddaaae398faa63fb92321a1a9",
+          "command": "npm run test:cloud",
+          "exit_code": 0,
+          "tests_total": 105,
+          "tests_passed": 91,
+          "tests_skipped": 14,
+          "observed_at": "2026-11-01T18:47:58Z",
+          "note": "CI cloud job succeeded; P15 offline contract/core only. Does not establish independent reviewer approval, live MCP integration, rights verification, or six-scene P15 real-media E2E.",
+          "artifact_path": "server/rhythm-plan.mjs"
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Awaiting independent reviewer architecture/code signoff. P15 is not enabled in production.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "92fd3b74b7bfa81ddaaae398faa63fb92321a1a9"
     },
     {
       "id": "P15-C03",
