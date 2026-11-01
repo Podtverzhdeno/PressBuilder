@@ -98,3 +98,8 @@ src/editor/           интерфейс редактора
 src/decks/<id>/       ролики; gameready-3d — пример
 tools/                new.mjs, check.mjs, timing.mjs, align.mjs, frame.html (кадры сеткой для проверки)
 ```
+
+
+## P07 — замечания по конкретным кадрам
+
+После `render_scene` → `completed` проверяй реальные кадры и записывай проблемы через `create_scene_review_item` с `render_revision=job_id`, `t`, `fps`, `frame` и описанием. Исполнитель читает `list_scene_review_items`, исправляет свою сцену под действующей арендой, затем помечает замечание `FIXED` с `fence_token` и доказательством; reviewer/director подтверждает `VERIFIED` или возвращает `REOPENED`. Полное руководство: [docs/scene-review.md](docs/scene-review.md).
