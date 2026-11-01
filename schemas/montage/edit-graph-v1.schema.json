@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pressbuilder.local/schemas/montage/edit-graph-v1.schema.json",
+  "title": "M01 rational EditGraph v1 — source derived, review only",
+  "description": "Deterministic projection of P01/P05/P08/P09, timebase 240000 ticks/s, frame rational; read-only. Candidate trim proposals do not mutate P05/P08 or render.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "timebase",
+    "source_sha256",
+    "duration_tick",
+    "scenes",
+    "markers",
+    "audio",
+    "assembly_revision",
+    "warnings",
+    "candidate_revision",
+    "candidate_state",
+    "candidate",
+    "candidate_may_render",
+    "publication_allowed"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "project_id": {
+      "$ref": "#/$defs/slug"
+    },
+    "timebase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ticks_per_second",
+        "fps"
+      ],
+      "properties": {
+        "ticks_per_second": {
+          "const": 240000
+        },
+        "fps": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "num",
+            "den",
+            "frame_ticks"
+          ],
+          "properties": {
+            "num": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "den": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "frame_ticks": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "source_sha256": {
+      "$ref": "#/$defs/sha"
+    },
+    "duration_tick": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 300,
+      "items": {
+        "$ref": "#/$defs/scene"
+      }
+    },
+    "markers": {
+      "type": "array",
+      "maxItems": 30000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "marker_id",
+          "kind",
+          "scene_id",
+          "pts_tick",
+          "original_global_second"
+        ],
+        "properties": {
+          "marker_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "scene_id": {
+            "$ref": "#/$defs/slug"
+          },
+          "pts_tick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "original_global_second": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "audio": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "kind": {
+          "const": "voice"
+        },
+        "source_name": {
+          "type": "string"
+        },
+        "offset_sample_tick": {
+          "type": "integer"
+        },
+        "sample_rate": {
+          "const": 48000
+        },
+        "media_verified": {
+          "const": false
+        },
+        "alignment": {
+          "const": "NOT_PROVEN_BY_GRAPH"
+        }
+      },
+      "required": [
+        "kind",
+        "source_name",
+        "offset_sample_tick",
+        "sample_rate",
+        "media_verified",
+        "alignment"
+      ]
+    },
+    "assembly_revision": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "candidate_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "candidate_state": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "PROPOSED",
+        "STALE_SOURCE"
+      ]
+    },
+    "candidate": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "candidate_may_render": {
+      "const": false
+    },
+    "publication_allowed": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+    },
+    "sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scene_id",
+        "index",
+        "source_start_frame",
+        "source_end_frame",
+        "start_tick",
+        "end_tick",
+        "duration_tick",
+        "cues",
+        "transition_after",
+        "source_media",
+        "sync_revision"
+      ],
+      "properties": {
+        "scene_id": {
+          "$ref": "#/$defs/slug"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_start_frame": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_end_frame": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "start_tick": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_tick": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_tick": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cues": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cue_id",
+              "source_text_sha256",
+              "start_tick",
+              "end_tick",
+              "source_type"
+            ],
+            "properties": {
+              "cue_id": {
+                "type": "string"
+              },
+              "source_text_sha256": {
+                "$ref": "#/$defs/sha"
+              },
+              "start_tick": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end_tick": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "source_type": {
+                "const": "P01_SCHEDULE"
+              }
+            }
+          }
+        },
+        "transition_after": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "requested_duration_tick",
+            "overlap_applied"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "hard-cut",
+                "crossfade",
+                "match-cut"
+              ]
+            },
+            "requested_duration_tick": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "overlap_applied": {
+              "const": false
+            }
+          }
+        },
+        "source_media": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "version_id": {
+              "type": "string"
+            },
+            "approval_revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha"
+            },
+            "source_duration_s": {
+              "type": "number"
+            },
+            "fps": {
+              "type": "number"
+            },
+            "qa_verdict": {
+              "const": "PASS"
+            }
+          },
+          "required": [
+            "version_id",
+            "approval_revision",
+            "sha256",
+            "source_duration_s",
+            "fps",
+            "qa_verdict"
+          ]
+        },
+        "sync_revision": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
