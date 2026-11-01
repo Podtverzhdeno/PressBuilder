@@ -392,7 +392,9 @@ async function workQueue(){
       let draftFile=null;
       try {
         const snapshot=slideId?versions.source(id,slideId):null;
-        const versionId=slideId?versions.versionId(j.job_id):null;
+        // A restarted attempt must never overwrite the artifact from an earlier attempt.
+        const attemptJobId=j.job_id+':attempt:'+String(j.restartAttempts||0);
+        const versionId=slideId?versions.versionId(attemptJobId):null;
         const outputName=slideId?id+'_'+slideId+'_v'+versionId:null;
         const rendered=await renderWithChrome({id,slideId,port:PORT,username:WEB_USER,password:WEB_PASS,
           outputNameOverride:outputName,
@@ -411,7 +413,7 @@ async function workQueue(){
           throw new Error('Technical video QA failed: '+j.qa_report.issues.map(x=>x.id).join(', '));
         }
         if(slideId){
-          const version=versions.capture({id,scene:slideId,jobId:j.job_id,file,rendered,qa:j.qa_report,expectedSource:snapshot});
+          const version=versions.capture({id,scene:slideId,jobId:attemptJobId,file,rendered,qa:j.qa_report,expectedSource:snapshot});
           versions.publishPreview(id,slideId,version);
           j.version_id=version.version_id;
         }
