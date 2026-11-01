@@ -86,13 +86,30 @@ const version=versions.versions[0];
 if(version.qa.verdict!=='PASS'||!/^[0-9a-f]{16}$/.test(version.version_id))throw new Error('P08 immutable metadata is invalid');
 const immutable=await fetch(BASE+'/'+version.file,{headers:{Authorization:basic}});
 if(!immutable.ok || (await immutable.arrayBuffer()).byteLength<1000)throw new Error('P08 immutable MP4 not downloadable');
+// Evidence from an actual Docker-rendered H.264 frame, not a synthetic JPEG.
+const {spawnSync}=await import('node:child_process');
+const thumbnail=spawnSync('docker',['exec','pb-cloud','ffmpeg','-hide_banner','-loglevel','error',
+  '-i','/data/out/'+id+'_'+firstSlide+'_v'+version.version_id+'.mp4',
+  '-vf','scale=480:270','-frames:v','1','-f','image2pipe','-vcodec','mjpeg','-q:v','9','pipe:1'],
+  {maxBuffer:1024*1024,timeout:30000});
+if(thumbnail.status!==0||!thumbnail.stdout?.length)
+  throw new Error('P07 frame JPEG extraction failed: '+String(thumbnail.error?.message||thumbnail.stderr||thumbnail.status));
+const jpeg='data:image/jpeg;base64,'+thumbnail.stdout.toString('base64');
 const newReview=unwrap(await rpc('tools/call',{name:'add_scene_review_item',arguments:{
   id,slide_id:firstSlide,expected_revision:0,version_id:version.version_id,
   t:Math.max(0,Math.min(version.duration-1/version.fps,0.25)),severity:'medium',
   text:'Review position and motion of the published 3D objects',
-  rect:{x:0.2,y:0.2,w:0.3,h:0.3}
+  rect:{x:0.2,y:0.2,w:0.3,h:0.3},frame_evidence:jpeg
 }}));
 if(newReview.item.status!=='OPEN'||newReview.item.version_id!==version.version_id)throw new Error('P07 review not anchored');
+const stored=unwrap(await rpc('tools/call',{name:'get_scene_review_item',arguments:{
+  id,slide_id:firstSlide,item_id:newReview.item.id
+}}));
+if(stored.frame_evidence!==jpeg)throw new Error('P07 real JPEG evidence not stored');
+const brief=unwrap(await rpc('tools/call',{name:'list_scene_review_items',arguments:{id,slide_id:firstSlide}}));
+if(!brief.items[0].has_frame_evidence||brief.items[0].frame_evidence!==undefined)
+  throw new Error('P07 review summary does not properly hide large JPEG');
+console.log('PASS P07 real MP4 JPEG evidence stored and retrievable');
 unwrap(await rpc('tools/call',{name:'set_scene_task',arguments:{id,slide_id:firstSlide,expected_revision:0,status:'done'}}));
 const blocked=await rpc('tools/call',{name:'approve_scene_version',arguments:{
   id,slide_id:firstSlide,version_id:version.version_id,expected_revision:0}});
