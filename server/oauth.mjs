@@ -62,7 +62,7 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
   const validNonce=nonce=>typeof nonce==='string' && /^[A-Za-z0-9_-]{43,64}$/.test(nonce);
   function cleanConsents(){
     for(const name of fs.readdirSync(consentDir)){
-      if(!/^[A-Za-z0-9_-]{43,64}\\.json$/.test(name))continue;
+      if(!/^[A-Za-z0-9_-]{43,64}\.json$/.test(name))continue;
       const file=path.join(consentDir,name);
       try{
         const a=JSON.parse(fs.readFileSync(file,'utf8'));
