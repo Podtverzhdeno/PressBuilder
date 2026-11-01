@@ -62,8 +62,11 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
   };
   async function call(name, args,actor) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) throw new UserError('Arguments must be an object');
+    if (!actor || !['director','worker','reviewer','viewer'].includes(actor.role)) throw new UserError('Unauthenticated MCP identity',401);
+    if (args.id && actor.role!=='director' && !actor.projects?.includes(args.id))
+      throw new UserError('Project is outside agent scope',403);
     switch(name) {
-      case 'list_decks': return listDecks();
+      case 'list_decks': return actor.role==='director'?listDecks():listDecks().filter(d=>actor.projects.includes(d.id));
       case 'get_deck': return {...getDeck(args.id),project_readme:readmeStore.read(args.id),scene_tasks:taskStore.list(args.id).map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}))};
       case 'get_project_context': {
         const d=getDeck(args.id);
