@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P17-C01/C02 TESTED (data-only core; run 41350977938, 160/160 Docker, independent review pending), P18–P24 TODO. P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
+Progress: P18-C01/C02 IN_PROGRESS (schema + pure keyframe engine / CI pending), P17-C01/C02 TESTED (data-only core; run 41350977938, 160/160 Docker, independent review pending), P18–P24 TODO. P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
 
 ## Evidence and progression rules
 
@@ -276,7 +276,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/professional-motio
 
 #### P18-C01 — Contract and threat model
 
-- [ ] P18-C01 — TODO. Deliverable: montage/professional-motion-v1.json and JSON Schema.
+- [ ] P18-C01 — IN_PROGRESS (pure bounded keyframe planner + schema/tests implemented; current-head CI and independent review pending; no renderer). Deliverable: montage/professional-motion-v1.json and JSON Schema.
 - Actions: Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json. Define P15 timebase and scene property IDs; reject NaN keyframes, large acceleration, huge sample count, speech drift, flashing.
 - Dependencies: Existing P06/P08/P09 and current OpenSpec.
 - Acceptance: Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.
@@ -288,7 +288,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/professional-motio
 
 #### P18-C02 — Bounded functional vertical slice
 
-- [ ] P18-C02 — TODO. Deliverable: server/motion-engine.mjs.
+- [ ] P18-C02 — IN_PROGRESS (pure bounded keyframe planner + schema/tests implemented; current-head CI and independent review pending; no renderer). Deliverable: server/motion-engine.mjs.
 - Actions: Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback. Implement: bounded deterministic easing, camera motion, visual speed ramps and motion blur.
 - Dependencies: P18-C01, P15-C01.
 - Acceptance: Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.
@@ -859,3 +859,8 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/professional-timel
 - [ ] GATE-05: staging deployment matches tested commit SHA, rollback actually exercised and human owner authorizes release.
 
 No gate is complete on plan creation.
+
+
+## 2026-11-02 P18 deterministic motion core
+
+New `server/motion-engine.mjs` and `schemas/montage/professional-motion-v1.schema.json` implement bounded, revision/source-pinned rational-frame keyframe preview with linear/smoothstep/cubic ease, camera properties, velocity/acceleration and flash guards; reduced-motion semantics preserve slow opacity but suppress camera/3D movement. `tests/cloud-motion-pro.test.mjs` exercises positive and adversarial input. This is data-only: it does not drive Chromium/Canvas, create MP4, apply motion blur, attest actual P08 scene revision or claim human creative acceptance. See `docs/P18_PROFESSIONAL_MOTION.md`.
