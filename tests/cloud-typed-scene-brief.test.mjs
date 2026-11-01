@@ -61,6 +61,16 @@ test('M40 fails closed on drafts, source/plan drift, malformed assignments and s
  denies('TYPED_BRIEF_INVALID_ID',()=>svc.read('six','../s01'));
  denies('TYPED_SCENE_BRIEFS_DISABLED',()=>typedSceneBriefService({...f.bindings,enabled:false}).read('six','s01'));
 });
+test('M40 rejects same-revision external tamper with task text and plan goal',()=>{
+ const f=fixture();
+ let n=0;
+ const current={...f.task};
+ const svc=typedSceneBriefService({...f.bindings,sceneTasks:{read:()=>{n++;return n>1?{...current,brief:'Tampered'}:current}}});
+ denies('TYPED_BRIEF_SOURCE_CHANGED_DURING_READ',()=>svc.read('six','s01'));
+ const f2=fixture();let count=0;
+ const svc2=typedSceneBriefService({...f2.bindings,directorPlan:{read:()=>{count++;return count>1?{...f2.plan,goal:'Substituted'}:f2.plan}}});
+ denies('TYPED_BRIEF_SOURCE_CHANGED_DURING_READ',()=>svc2.read('six','s01'));
+});
 test('M40 snapshot read rejects plan revision and task revision races, without any writes',()=>{
  const f=fixture();let reads=0;
  const base=f.plan;
