@@ -16,6 +16,19 @@ function validateRect(rect){
   if(r.w<=0||r.h<=0||r.x+r.w>1.000001||r.y+r.h>1.000001)error('Rectangle exceeds frame');
   return r;
 }
+function thumbnail(data){
+  if(data===undefined||data===null)return null;
+  if(typeof data!=='string'||data.length>180000)error('Thumbnail exceeds maximum size',413);
+  const match=/^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(data);
+  if(!match)error('Only JPEG/PNG frame evidence is supported');
+  const bytes=Buffer.from(match[2],'base64');
+  if(bytes.length<12||bytes.length>130000)error('Frame evidence must be 12..130000 bytes',413);
+  if(match[1]==='jpeg'&&!(bytes[0]===255&&bytes[1]===216&&bytes[2]===255))
+    error('Corrupt JPEG thumbnail');
+  if(match[1]==='png'&&bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')
+    error('Corrupt PNG thumbnail');
+  return data;
+}
 function atomic(file,obj){
   fs.mkdirSync(path.dirname(file),{recursive:true});
   const tmp=file+'.'+randomUUID()+'.tmp';
@@ -33,13 +46,25 @@ export function sceneReviewStore({root,getDeck,getVersion,now=()=>new Date().toI
     if(!fs.existsSync(p))return {project:id,scene_id:scene,revision:0,items:[]};
     return JSON.parse(fs.readFileSync(p,'utf8'));
   }
+  function list(id,scene){
+    const record=read(id,scene);
+    return {...record,items:record.items.map(({frame_evidence,...item})=>({
+      ...item,has_frame_evidence:!!frame_evidence
+    }))};
+  }
+  function get(id,scene,itemId){
+    if(typeof itemId!=='string'||!/^[0-9a-f-]{36}$/.test(itemId))error('Invalid review item ID');
+    const item=read(id,scene).items.find(x=>x.id===itemId);
+    if(!item)error('Review item not found',404);
+    return item;
+  }
   const checkRevision=(expected,old)=>{
     if(!Number.isSafeInteger(expected)||expected!==old.revision)error('Review revision conflict',409);
   };
   function create(id,scene,fields,actor,expected_revision){
     const f=file(id,scene),old=read(id,scene);checkRevision(expected_revision,old);
     if(!fields||typeof fields!=='object'||Array.isArray(fields)||
-      Object.keys(fields).some(k=>!['version_id','t','text','severity','rect'].includes(k)))error('Invalid review payload');
+      Object.keys(fields).some(k=>!['version_id','t','text','severity','rect','frame_evidence'].includes(k)))error('Invalid review payload');
     if(!['director','reviewer'].includes(actor?.role))error('Only reviewers may create review items',403);
     if(old.items.length>=150)error('Scene review limit reached',413);
     const ver=getVersion(id,scene,fields.version_id);
@@ -49,6 +74,7 @@ export function sceneReviewStore({root,getDeck,getVersion,now=()=>new Date().toI
     const stamp=now(),uid=randomUUID(),r=validateRect(fields.rect);
     const item={id:uid,version_id:ver.version_id,t,frame:Math.floor(t*ver.fps),rect:r,
       text:fields.text.trim(),severity:fields.severity,status:'OPEN',created_at:stamp,created_by:actor.id,
+      frame_evidence:thumbnail(fields.frame_evidence),
       history:[{status:'OPEN',at:stamp,actor:actor.id}]};
     const next={...old,revision:old.revision+1,items:[...old.items,item]};atomic(f,next);
     return {revision:next.revision,item};
@@ -80,5 +106,5 @@ export function sceneReviewStore({root,getDeck,getVersion,now=()=>new Date().toI
   function unresolved(id,scene,version){
     return read(id,scene).items.some(i=>i.version_id===version&&i.status!=='VERIFIED');
   }
-  return {read,create,transition,unresolved};
+  return {read,list,get,create,transition,unresolved};
 }
