@@ -34,9 +34,3 @@ The system SHALL require approved timeline revision, pinned source hashes, human
 #### Scenario: Rejected or degraded safe delivery and reproducibility
 - **WHEN** the source media, approval status or timebase changes during export
 - **THEN** publication is refused while the last accepted output remains readable
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P24.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P24, checkpoints P24-C01…P24-C06 and release gate in `specs/002-professional-montage/tasks.md`.
