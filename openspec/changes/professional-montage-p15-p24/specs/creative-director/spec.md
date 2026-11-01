@@ -34,9 +34,3 @@ The system SHALL limit replan to affected scene IDs and preserve independent app
 #### Scenario: Rejected or degraded constrained replan
 - **WHEN** the replan modifies unrelated scene scripts or needs resource allowance beyond policy
 - **THEN** the system refuses automatic edit and asks for human review
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P16.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P16, checkpoints P16-C01…P16-C06 and release gate in `specs/002-professional-montage/tasks.md`.
