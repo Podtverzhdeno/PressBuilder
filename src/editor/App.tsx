@@ -13,6 +13,7 @@ import { ProjectReadmePanel } from './ProjectReadmePanel.tsx';
 import { Scene3DPanel } from './Scene3DPanel.tsx';
 import { SceneReviewPanel } from './SceneReviewPanel.tsx';
 import { StyleDialog } from './StyleDialog.tsx';
+import { StyleContractPanel } from './StyleContractPanel.tsx';
 import { Stage } from './Stage.tsx';
 import {
   canRedo,
@@ -46,7 +47,7 @@ import { TimelinePanel } from './TimelinePanel.tsx';
 import { Icon, IconBtn, MenuBtn } from './ui.tsx';
 import { clock, isTyping, nSlides } from './util.ts';
 
-type Modal = null | 'new' | 'resplit' | 'style' | 'tasks' | 'readme' | 'scene3d' | 'review' | 'export' | 'export-auto';
+type Modal = null | 'new' | 'resplit' | 'style' | 'tasks' | 'readme' | 'scene3d' | 'style-contract' | 'export' | 'export-auto' | 'review';
 
 const SAVE_TEXT = { saved: 'сохранено', dirty: 'изменено', saving: 'сохраняю…', error: 'не сохранилось' };
 
@@ -163,6 +164,9 @@ export function App() {
             <button type="button" class="btn" title="README видеопроекта, доступный каждому агенту по MCP" onClick={() => setModal('readme')}>
               <Icon name="text" size={15} /> README проекта
             </button>
+            <button type="button" class="btn" title="Машинно-проверяемые визуальные правила для всех агентов" onClick={() => setModal('style-contract')}>
+              <Icon name="check" size={15} /> Контракт стиля
+            </button>
             <button type="button" class="btn" title="3D-объекты и анимация выбранной сцены" onClick={() => setModal('scene3d')}>
               <Icon name="film" size={15} /> 3D сцена
             </button>
@@ -191,6 +195,7 @@ export function App() {
       {modal === 'style' && <StyleDialog onClose={() => setModal(null)} />}
       {modal === 'tasks' && d && <SceneTasksPanel projectId={d.id} initialSlide={curSlide.value?.slide.id} onClose={() => setModal(null)} />}
       {modal === 'readme' && d && <ProjectReadmePanel projectId={d.id} onClose={() => setModal(null)} />}
+      {modal === 'style-contract' && d && <StyleContractPanel projectId={d.id} onClose={() => setModal(null)} />}
       {modal === 'scene3d' && d && <Scene3DPanel projectId={d.id} slideId={curSlide.value?.slide.id??d.slides[0]?.id} onClose={() => setModal(null)} />}
       {modal === 'review' && d && <SceneReviewPanel projectId={d.id} initialSlide={curSlide.value?.slide.id} onClose={() => setModal(null)} />}
       {(modal === 'export' || modal === 'export-auto') && (

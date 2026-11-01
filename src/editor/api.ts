@@ -30,6 +30,22 @@ export interface SceneReviewItem {
 }
 export interface SceneReviewRecord {project:string;scene_id:string;revision:number;items:SceneReviewItem[]}
 
+export interface StyleContractRecord {
+  id: string;
+  revision: number;
+  updated_at: string | null;
+  contract: {
+    schemaVersion: number;
+    enforce: boolean;
+    palette: string[];
+    typography: {fonts:string[];minFontSize:number;maxTextLength:number};
+    safeArea: {left:number;right:number;top:number;bottom:number};
+    camera: {maxYawSpeed:number;maxPitchSpeed:number};
+    motion: {maxSpin:number};
+    transitions: {allowed:string[];maxDuration:number};
+    sceneOverrides?:Record<string,unknown>;
+  };
+}
 export interface DeckMeta {
   id: string;
   title: string;
@@ -86,6 +102,11 @@ export const api = {
   setApprovedSceneVersion: (id:string,scene:string,version_id:string,expected_revision:number,action:'approve'|'restore') =>
     call<{revision:number;version_id:string}>(`/api/decks/${id}/versions/${scene}/${action}`,{
       method:'POST',...body({version_id,expected_revision}),
+    }),
+  getStyleContract: (id: string) => call<StyleContractRecord>('/api/decks/'+id+'/style-contract'),
+  saveStyleContract: (id: string, contract: StyleContractRecord['contract'], expected_revision: number) =>
+    call<StyleContractRecord>('/api/decks/'+id+'/style-contract',{
+      method:'PUT',...body({contract,expected_revision})
     }),
   getProjectReadme: (id: string) => call<ProjectReadme>(`/api/decks/${id}/readme`),
   saveProjectReadme: (id: string, content: string, expected_revision: string) =>
