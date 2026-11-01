@@ -27,6 +27,22 @@ unwrap(await rpc('tools/call',{name:'set_slide_visuals',arguments:{id,slide_id:f
   {id:'banner',kind:'rect',x:150,y:180,w:1600,h:480,color:'panel',radius:36,effect:'pop',duration:0.3},
   {id:'headline',kind:'text',x:250,y:280,w:1500,text:'MCP VIDEO TEST',size:90,color:'h1',effect:'rise',cue_id:firstCue,duration:0.3}
 ]}}));
+// P01: exercise the actual rendered 3D Scene SDK path, not just persistence.
+const authored=unwrap(await rpc('tools/call',{name:'set_scene_3d',arguments:{
+  id,slide_id:firstSlide,expected_revision:0,spec:{
+    version:1,
+    camera:{cx:1070,cy:480,size:230,dist:9,yaw:-.4,pitch:.28,yaw_speed:.7,pitch_speed:.05,zoom_speed:.02},
+    objects:[
+      {id:'core',mesh:'icosa',pos:[0,0,0],scale:1.7,rotation:[0,0,0],
+       spin:[.25,.9,.13],color:'#40cbff',edge_color:'#b9eeff',wire:true,start:0,fade:.15},
+      {id:'orbit',mesh:'octa',pos:[2,.4,-.5],scale:.6,rotation:[0,0,0],
+       spin:[0,-1,0],color:'#ffbc64',edge_color:null,wire:false,start:.2,fade:.15},
+    ]
+  }
+}}));
+if(authored.revision!==1)throw new Error('3D composition was not stored');
+const fetched=unwrap(await rpc('tools/call',{name:'get_scene_3d',arguments:{id,slide_id:firstSlide}}));
+if(fetched.spec.objects.length!==2)throw new Error('3D composition not readable');
 const started=unwrap(await rpc('tools/call',{name:'render_video',arguments:{id}}));
 if(!['queued','running'].includes(started.status))throw new Error('Render did not queue');
 let status=null;
