@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P18-C01/C02 IN_PROGRESS (schema + pure keyframe engine / CI pending), P17-C01/C02 TESTED (data-only core; run 41350977938, 160/160 Docker, independent review pending), P18–P24 TODO. P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
+Progress: P18-C01/C02 IN_PROGRESS (motion schema/core CI pending); P17-C03/C04 IN_PROGRESS (async exact P08 boundary evidence; FFmpeg media 162/162 Docker PASS on b6c6c848; independent security review and J/L remain pending), P17-C01/C02 TESTED (data-only core; run 41350977938, 160/160 Docker, independent review pending), P18–P24 TODO. P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
 
 ## Evidence and progression rules
 
@@ -216,7 +216,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/cinematic-continui
 
 #### P17-C03 — MCP + REST + Studio preview
 
-- [ ] P17-C03 — TODO. Deliverable: MCP/REST route and Studio scene editor.
+- [ ] P17-C03 — IN_PROGRESS (Director-only REST/MCP bounded async P08 MP4 boundary evidence, feature flag off by default; Studio compare, true J/L/motion and signoff pending). Deliverable: MCP/REST route and Studio scene editor.
 - Actions: Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor. Expose revisioned preview for cut continuity and independent audio track offsets with evidence; leave published release unchanged.
 - Dependencies: P17-C02.
 - Acceptance: Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.
@@ -228,7 +228,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/cinematic-continui
 
 #### P17-C04 — Negative and regression suite
 
-- [ ] P17-C04 — TODO. Deliverable: tests/cloud-continuity.test.mjs.
+- [ ] P17-C04 — IN_PROGRESS (real FFmpeg first/last frame + stale approval/invalid input negatives; independent security and mid-decode race tests pending). Deliverable: tests/cloud-continuity.test.mjs.
 - Actions: Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation. Exercise deliberately broken cases: prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval.
 - Dependencies: P17-C03.
 - Acceptance: All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.
@@ -276,7 +276,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/professional-motio
 
 #### P18-C01 — Contract and threat model
 
-- [ ] P18-C01 — IN_PROGRESS (pure bounded keyframe planner + schema/tests implemented; current-head CI and independent review pending; no renderer). Deliverable: montage/professional-motion-v1.json and JSON Schema.
+- [ ] P18-C01 — IN_PROGRESS (pure bounded keyframe planner + schema/tests implemented; current-head CI and independent review pending; no renderer). Deliverable: montage/professional-motion-v1.json and JSON Schema. Deliverable: montage/professional-motion-v1.json and JSON Schema.
 - Actions: Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json. Define P15 timebase and scene property IDs; reject NaN keyframes, large acceleration, huge sample count, speech drift, flashing.
 - Dependencies: Existing P06/P08/P09 and current OpenSpec.
 - Acceptance: Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.
@@ -288,7 +288,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/professional-motio
 
 #### P18-C02 — Bounded functional vertical slice
 
-- [ ] P18-C02 — IN_PROGRESS (pure bounded keyframe planner + schema/tests implemented; current-head CI and independent review pending; no renderer). Deliverable: server/motion-engine.mjs.
+- [ ] P18-C02 — IN_PROGRESS (pure bounded keyframe planner + schema/tests implemented; current-head CI and independent review pending; no renderer). Deliverable: server/motion-engine.mjs. Deliverable: server/motion-engine.mjs.
 - Actions: Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback. Implement: bounded deterministic easing, camera motion, visual speed ramps and motion blur.
 - Dependencies: P18-C01, P15-C01.
 - Acceptance: Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.
@@ -859,6 +859,11 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/professional-timel
 - [ ] GATE-05: staging deployment matches tested commit SHA, rollback actually exercised and human owner authorizes release.
 
 No gate is complete on plan creation.
+
+
+## 2026-11-02 P17 boundary attestation vertical slice
+
+Director-only `continuity/context` + `continuity/preview` exposed in REST and MCP when `PB_CONTINUITY_REVIEW=1` (default off). The service verifies the immutable P08 approved MP4 and P03 stored image checksums, decodes first/last JPEG from *actual* MP4 via bounded FFmpeg, pins the approval revision and returns a review-only hard-cut proposal. Caller-supplied paths, approval flags and artificial motion/audio evidence are rejected. The new `tests/cloud-continuity-boundary.test.mjs` exercises real synthetic MP4 and stale revisions in Docker; runner without FFmpeg explicitly skips the media test. This does NOT claim complete P17-C03/04 acceptance or any media release. See `docs/P17_BOUNDARY_ATTESTATION.md`.
 
 
 ## 2026-11-02 P18 deterministic motion core

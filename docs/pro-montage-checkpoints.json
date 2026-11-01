@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15/P16 partial; P17 C01/C02 TESTED, C03/C04 follow-up PR #38 under review; P18 C01/C02 IN_PROGRESS with safe pure motion engine / CI pending, C03-C06 TODO; P19-P24 TODO. No extra production features or creative QA approved.",
+  "notice": "P17 C01/C02 TESTED; C03/C04 IN_PROGRESS with real read-only P08 approved MP4 boundary evidence, 162/162 Docker tests and Studio A/B, awaiting independent security/creative review. P17 C05/C06 TODO; P15/P16 partial; P18 C01/C02 IN_PROGRESS (pure motion schema and core; CI pending), C03-C06 and P19-P24 TODO. No P17 media publishing.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -674,7 +674,7 @@
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "MCP + REST + Studio preview",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P17-C02"
@@ -694,20 +694,37 @@
       ],
       "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
       "proposed_test_file": "tests/cloud-continuity.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "real_ffmpeg_approved_mp4_cloud_docker_integration",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41353039220",
+          "commit_sha": "b6c6c8482b4ba4d24917771d177237114eea1139",
+          "command": "npm run build && npm run test:cloud (cloud and production Docker); node tests/render-smoke.mjs",
+          "exit_code": 0,
+          "cloud_total": 162,
+          "cloud_passed": 142,
+          "cloud_skipped": 20,
+          "docker_total": 162,
+          "docker_passed": 162,
+          "docker_skipped": 0,
+          "artifact_path": "tests/cloud-continuity-wire.test.mjs",
+          "note": "Authenticated HTTP/MCP Director-only path with actual P08-approved H.264 MP4 SHA, precise decoded first/last JPEG, P08 CAS revision and no publication. UI added later on latest PR head and requires its own CI. This does NOT prove actual J/L audio handles, signed human editing, multi-replica performance or full creative QA."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "P08-approved true boundary images, role-scoped MCP/REST and Studio visual A/B implemented. Still missing distributed worker pool, checked motion/audio handles, manual approval and independent security review; keep feature flag off in production.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "b6c6c8482b4ba4d24917771d177237114eea1139"
     },
     {
       "id": "P17-C04",
       "feature": "P17",
       "capability": "cinematic-continuity",
       "name": "Negative and regression suite",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P17-C03"
@@ -727,13 +744,30 @@
       ],
       "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
       "proposed_test_file": "tests/cloud-continuity.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "real_ffmpeg_approved_mp4_cloud_docker_integration",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41353039220",
+          "commit_sha": "b6c6c8482b4ba4d24917771d177237114eea1139",
+          "command": "npm run build && npm run test:cloud (cloud and production Docker); node tests/render-smoke.mjs",
+          "exit_code": 0,
+          "cloud_total": 162,
+          "cloud_passed": 142,
+          "cloud_skipped": 20,
+          "docker_total": 162,
+          "docker_passed": 162,
+          "docker_skipped": 0,
+          "artifact_path": "tests/cloud-continuity-boundary.test.mjs",
+          "note": "Authenticated HTTP/MCP Director-only path with actual P08-approved H.264 MP4 SHA, precise decoded first/last JPEG, P08 CAS revision and no publication. UI added later on latest PR head and requires its own CI. This does NOT prove actual J/L audio handles, signed human editing, multi-replica performance or full creative QA."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Real FFmpeg and negative HTTP/MCP approval/CSRF tests pass. Still require concurrency, corrupt video mid-decode and multi-replica adversarial security tests.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "b6c6c8482b4ba4d24917771d177237114eea1139"
     },
     {
       "id": "P17-C05",

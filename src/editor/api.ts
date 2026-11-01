@@ -7,6 +7,27 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface ContinuityBoundaryFrame {
+  frame:number;image_sha256:string;jpeg_size:number;jpeg_base64:string;
+}
+export interface ContinuityBoundarySource {
+  scene_id:string;approved_version_id:string;approval_revision:number;
+  mp4_sha256:string;fps:{num:number;den:number};frames:number;duration:number;
+  entry:ContinuityBoundaryFrame;exit:ContinuityBoundaryFrame;
+}
+export interface ContinuityBoundaryContext {
+  schema_version:1;project_id:string;status:'REVIEW_ONLY';
+  left:ContinuityBoundarySource;right:ContinuityBoundarySource;source_pair_sha256:string;
+  allowed_transitions:string[];unavailable:string[];caveat:string;
+}
+export interface ContinuityHardCutPreview {
+  schema_version:1;status:'REVIEW';project_id:string;
+  proposal_sha256:string;source_pair_sha256:string;transition:'hard_cut';
+  left_boundary:ContinuityBoundaryFrame;right_boundary:ContinuityBoundaryFrame;
+  video_left_last_frame:number;video_right_first_frame:number;
+  issues:string[];approved:false;persisted:false;publication_allowed:false;
+}
+
 export interface CreativeStoryContext {
   project_id:string;plan_revision:number;source_sha256:string;
   script_fingerprint:string;duration_us:number;fps:number|null;
@@ -156,6 +177,13 @@ const body = (data: unknown): RequestInit => ({
 
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
+  getContinuityBoundaryContext: (id:string,left:string,right:string) =>
+    call<ContinuityBoundaryContext>(
+      '/api/decks/'+encodeURIComponent(id)+'/continuity/context?left='+encodeURIComponent(left)+'&right='+encodeURIComponent(right)),
+  previewContinuityHardCut: (id:string,manifest:{left_scene_id:string;right_scene_id:string;expected_pair_sha256:string;transition:'hard_cut'}) =>
+    call<ContinuityHardCutPreview>('/api/decks/'+encodeURIComponent(id)+'/continuity/preview',{
+      method:'POST',...body(manifest)
+    }),
   getCreativeStoryContext: (id:string) =>
     call<CreativeStoryContext>(`/api/decks/${encodeURIComponent(id)}/creative/context`),
   previewCreativeStory: (id:string,manifest:{expected_plan_revision:number;expected_source_sha256:string}) =>
