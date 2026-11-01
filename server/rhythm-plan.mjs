@@ -43,13 +43,14 @@ const orderedSpans = (spans, label, durationUs) => {
   return spans.map((s, index) => {
     obj(s, 'INVALID_' + label);
     const allowed = label === 'WORDS'
-      ? ['id', 'cue_id', 'start_us', 'end_us', 'protected']
-      : label === 'PAUSES' ? ['start_us', 'end_us', 'cue_id'] : ['start_us', 'end_us'];
+      ? ['id', 'cue_id', 'scene_id', 'start_us', 'end_us', 'protected']
+      : label === 'PAUSES' ? ['start_us', 'end_us', 'cue_id', 'scene_id'] : ['start_us', 'end_us'];
     keys(s, allowed, 'INVALID_' + label);
     const start = boundedInt(s.start_us, 0, durationUs, 'INVALID_' + label);
     const finish = boundedInt(s.end_us, 1, durationUs, 'INVALID_' + label);
     if (finish <= start || (index && start < end)) reject('OVERLAPPING_' + label);
     end = finish;
+    if (s.scene_id !== undefined) ident(s.scene_id, 'INVALID_SCENE_ID');
     if (label === 'WORDS') {
       ident(s.id, 'INVALID_WORD_ID');
       ident(s.cue_id, 'INVALID_CUE_ID');
@@ -97,10 +98,10 @@ function validate(input) {
   const wordIds = new Set(), cueIds = new Set();
   for (const word of words) {
     if (wordIds.has(word.id)) reject('DUPLICATE_WORD_ID');
-    wordIds.add(word.id); cueIds.add(word.cue_id);
+    wordIds.add(word.id); cueIds.add((word.scene_id ?? '') + '/' + word.cue_id);
   }
   for (const pause of pauses) {
-    if (!cueIds.has(pause.cue_id)) reject('ORPHAN_PAUSE_CUE');
+    if (!cueIds.has((pause.scene_id ?? '') + '/' + pause.cue_id)) reject('ORPHAN_PAUSE_CUE');
     if (words.some(w => pause.start_us < w.end_us && pause.end_us > w.start_us)) {
       reject('PAUSE_OVERLAPS_WORD');
     }
