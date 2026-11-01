@@ -142,7 +142,8 @@ export function makeRenderQueue({
         const immutable=path.join(outputDir,j.output_name+'.mp4');
         if(!fs.existsSync(immutable))throw Error('Renderer produced no MP4');
         const report=await inspect(immutable,{fps:rendered.fps,height:rendered.height,
-          duration:rendered.duration,scene_id:j.slide_id||null,id:j.id});
+          duration:rendered.duration,scene_id:j.slide_id||null,id:j.id,
+          visualAudit:rendered.visualAudit??null,frameSamples:rendered.frameSamples??[]});
         j.qa_report=report;
         if(report?.verdict==='FAIL')throw Error('Technical QA failed: '+(report.issues||[]).map(x=>x.id).join(', '));
         if(abort.signal.aborted||j.status==='cancelling')throw Error('Render cancelled');
