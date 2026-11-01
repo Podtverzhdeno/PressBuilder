@@ -32,10 +32,10 @@ export const TOOLS = [
  { name:'get_scene_task', description:'Get the full scene-specific agent assignment, detailed brief, deliverables, checkpoints and revision.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'set_scene_task', description:'Create or edit the full assignment for one scene (not the deck). Requires the latest expected_revision from get_scene_task or list_scene_tasks to avoid overwriting another agent. Keeps unspecified fields unchanged.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Scene ID'),expected_revision:{type:'integer',minimum:0},title:str('Scene task title'),assignee:str('Agent/owner name'),brief:str('Detailed task specification, up to 20000 characters'),deliverables:str('Acceptance criteria and deliverable requirements'),status:{type:'string',enum:['todo','in_progress','review','done','blocked']},checkpoints:{type:'array',maxItems:60,items:obj({id:str('Stable checkpoint id'),title:str('Checkpoint action'),done:{type:'boolean'},note:str('Completion evidence or blocker')},['id','title'])}},['id','slide_id','expected_revision']) },
  { name:'set_scene_checkpoint', description:'Update exactly one scene checkpoint and preserve all other scenes/tasks. Use after completing and checking a milestone; provide evidence in note.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Scene ID'),checkpoint_id:str('Checkpoint ID'),done:{type:'boolean'},note:str('Evidence or details')},['id','slide_id','checkpoint_id']) },
- { name:'get_scene_sync', description:'Read cue timebase and beat/camera/animation/SFX markers for one scene.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
- { name:'set_scene_sync', description:'Save P09 marker sheet with revision. Worker requires current fenced scene lease.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1},expected_revision:{type:'integer',minimum:0},markers:{type:'array',maxItems:100,items:obj({id:str('Stable event ID'),kind:{type:'string',enum:['beat','sfx','music','camera','animation','transition']},anchor:obj({type:{type:'string',enum:['scene','cue_start','cue_end']},cue_id:str('Narration cue ID'),offset:num('Offset seconds')},['type','offset']),duration:num('Seconds'),emphasis:num('0..1'),silence:{type:'boolean'},note:str('Action/licensing note')},['id','kind','anchor'])}},['id','slide_id','expected_revision','markers']) },
+ { name:'get_scene_sync', description:'Read narration timing and one-scene beat/3D/SFX/camera markers.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
+ { name:'set_scene_sync', description:'Save validated scene markers, requiring worker scoped fenced lease and optimistic revision.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1},expected_revision:{type:'integer',minimum:0},markers:{type:'array',maxItems:100,items:obj({id:str('Stable event ID'),kind:{type:'string',enum:['beat','sfx','music','camera','animation','transition']},anchor:obj({type:{type:'string',enum:['scene','cue_start','cue_end']},cue_id:str('Narration cue ID'),offset:num('Seconds')},['type','offset']),duration:num('Seconds'),emphasis:num('0..1'),silence:{type:'boolean'},note:str('Action or provenance')},['id','kind','anchor'])}},['id','slide_id','expected_revision','markers']) },
  { name:'get_scene_3d', description:'Read the independently stored data-only 3D composition of a particular video scene, including revision. Returns null spec if not authored yet.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
- { name:'set_scene_3d', description:'Publish a safe declarative 3D composition for exactly one scene, with 1..18 shaded rotating 3D meshes and an animated perspective camera. No arbitrary JS; uses the existing 3D engine and is rendered in the web editor and MP4. Must pass expected_revision from get_scene_3d. Does not edit deck.json or other scenes.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Existing scene ID'),expected_revision:{type:'integer',minimum:0},spec:obj({version:{type:'integer',const:1},camera:obj({cx:num('Camera center X in 1920px space'),cy:num('Camera center Y'),size:num('Pixels per 3D unit 20..500'),dist:num('Camera distance 5..80'),yaw:num('Yaw radians'),pitch:num('Pitch radians'),yaw_speed:num('Yaw radians/second -2..2'),pitch_speed:num('Pitch radians/second'),zoom_speed:num('Proportional zoom per second')},[]),objects:{type:'array',minItems:1,maxItems:18,items:obj({id:str('Stable ID'),mesh:{type:'string',enum:['cube','pyramid','octa','icosa','hexPrism','cylinder']},pos:{type:'array',items:{type:'number'},minItems:3,maxItems:3},scale:num('0.02..5'),rotation:{type:'array',items:{type:'number'},minItems:3,maxItems:3},spin:{type:'array',items:{type:'number'},minItems:3,maxItems:3},color:str('Hex color #RRGGBB'),edge_color:{type:['string','null']},wire:{type:'boolean'},start:num('Entrance start seconds'),start_marker:str('Optional P09 cue marker'),fade:num('Entrance fade seconds')},['id','mesh','color'])}},['version','camera','objects'])},['id','slide_id','expected_revision','spec']) },
+ { name:'set_scene_3d', description:'Publish a safe declarative 3D composition for exactly one scene, with 1..18 shaded rotating 3D meshes and an animated perspective camera. No arbitrary JS; uses the existing 3D engine and is rendered in the web editor and MP4. Must pass expected_revision from get_scene_3d. Does not edit deck.json or other scenes.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Existing scene ID'),expected_revision:{type:'integer',minimum:0},spec:obj({version:{type:'integer',const:1},camera:obj({cx:num('Camera center X in 1920px space'),cy:num('Camera center Y'),size:num('Pixels per 3D unit 20..500'),dist:num('Camera distance 5..80'),yaw:num('Yaw radians'),pitch:num('Pitch radians'),yaw_speed:num('Yaw radians/second -2..2'),pitch_speed:num('Pitch radians/second'),zoom_speed:num('Proportional zoom per second')},[]),objects:{type:'array',minItems:1,maxItems:18,items:obj({id:str('Stable ID'),mesh:{type:'string',enum:['cube','pyramid','octa','icosa','hexPrism','cylinder']},pos:{type:'array',items:{type:'number'},minItems:3,maxItems:3},scale:num('0.02..5'),rotation:{type:'array',items:{type:'number'},minItems:3,maxItems:3},spin:{type:'array',items:{type:'number'},minItems:3,maxItems:3},color:str('Hex color #RRGGBB'),edge_color:{type:['string','null']},wire:{type:'boolean'},start:num('Entrance start seconds'),start_marker:str('Optional P09 cue marker ID'),fade:num('Entrance fade seconds')},['id','mesh','color'])}},['version','camera','objects'])},['id','slide_id','expected_revision','spec']) },
  { name:'reorder_slides', description:'Reorder existing slides without losing any cue IDs.', inputSchema:obj({id:str('Project slug'),slide_ids:{type:'array',items:{type:'string'}}},['id','slide_ids']) },
  { name:'get_style_contract', description:'Read project visual contract and revision.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'set_style_contract', description:'Director only: replace validated style contract with optimistic revision.', inputSchema:obj({id:str('Project slug'),expected_revision:{type:'integer',minimum:0},contract:{type:'object'}},['id','expected_revision','contract']) },
@@ -68,6 +68,8 @@ export const TOOLS = [
 export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, reviews, sceneSync }) {
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
+  const visibleTasks=(id,actor)=>taskStore.list(id)
+    .filter(t=>actor.role==='director'||actor.scenes?.includes(t.scene_id));
   const assigned=(id,slide,actor)=>{
     if(actor.role!=='worker')return;
     const assignee=taskStore.read(id,slide).assignee?.trim();
@@ -85,9 +87,16 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
     if (!actor || !['director','worker','reviewer','viewer'].includes(actor.role)) throw new UserError('Unauthenticated MCP identity',401);
     if (args.id && actor.role!=='director' && !actor.projects?.includes(args.id))
       throw new UserError('Project is outside agent scope',403);
-    if(actor.role==='worker'&&name==='set_scene_task'&&
-      (Object.hasOwn(args,'assignee')||args.status==='done'))
-      throw new UserError('Workers cannot change assignee or self-approve tasks',403);
+    if(actor.role==='worker'&&name==='set_scene_task'){
+      // The task brief and acceptance checklist are director-owned.
+      const allowed=new Set(['id','slide_id','fence_token','expected_revision','status']);
+      if(Object.keys(args).some(key=>!allowed.has(key))||
+         (args.status!==undefined&&!['todo','in_progress','review','blocked'].includes(args.status)))
+        throw new UserError('Workers may update task status only, not its assignment or acceptance criteria',403);
+    }
+    if(actor.role==='worker'&&name==='set_scene_checkpoint'&&args.done===true&&
+       (typeof args.note!=='string'||args.note.trim().length<3))
+      throw new UserError('Workers must provide checkpoint completion evidence in note',403);
     if(actor.role==='worker'&&name==='update_cue'&&
       ['say','dur','hold'].some(k=>Object.hasOwn(args,k)))
       throw new UserError('Only director may change narration and cue timing',403);
@@ -96,10 +105,11 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
       throw new UserError('Only director may change slide timing',403);
     switch(name) {
       case 'list_decks': return actor.role==='director'?listDecks():listDecks().filter(d=>actor.projects.includes(d.id));
-      case 'get_deck': return {...getDeck(args.id),project_readme:readmeStore.read(args.id),scene_tasks:taskStore.list(args.id).map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}))};
+      case 'get_deck': return {...getDeck(args.id),project_readme:readmeStore.read(args.id),scene_tasks:visibleTasks(args.id,actor).map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}))};
       case 'get_project_context': {
         const d=getDeck(args.id);
-        const tasks=taskStore.list(args.id);
+        if(args.slide_id)scoped(args.id,args.slide_id,actor);
+        const tasks=visibleTasks(args.id,actor);
         const summary=tasks.map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}));
         const assigned=args.slide_id?taskStore.read(args.id,args.slide_id):undefined;
         return {project:{id:d.id,title:d.title,style:d.style,format:d.format,target:d.target,slides:d.slides.map(s=>({id:s.id,label:s.label,cues:s.cues.map(c=>({id:c.id,say:c.say,show:c.show}))}))},
@@ -107,7 +117,7 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly, versions, r
       }
       case 'get_project_readme': return readmeStore.read(args.id);
       case 'update_project_readme': directorOnly(actor);return readmeStore.write(args.id,args.content,args.expected_revision);
-      case 'list_scene_tasks': return taskStore.list(args.id);
+      case 'list_scene_tasks': return visibleTasks(args.id,actor);
       case 'get_scene_task': scoped(args.id,args.slide_id,actor);return taskStore.read(args.id,args.slide_id);
       case 'set_scene_task': {const {id,slide_id,expected_revision,fence_token,...fields}=args;return write(id,slide_id,actor,fence_token,'write_task',()=>taskStore.put(id,slide_id,fields,expected_revision))}
       case 'set_scene_checkpoint': {const {id,slide_id,checkpoint_id,fence_token,...patch}=args;return write(id,slide_id,actor,fence_token,'checkpoint',()=>taskStore.checkpoint(id,slide_id,checkpoint_id,patch))}

@@ -278,7 +278,6 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
-  // P09 per-scene cue sheet, protected by existing web login.
   const syncMatch=/^\/api\/decks\/([^/]+)\/sync\/([^/]+)$/.exec(p);
   if(syncMatch){
     const id=deckId(escaped(syncMatch[1])),scene=deckId(escaped(syncMatch[2]));
@@ -513,7 +512,8 @@ for(const file of fs.readdirSync(JOBS_DIR).filter(n=>/^[0-9a-f]{64}\.json$/.test
   }catch(e){console.warn('Invalid persisted render job:',file,String(e))}
 }
 const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),
-  getApproved:(id,scene)=>versions.approved(id,scene),baseUrl});
+  getApproved:(id,scene)=>versions.approved(id,scene),
+  reviewUnresolved:(id,scene,version)=>reviews.unresolved(id,scene,version),baseUrl});
 const mcp=makeMcp({startRender,getRender,baseUrl,assembly,versions,reviews,sceneSync});
 const server=http.createServer(async(req,res)=>{
   try{
