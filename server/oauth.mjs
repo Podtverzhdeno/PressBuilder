@@ -52,11 +52,27 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
     const read=JSON.parse(fs.readFileSync(stateFile,'utf8'));
     for(const k of ['codes','access','refresh'])if(read[k]&&typeof read[k]==='object'&&!Array.isArray(read[k]))records[k]=read[k];
   }
-  const pending=new Map();
+  // A consent page can outlive a Railway process (restarts or overlapping deploys).
+  // Store each pending approval independently on the persistent /data volume.
+  // Individual files avoid clobbering another process's pending approvals when
+  // several deployments temporarily share the volume.
+  const consentDir=path.join(dataDir,'oauth-consents');
+  fs.mkdirSync(consentDir,{recursive:true,mode:0o700});
+  const consentPath=nonce=>path.join(consentDir,nonce+'.json');
+  const validNonce=nonce=>typeof nonce==='string' && /^[A-Za-z0-9_-]{43,64}$/.test(nonce);
+  function cleanConsents(){
+    for(const name of fs.readdirSync(consentDir)){
+      if(!/^[A-Za-z0-9_-]{43,64}\\.json$/.test(name))continue;
+      const file=path.join(consentDir,name);
+      try{
+        const a=JSON.parse(fs.readFileSync(file,'utf8'));
+        if(!a || a.exp<=now())fs.rmSync(file,{force:true});
+      }catch{fs.rmSync(file,{force:true})}
+    }
+  }
   function prune(){
     const t=now();
     for(const k of ['codes','access','refresh'])for(const [h,v] of Object.entries(records[k]))if(!v||v.exp<=t)delete records[k][h];
-    for(const [k,v] of pending)if(v.exp<=t)pending.delete(k);
   }
   function save(){
     prune();
@@ -109,9 +125,10 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
     let a;
     try{a=validAuth(url.searchParams)}catch(e){return fail(res,400,'invalid_request',e.message)}
     prune();
-    if(pending.size>=300)return fail(res,429,'temporarily_unavailable','Too many pending approvals');
+    cleanConsents();
+    if(fs.readdirSync(consentDir).filter(name=>name.endsWith('.json')).length>=300)return fail(res,429,'temporarily_unavailable','Too many pending approvals');
     const csrf=random();
-    pending.set(csrf,{...a,exp:now()+600});
+    fs.writeFileSync(consentPath(csrf),JSON.stringify({...a,exp:now()+600}),{mode:0o600,flag:'wx'});
     const page=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>PressBuilder OAuth approval</title></head>
 <body style="max-width:560px;margin:7vh auto;font:17px system-ui,sans-serif;line-height:1.55;padding:20px">
 <h1>Подключение PressBuilder к ChatGPT</h1>
@@ -137,9 +154,18 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
     // Never enable CORS for OAuth authorization or return consent nonces to APIs.
     let form;try{form=await formBody(req)}catch(e){return fail(res,400,'invalid_request',e.message)}
     const nonce=form.get('csrf')||'';
-    const a=pending.get(nonce);
-    if(!a||a.exp<=now())return fail(res,400,'invalid_request','Consent expired or already used');
-    pending.delete(nonce);
+    if(!validNonce(nonce))return fail(res,400,'invalid_request','Consent expired or already used');
+    const file=consentPath(nonce);
+    let a;
+    try{a=JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fail(res,400,'invalid_request','Consent expired or already used')}
+    if(!a||a.exp<=now()||!secure(a.id,clientId)||!allowedRedirects.has(a.red)){
+      fs.rmSync(file,{force:true});
+      return fail(res,400,'invalid_request','Consent expired or already used');
+    }
+    // Atomic, single-use claim: only one Railway process can rename this file.
+    const claimed=path.join(consentDir,nonce+'.used');
+    try{fs.renameSync(file,claimed)}catch{return fail(res,400,'invalid_request','Consent expired or already used')}
+    fs.rmSync(claimed,{force:true});
     if(form.get('decision')!=='approve')return redirect(res,toCallback(a,{error:'access_denied',state:a.state}));
     const code=random();
     records.codes[digest(code)]={client:clientId,red:a.red,cc:a.cc,scope:a.scope,aud:a.aud,exp:now()+300};
