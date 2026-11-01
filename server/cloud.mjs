@@ -260,7 +260,7 @@ async function api(req,res,url) {
     if(method==='GET')return json(res,200,assembly.get(id));
     if(method==='POST'){
       const body=await readJson(req);
-      return json(res,202,assembly.start(id,body?.scene_ids));
+      return json(res,202,assembly.start(id,body?.scene_ids,{force:body?.force??false}));
     }
     throw new UserError('Method not allowed',405);
   }

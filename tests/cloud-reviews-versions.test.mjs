@@ -171,7 +171,8 @@ test('P05 assembles only approved immutable MP4s even if newer unapproved render
       reviewUnresolved:()=>++reviewChecks>2,
       getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
       baseUrl:()=> 'http://localhost:3000'});
-    race.start('demo',['s01','s02']);
+    // Force a real render so the review can reopen between preflight and publication.
+    race.start('demo',['s01','s02'],{force:true});
     let racing;
     for(let i=0;i<300;i++){
       racing=race.get('demo');

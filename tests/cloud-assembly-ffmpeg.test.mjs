@@ -77,9 +77,9 @@ test('P05: FFmpeg montage, FPS normalization, silent audio, crossfade, immutable
     const meta=inspectMp4(assembly.download('demo',b.result.release_id),{height:720,fps:24,audio_required:true,duration:3.6});
     assert.equal(meta.verdict,'PASS',JSON.stringify(meta.issues));
     assert.ok(Math.abs(meta.metadata.duration-3.6)<0.25);
-    // Cancellation cannot replace a previously published version.
+    // Explicit force exercises cancellation even when identical export is cached.
     const before=assembly.get('demo').current_release.release_id;
-    assembly.start('demo',['s01','s02']);
+    assembly.start('demo',['s01','s02'],{force:true});
     const requested=assembly.cancel('demo');
     assert.equal(requested.cancel_requested,true);
     const cancelled=await untilDone(()=>assembly.get('demo'));
@@ -205,7 +205,7 @@ test('P05 refuses stale plan/style policy at publication without changing the ac
       getPlan:id=>{const record=plans.read(id);return {...record,
         revision:record.revision+(++planReads>=2?1:0)}},
       getStyle:id=>styles.read(id)});
-    planDrift.start('demo',['s01','s02']);
+    planDrift.start('demo',['s01','s02'],{force:true});
     const rejectedPlan=await untilDone(()=>planDrift.get('demo'));
     assert.equal(rejectedPlan.status,'failed',JSON.stringify(rejectedPlan));
     assert.match(rejectedPlan.error,/Assembly plan, visual style or scene order changed/);
@@ -217,7 +217,7 @@ test('P05 refuses stale plan/style policy at publication without changing the ac
     const styleDrift=assemblyService({...base,getPlan:id=>plans.read(id),
       getStyle:id=>{const record=styles.read(id);return {...record,
         revision:record.revision+(++styleReads>=2?1:0)}}});
-    styleDrift.start('demo',['s01','s02']);
+    styleDrift.start('demo',['s01','s02'],{force:true});
     const rejectedStyle=await untilDone(()=>styleDrift.get('demo'));
     assert.equal(rejectedStyle.status,'failed',JSON.stringify(rejectedStyle));
     assert.match(rejectedStyle.error,/Assembly plan, visual style or scene order changed/);
@@ -227,7 +227,7 @@ test('P05 refuses stale plan/style policy at publication without changing the ac
 
     const changedDeck=assemblyService({...base,getPlan:id=>plans.read(id),
       getStyle:id=>styles.read(id)});
-    changedDeck.start('demo',['s01','s02']);
+    changedDeck.start('demo',['s01','s02'],{force:true});
     deck.slides.reverse();
     const rejectedOrder=await untilDone(()=>changedDeck.get('demo'));
     assert.equal(rejectedOrder.status,'failed',JSON.stringify(rejectedOrder));

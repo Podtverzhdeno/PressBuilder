@@ -147,7 +147,8 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     controllers.get(id)?.abort();
     return {...j};
   }
-  function start(id,scene_ids){
+  function start(id,scene_ids,{force=false}={}){
+    if(typeof force!=='boolean')throw bad('Invalid force flag');
     const requestedAt=Date.now();
     const deck=getDeck(id);
     if(!Array.isArray(scene_ids)||scene_ids.length<2||scene_ids.length>12||
@@ -224,7 +225,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
           m.approved_revision===x.approved_revision&&m.render_job_id===x.render_job_id&&
           JSON.stringify(m.transition_after)===JSON.stringify(edge);
       });
-    if(matches){
+    if(matches&&!force){
       // Keep the originating job_id: P10 human signoff binds that exact ID
       // to the immutable release manifest. A cached request is not a new render.
       const job={id,job_id:manifest.job_id,request_id:randomUUID(),
