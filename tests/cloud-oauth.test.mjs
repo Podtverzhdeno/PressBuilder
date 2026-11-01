@@ -68,6 +68,11 @@ test('OAuth discovery, consent, confidential client S256 PKCE, audience, refresh
       assert.equal(callback.searchParams.get('state'),'chatgpt-state-123');
       assert.equal(callback.searchParams.get('iss'),base);
       assert.ok(callback.searchParams.get('code'));
+      const replay=await fetch(base+'/oauth/authorize',{method:'POST',headers:{
+        Authorization:userBasic,Origin:origin,'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({csrf,decision:'approve'}),redirect:'manual'});
+      assert.equal(replay.status,303,'A browser double-submit must return the original callback');
+      assert.equal(replay.headers.get('location'),approved.headers.get('location'));
       return callback.searchParams.get('code');
     }
     const code1=await grant('https://chatgpt.com');
