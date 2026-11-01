@@ -105,14 +105,15 @@ export function mediaCatalogStore({root,getDeck,versions,enabled=false,now=()=>D
  function save(id,catalog,kind,assetId,actor){
   if(!str(actor?.id,80)||actor.role!=='director')BAD('MEDIA_DIRECTOR_REQUIRED',403);
   const file=location(id);
-  atomic(file,catalog);
-  // Auditable journal, append-only best effort. No approval authority comes from the log.
-  const event={at:timestamp(),kind,asset_id:assetId,actor_id:actor.id,catalog_revision:catalog.revision,
-    manifest_sha256:hash(catalog)};
+  // Fail BEFORE mutation on unsafe audit output, not after committing the catalog.
   const log=path.join(path.dirname(file),'events.jsonl');
   const existing=fs.lstatSync(log,{throwIfNoEntry:false});
   if(existing&&(!existing.isFile()||existing.isSymbolicLink()||existing.nlink!==1))
     BAD('MEDIA_UNSAFE_AUDIT_LOG',403);
+  atomic(file,catalog);
+  // Auditable journal, append-only best effort. No approval authority comes from the log.
+  const event={at:timestamp(),kind,asset_id:assetId,actor_id:actor.id,catalog_revision:catalog.revision,
+    manifest_sha256:hash(catalog)};
   const fd=fs.openSync(log,fs.constants.O_CREAT|fs.constants.O_APPEND|fs.constants.O_WRONLY|
     (fs.constants.O_NOFOLLOW??0),0o600);
   try{
