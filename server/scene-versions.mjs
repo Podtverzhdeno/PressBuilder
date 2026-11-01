@@ -141,13 +141,15 @@ export function sceneVersionStore({root,outDir,getDeck,putDeck,scene3d,syncStore
     // shared deck.json still needs cross-process locks before multi-worker use.
     const three=scene3d.read(id,sid);
     const sync=syncStore.read(id,sid);
-    scene3d.put(id,sid,snap.scene3d,three.revision);
-    syncStore.put(id,sid,snap.sync_markers,sync.revision);
     const latest=getDeck(id);
     const slot=latest.slides.findIndex(s=>s.id===sid);
     if(slot<0)fail('Scene removed while restoring',409);
+    // The cue sheet must be validated against the restored cue IDs, not the
+    // currently edited ones. Markers are archived only after validation.
     latest.slides[slot]=structuredClone(snap.slide);
     putDeck(id,latest);
+    scene3d.put(id,sid,snap.scene3d,three.revision);
+    syncStore.put(id,sid,snap.sync_markers,sync.revision);
     const after=source(id,sid);
     audit(dir,'restore',actor,{version_id:versionId,before:cur.fingerprint,after:after.fingerprint});
     return {ok:true,restored_version:versionId,current_fingerprint:after.fingerprint,
