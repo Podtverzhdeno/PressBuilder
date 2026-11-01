@@ -82,7 +82,7 @@ test('P15 six actual H264/AAC MP4 scenes: decoded audio silence and source-prese
      words:colors.map((_,i)=>({id:'w'+i,scene_id:'s0'+(i+1),cue_id:'c01',
        start_us:i*1_000_000,end_us:i*1_000_000+400_000})),
      pauses:colors.map((_,i)=>({scene_id:'s0'+(i+1),cue_id:'c01',
-       start_us:i*1_000_000+650_000,end_us:i*1_000_000+950_000})),
+       start_us:i*1_000_000+600_000,end_us:i*1_000_000+900_000})),
      beats:[],policy:{min_shot_frames:6,max_cuts_per_10s:10,max_cuts:10}
    };
    const p=preview.preview(id,manifest);
