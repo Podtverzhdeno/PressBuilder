@@ -92,17 +92,21 @@ test('P10 six real H.264 scenes: review, approved immutable P08 inputs, P05 asse
     rejects(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
       assembly_job_id:state.job_id}));
     approved.set('s04',shifted);
+    const inputFile=approved.get('s03').artifact.absolute_file;
+    const inputBytes=fs.readFileSync(inputFile);
+    fs.writeFileSync(inputFile,Buffer.alloc(inputBytes.length,'x'));
+    rejects(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
+      assembly_job_id:state.job_id}));
+    fs.writeFileSync(inputFile,inputBytes);
     const released=director.signoff(id,{confirm:'RELEASE',
       expected_plan_revision:2,assembly_job_id:state.job_id});
     assert.equal(released.status,'released');
     assert.equal(released.release_receipt.sha256,sha(final));
     assert.equal(released.release_receipt.assembly_job_id,state.job_id);
     assert.equal(released.progress.release_status,'signed_off');
-    fs.rmSync(path.join(out,id+'_s03_v'+approved.get('s03').version_id+'.mp4'));
-    rejects(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:3,
-      assembly_job_id:state.job_id}),409);
     const metadata=fs.statSync(final);
     fs.writeFileSync(final,Buffer.alloc(metadata.size,'x'));
+    fs.utimesSync(final,new Date(Date.now()-10000),new Date(Date.now()-10000));
     assert.equal(director.read(id).progress.release_status,'artifact_changed');
   }finally{
     fs.rmSync(root,{recursive:true,force:true});
