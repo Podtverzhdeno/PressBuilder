@@ -34,9 +34,3 @@ The system SHALL use the canonical rational timebase, compensate encoder delay a
 #### Scenario: Rejected or degraded audio/video sync and recovery
 - **WHEN** an export crashes halfway or changes the approved mix source SHA
 - **THEN** new artifacts remain drafts and previous release pointer stays intact
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P19.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P19, checkpoints P19-C01…P19-C06 and release gate in `specs/002-professional-montage/tasks.md`.
