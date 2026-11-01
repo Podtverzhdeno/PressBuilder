@@ -89,3 +89,67 @@ test('Director P10 release boundary: exact six approved tasks, evidence, job and
     fs.rmSync(root,{recursive:true,force:true});
   }
 });
+
+
+test('P10 signs off only active immutable P05 release with matching job, manifest and six approved inputs',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-director-p05-'));
+  const out=path.join(root,'out');fs.mkdirSync(out,{recursive:true});
+  const id='p05-demo';
+  const deck={id,style:'lines',format:{fps:24,height:720,bitrate:8},
+    slides:Array.from({length:6},(_,i)=>({id:'s0'+(i+1),label:'Scene '+i,
+      cues:[{id:'c0'+(i+1),say:'Verified narration '+i}]}))};
+  const getDeck=key=>{assert.equal(key,id);return deck};
+  const tasks=sceneTaskStore({root,getDeck});
+  const readmes=projectReadmeStore({root,getDeck});
+  const styles={read:()=>({revision:0,contract:{schemaVersion:1,enforce:false}})};
+  const releaseId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const folder=path.join(out,'releases',id,releaseId);
+  fs.mkdirSync(folder,{recursive:true});
+  const file=path.join(folder,'final.mp4');
+  fs.writeFileSync(file,'TEST IMMUTABLE RELEASE CONTENT; FIXTURE IS NOT AN ACTUAL MP4');
+  const sha=hash=>createHash('sha256').update(fs.readFileSync(hash)).digest('hex');
+  const scenes=deck.slides.map(s=>{
+    const f=path.join(out,id+'_'+s.id+'.mp4');
+    fs.writeFileSync(f,'Verified scene '+s.id);
+    return {id:s.id,sha256:sha(f)};
+  });
+  const manifest={schemaVersion:1,project:id,release_id:releaseId,job_id:'job-123',
+    scenes,output:{bytes:fs.statSync(file).size,sha256:sha(file),qa:{verdict:'PASS'}}};
+  let pointer=releaseId;
+  const job={status:'completed',job_id:'job-123',result:{release_id:releaseId},manifest};
+  const svc={
+    get:()=>job,
+    current:()=>({release_id:pointer,manifest}),
+    download:(_id,rid)=>{assert.equal(rid,releaseId);return file}
+  };
+  const director=directorStore({root,getDeck,sceneTasks:tasks,projectReadmes:readmes,
+    styles,getAssembly:()=>svc,out});
+  try{
+    const proposal=director.propose(id,{expected_revision:0,goal:'Test immutable release'});
+    director.approve(id,{confirm:'APPROVE',expected_revision:proposal.revision});
+    for(const slide of deck.slides){
+      const old=tasks.read(id,slide.id);
+      tasks.put(id,slide.id,{status:'done',checkpoints:old.checkpoints.map(cp=>({
+        ...cp,done:true,note:cp.id==='render'||cp.id==='technical_qa'||cp.id==='human_review'?'Reviewed evidence':''
+      }))},old.revision);
+    }
+    const args={confirm:'RELEASE',expected_plan_revision:2,assembly_job_id:'job-123'};
+    pointer='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    rejectStatus(()=>director.signoff(id,args),409);
+    pointer=releaseId;
+    const correct=fs.readFileSync(file);
+    const corrupted=Buffer.from(correct);corrupted[8]^=1;
+    fs.writeFileSync(file,corrupted);
+    rejectStatus(()=>director.signoff(id,args),409);
+    fs.writeFileSync(file,correct);
+    const signed=director.signoff(id,args);
+    assert.equal(signed.status,'released');
+    assert.equal(signed.release_receipt.release_id,releaseId);
+    assert.equal(signed.release_receipt.file,'out/releases/'+id+'/'+releaseId+'/final.mp4');
+    assert.equal(signed.progress.release_status,'signed_off');
+    fs.writeFileSync(file,corrupted);
+    assert.equal(director.read(id).progress.release_status,'artifact_changed');
+    fs.writeFileSync(file,correct);
+    assert.equal(director.read(id).progress.release_status,'signed_off');
+  }finally{fs.rmSync(root,{recursive:true,force:true})}
+});
