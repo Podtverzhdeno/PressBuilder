@@ -1,0 +1,34 @@
+name: Professional montage OpenSpec + SDD integrity
+on:
+  pull_request:
+    paths:
+      - 'openspec/**'
+      - 'specs/002-professional-montage/**'
+      - 'docs/pro-montage-checkpoints.json'
+      - 'docs/PRO_MONTAGE_AGENTS.md'
+      - 'tests/pro-montage-spec.test.mjs'
+      - '.github/workflows/professional-montage-spec.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'openspec/**'
+      - 'specs/002-professional-montage/**'
+      - 'docs/pro-montage-checkpoints.json'
+      - 'docs/PRO_MONTAGE_AGENTS.md'
+      - 'tests/pro-montage-spec.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  spec-and-checkpoint-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify 10 capability specs and 60 truthful checkpoints
+        run: node --test tests/pro-montage-spec.test.mjs
+      - name: OpenSpec strict validation
+        run: npx --yes @fission-ai/openspec@1.14.3 validate professional-montage-p15-p24 --strict

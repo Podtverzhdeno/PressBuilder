@@ -1,0 +1,1995 @@
+{
+  "schema_version": 1,
+  "project": "PressBuilder",
+  "change": "professional-montage-p15-p24",
+  "date": "2026-11-01",
+  "state": "PLANNED",
+  "notice": "No checkpoint has been implemented or accepted by this planning commit.",
+  "checkpoints": [
+    {
+      "id": "P15-C01",
+      "feature": "P15",
+      "capability": "rhythm-engine",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [],
+      "inputs": "P09 cue/word alignment + owned music beats",
+      "planned_output": "montage/rhythm-engine-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define P09 cue/word alignment + owned music beats; reject missing words, nonfinite BPM, stale source, cuts through protected narration.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
+      "proposed_test_file": "tests/cloud-rhythm.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P15-C02",
+      "feature": "P15",
+      "capability": "rhythm-engine",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P15-C01"
+      ],
+      "inputs": "P09 cue/word alignment + owned music beats",
+      "planned_output": "server/rhythm-plan.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: rational-frame cut candidate generation, protected phrases, pacing constraints.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
+      "proposed_test_file": "tests/cloud-rhythm.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P15-C03",
+      "feature": "P15",
+      "capability": "rhythm-engine",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P15-C02"
+      ],
+      "inputs": "P09 cue/word alignment + owned music beats",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for proposed cut list with source frames and deterministic review evidence; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
+      "proposed_test_file": "tests/cloud-rhythm.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P15-C04",
+      "feature": "P15",
+      "capability": "rhythm-engine",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P15-C03"
+      ],
+      "inputs": "P09 cue/word alignment + owned music beats",
+      "planned_output": "tests/cloud-rhythm.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: missing words, nonfinite BPM, stale source, cuts through protected narration.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
+      "proposed_test_file": "tests/cloud-rhythm.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P15-C05",
+      "feature": "P15",
+      "capability": "rhythm-engine",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P15-C04"
+      ],
+      "inputs": "P09 cue/word alignment + owned music beats",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: 6 scenes at 24 and 30000/1001 fps with real aligned narration, no cut-time drift.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
+      "proposed_test_file": "tests/cloud-rhythm.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P15-C06",
+      "feature": "P15",
+      "capability": "rhythm-engine",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P15-C05"
+      ],
+      "inputs": "P09 cue/word alignment + owned music beats",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: proposed cut list with source frames and deterministic review evidence. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
+      "proposed_test_file": "tests/cloud-rhythm.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P16-C01",
+      "feature": "P16",
+      "capability": "creative-director",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [],
+      "inputs": "approved script and P10 scene briefs",
+      "planned_output": "montage/creative-director-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define approved script and P10 scene briefs; reject fake factual claims, stale actor/signature, unrelated scene rewrite.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
+      "proposed_test_file": "tests/cloud-director-professional.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P16-C02",
+      "feature": "P16",
+      "capability": "creative-director",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P16-C01",
+        "P15-C01"
+      ],
+      "inputs": "approved script and P10 scene briefs",
+      "planned_output": "server/director-plan.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: two alternate hook→payoff stories anchored to actual text with explicit human storyboard approval.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
+      "proposed_test_file": "tests/cloud-director-professional.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P16-C03",
+      "feature": "P16",
+      "capability": "creative-director",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P16-C02"
+      ],
+      "inputs": "approved script and P10 scene briefs",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for two meaningful narratives without changing original script; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
+      "proposed_test_file": "tests/cloud-director-professional.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P16-C04",
+      "feature": "P16",
+      "capability": "creative-director",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P16-C03"
+      ],
+      "inputs": "approved script and P10 scene briefs",
+      "planned_output": "tests/cloud-director-professional.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: fake factual claims, stale actor/signature, unrelated scene rewrite.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
+      "proposed_test_file": "tests/cloud-director-professional.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P16-C05",
+      "feature": "P16",
+      "capability": "creative-director",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P16-C04"
+      ],
+      "inputs": "approved script and P10 scene briefs",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: 6-scene alternative storyboard, rejected scene and isolated retry, signed storyboard audit.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
+      "proposed_test_file": "tests/cloud-director-professional.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P16-C06",
+      "feature": "P16",
+      "capability": "creative-director",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P16-C05"
+      ],
+      "inputs": "approved script and P10 scene briefs",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: two meaningful narratives without changing original script. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
+      "proposed_test_file": "tests/cloud-director-professional.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P17-C01",
+      "feature": "P17",
+      "capability": "cinematic-continuity",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [],
+      "inputs": "P05/P08 approved scene source and boundary states",
+      "planned_output": "montage/cinematic-continuity-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define P05/P08 approved scene source and boundary states; reject prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
+      "proposed_test_file": "tests/cloud-continuity.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P17-C02",
+      "feature": "P17",
+      "capability": "cinematic-continuity",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P17-C01",
+        "P15-C01",
+        "P16-C01"
+      ],
+      "inputs": "P05/P08 approved scene source and boundary states",
+      "planned_output": "server/continuity-plan.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: frame-accurate match-action, J-cut and L-cut with separate audio/video handles.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
+      "proposed_test_file": "tests/cloud-continuity.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P17-C03",
+      "feature": "P17",
+      "capability": "cinematic-continuity",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P17-C02"
+      ],
+      "inputs": "P05/P08 approved scene source and boundary states",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for cut continuity and independent audio track offsets with evidence; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
+      "proposed_test_file": "tests/cloud-continuity.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P17-C04",
+      "feature": "P17",
+      "capability": "cinematic-continuity",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P17-C03"
+      ],
+      "inputs": "P05/P08 approved scene source and boundary states",
+      "planned_output": "tests/cloud-continuity.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
+      "proposed_test_file": "tests/cloud-continuity.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P17-C05",
+      "feature": "P17",
+      "capability": "cinematic-continuity",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P17-C04"
+      ],
+      "inputs": "P05/P08 approved scene source and boundary states",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: motion-compatible scenes, J/L overlaps decoded and reviewed at exact frame boundaries.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
+      "proposed_test_file": "tests/cloud-continuity.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P17-C06",
+      "feature": "P17",
+      "capability": "cinematic-continuity",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P17-C05"
+      ],
+      "inputs": "P05/P08 approved scene source and boundary states",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: cut continuity and independent audio track offsets with evidence. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "prelap outside audio handles, reversed camera motion, PTS mismatch, stale approval",
+      "proposed_test_file": "tests/cloud-continuity.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P18-C01",
+      "feature": "P18",
+      "capability": "professional-motion",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [],
+      "inputs": "P15 timebase and scene property IDs",
+      "planned_output": "montage/professional-motion-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define P15 timebase and scene property IDs; reject NaN keyframes, large acceleration, huge sample count, speech drift, flashing.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "NaN keyframes, large acceleration, huge sample count, speech drift, flashing",
+      "proposed_test_file": "tests/cloud-motion-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P18-C02",
+      "feature": "P18",
+      "capability": "professional-motion",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P18-C01",
+        "P15-C01"
+      ],
+      "inputs": "P15 timebase and scene property IDs",
+      "planned_output": "server/motion-engine.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: bounded deterministic easing, camera motion, visual speed ramps and motion blur.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "NaN keyframes, large acceleration, huge sample count, speech drift, flashing",
+      "proposed_test_file": "tests/cloud-motion-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P18-C03",
+      "feature": "P18",
+      "capability": "professional-motion",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P18-C02"
+      ],
+      "inputs": "P15 timebase and scene property IDs",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for professional movement without excessive cost or readability regression; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "NaN keyframes, large acceleration, huge sample count, speech drift, flashing",
+      "proposed_test_file": "tests/cloud-motion-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P18-C04",
+      "feature": "P18",
+      "capability": "professional-motion",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P18-C03"
+      ],
+      "inputs": "P15 timebase and scene property IDs",
+      "planned_output": "tests/cloud-motion-pro.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: NaN keyframes, large acceleration, huge sample count, speech drift, flashing.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "NaN keyframes, large acceleration, huge sample count, speech drift, flashing",
+      "proposed_test_file": "tests/cloud-motion-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P18-C05",
+      "feature": "P18",
+      "capability": "professional-motion",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P18-C04"
+      ],
+      "inputs": "P15 timebase and scene property IDs",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: two 3D objects, easing and blur at 0/25/50/75/100% of scene, reduced motion.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "NaN keyframes, large acceleration, huge sample count, speech drift, flashing",
+      "proposed_test_file": "tests/cloud-motion-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P18-C06",
+      "feature": "P18",
+      "capability": "professional-motion",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P18-C05"
+      ],
+      "inputs": "P15 timebase and scene property IDs",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: professional movement without excessive cost or readability regression. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "NaN keyframes, large acceleration, huge sample count, speech drift, flashing",
+      "proposed_test_file": "tests/cloud-motion-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P19-C01",
+      "feature": "P19",
+      "capability": "sound-design",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [],
+      "inputs": "owned voice, licensed music and SFX, source SHA and P09 cues",
+      "planned_output": "montage/sound-design-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define owned voice, licensed music and SFX, source SHA and P09 cues; reject missing narration, clipping, unlicensed music, stale SHA, cancellation.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing narration, clipping, unlicensed music, stale SHA, cancellation",
+      "proposed_test_file": "tests/cloud-audio-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P19-C02",
+      "feature": "P19",
+      "capability": "sound-design",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P19-C01",
+        "P15-C01"
+      ],
+      "inputs": "owned voice, licensed music and SFX, source SHA and P09 cues",
+      "planned_output": "server/audio-mix.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: three audio buses, ducking, acrossfades, loudness/true peak profile and per-track gain.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing narration, clipping, unlicensed music, stale SHA, cancellation",
+      "proposed_test_file": "tests/cloud-audio-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P19-C03",
+      "feature": "P19",
+      "capability": "sound-design",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P19-C02"
+      ],
+      "inputs": "owned voice, licensed music and SFX, source SHA and P09 cues",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for audible voice with controlled music, SFX and invariant old release; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing narration, clipping, unlicensed music, stale SHA, cancellation",
+      "proposed_test_file": "tests/cloud-audio-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P19-C04",
+      "feature": "P19",
+      "capability": "sound-design",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P19-C03"
+      ],
+      "inputs": "owned voice, licensed music and SFX, source SHA and P09 cues",
+      "planned_output": "tests/cloud-audio-pro.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: missing narration, clipping, unlicensed music, stale SHA, cancellation.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing narration, clipping, unlicensed music, stale SHA, cancellation",
+      "proposed_test_file": "tests/cloud-audio-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P19-C05",
+      "feature": "P19",
+      "capability": "sound-design",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P19-C04"
+      ],
+      "inputs": "owned voice, licensed music and SFX, source SHA and P09 cues",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: 6-scene audio mix with silent scene and overlaps, measured loudness and <=1-frame A/V drift.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing narration, clipping, unlicensed music, stale SHA, cancellation",
+      "proposed_test_file": "tests/cloud-audio-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P19-C06",
+      "feature": "P19",
+      "capability": "sound-design",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P19-C05"
+      ],
+      "inputs": "owned voice, licensed music and SFX, source SHA and P09 cues",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: audible voice with controlled music, SFX and invariant old release. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing narration, clipping, unlicensed music, stale SHA, cancellation",
+      "proposed_test_file": "tests/cloud-audio-pro.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P20-C01",
+      "feature": "P20",
+      "capability": "kinetic-typography",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [],
+      "inputs": "verified word IDs, approved say/show text, font licenses and safe-area policy",
+      "planned_output": "montage/kinetic-typography-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define verified word IDs, approved say/show text, font licenses and safe-area policy; reject missing font, Cyrillic clipped, long text, unsafe overlap, short flash.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing font, Cyrillic clipped, long text, unsafe overlap, short flash",
+      "proposed_test_file": "tests/cloud-kinetic-type.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P20-C02",
+      "feature": "P20",
+      "capability": "kinetic-typography",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P20-C01",
+        "P15-C01",
+        "P18-C01"
+      ],
+      "inputs": "verified word IDs, approved say/show text, font licenses and safe-area policy",
+      "planned_output": "server/kinetic-type.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: animated word emphasis with actual glyph boxes, font fallback and readable hold.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing font, Cyrillic clipped, long text, unsafe overlap, short flash",
+      "proposed_test_file": "tests/cloud-kinetic-type.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P20-C03",
+      "feature": "P20",
+      "capability": "kinetic-typography",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P20-C02"
+      ],
+      "inputs": "verified word IDs, approved say/show text, font licenses and safe-area policy",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for readable emphasis with consistent font layout; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing font, Cyrillic clipped, long text, unsafe overlap, short flash",
+      "proposed_test_file": "tests/cloud-kinetic-type.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P20-C04",
+      "feature": "P20",
+      "capability": "kinetic-typography",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P20-C03"
+      ],
+      "inputs": "verified word IDs, approved say/show text, font licenses and safe-area policy",
+      "planned_output": "tests/cloud-kinetic-type.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: missing font, Cyrillic clipped, long text, unsafe overlap, short flash.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing font, Cyrillic clipped, long text, unsafe overlap, short flash",
+      "proposed_test_file": "tests/cloud-kinetic-type.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P20-C05",
+      "feature": "P20",
+      "capability": "kinetic-typography",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P20-C04"
+      ],
+      "inputs": "verified word IDs, approved say/show text, font licenses and safe-area policy",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: 1080p+4K real Chromium frames with Russian/English fonts, measured glyph bounding boxes.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing font, Cyrillic clipped, long text, unsafe overlap, short flash",
+      "proposed_test_file": "tests/cloud-kinetic-type.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P20-C06",
+      "feature": "P20",
+      "capability": "kinetic-typography",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P20-C05"
+      ],
+      "inputs": "verified word IDs, approved say/show text, font licenses and safe-area policy",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: readable emphasis with consistent font layout. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "missing font, Cyrillic clipped, long text, unsafe overlap, short flash",
+      "proposed_test_file": "tests/cloud-kinetic-type.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P21-C01",
+      "feature": "P21",
+      "capability": "color-lighting",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [],
+      "inputs": "approved frame sources, primaries/transfer/range and licensed LUT",
+      "planned_output": "montage/color-lighting-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define approved frame sources, primaries/transfer/range and licensed LUT; reject unsupported HDR/SDR, stale LUT SHA, clipped highlights, incorrect color space.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unsupported HDR/SDR, stale LUT SHA, clipped highlights, incorrect color space",
+      "proposed_test_file": "tests/cloud-color-grade.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P21-C02",
+      "feature": "P21",
+      "capability": "color-lighting",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P21-C01",
+        "P17-C01"
+      ],
+      "inputs": "approved frame sources, primaries/transfer/range and licensed LUT",
+      "planned_output": "server/color-grade.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: bounded grade, exposure/white-balance continuity, reversible source-anchored transforms.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unsupported HDR/SDR, stale LUT SHA, clipped highlights, incorrect color space",
+      "proposed_test_file": "tests/cloud-color-grade.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P21-C03",
+      "feature": "P21",
+      "capability": "color-lighting",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P21-C02"
+      ],
+      "inputs": "approved frame sources, primaries/transfer/range and licensed LUT",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for visually coherent scenes without erasing intentional contrast; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unsupported HDR/SDR, stale LUT SHA, clipped highlights, incorrect color space",
+      "proposed_test_file": "tests/cloud-color-grade.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P21-C04",
+      "feature": "P21",
+      "capability": "color-lighting",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P21-C03"
+      ],
+      "inputs": "approved frame sources, primaries/transfer/range and licensed LUT",
+      "planned_output": "tests/cloud-color-grade.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: unsupported HDR/SDR, stale LUT SHA, clipped highlights, incorrect color space.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unsupported HDR/SDR, stale LUT SHA, clipped highlights, incorrect color space",
+      "proposed_test_file": "tests/cloud-color-grade.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P21-C05",
+      "feature": "P21",
+      "capability": "color-lighting",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P21-C04"
+      ],
+      "inputs": "approved frame sources, primaries/transfer/range and licensed LUT",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: 3 intentionally mismatched scenes with decoded histograms before/after, human artistic lock.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unsupported HDR/SDR, stale LUT SHA, clipped highlights, incorrect color space",
+      "proposed_test_file": "tests/cloud-color-grade.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P21-C06",
+      "feature": "P21",
+      "capability": "color-lighting",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P21-C05"
+      ],
+      "inputs": "approved frame sources, primaries/transfer/range and licensed LUT",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: visually coherent scenes without erasing intentional contrast. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unsupported HDR/SDR, stale LUT SHA, clipped highlights, incorrect color space",
+      "proposed_test_file": "tests/cloud-color-grade.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P22-C01",
+      "feature": "P22",
+      "capability": "smart-b-roll",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [],
+      "inputs": "explicit owned asset catalog with provenance, usage scope and license expiry",
+      "planned_output": "montage/smart-b-roll-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define explicit owned asset catalog with provenance, usage scope and license expiry; reject unknown/expired license, unauthorized URL read, SHA mismatch, missing attribution.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unknown/expired license, unauthorized URL read, SHA mismatch, missing attribution",
+      "proposed_test_file": "tests/cloud-broll-rights.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P22-C02",
+      "feature": "P22",
+      "capability": "smart-b-roll",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P22-C01",
+        "P16-C01"
+      ],
+      "inputs": "explicit owned asset catalog with provenance, usage scope and license expiry",
+      "planned_output": "server/broll-catalog.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: rank candidate inserts by meaning, aspect, motion direction, media handles and rights.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unknown/expired license, unauthorized URL read, SHA mismatch, missing attribution",
+      "proposed_test_file": "tests/cloud-broll-rights.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P22-C03",
+      "feature": "P22",
+      "capability": "smart-b-roll",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P22-C02"
+      ],
+      "inputs": "explicit owned asset catalog with provenance, usage scope and license expiry",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for narratively relevant cutaways with provable rights; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unknown/expired license, unauthorized URL read, SHA mismatch, missing attribution",
+      "proposed_test_file": "tests/cloud-broll-rights.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P22-C04",
+      "feature": "P22",
+      "capability": "smart-b-roll",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P22-C03"
+      ],
+      "inputs": "explicit owned asset catalog with provenance, usage scope and license expiry",
+      "planned_output": "tests/cloud-broll-rights.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: unknown/expired license, unauthorized URL read, SHA mismatch, missing attribution.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unknown/expired license, unauthorized URL read, SHA mismatch, missing attribution",
+      "proposed_test_file": "tests/cloud-broll-rights.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P22-C05",
+      "feature": "P22",
+      "capability": "smart-b-roll",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P22-C04"
+      ],
+      "inputs": "explicit owned asset catalog with provenance, usage scope and license expiry",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: 6-scene EDL includes owned B-roll, rejects expired file and preserves clip attribution.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unknown/expired license, unauthorized URL read, SHA mismatch, missing attribution",
+      "proposed_test_file": "tests/cloud-broll-rights.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P22-C06",
+      "feature": "P22",
+      "capability": "smart-b-roll",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P22-C05"
+      ],
+      "inputs": "explicit owned asset catalog with provenance, usage scope and license expiry",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: narratively relevant cutaways with provable rights. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "unknown/expired license, unauthorized URL read, SHA mismatch, missing attribution",
+      "proposed_test_file": "tests/cloud-broll-rights.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P23-C01",
+      "feature": "P23",
+      "capability": "creative-montage-qa",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [],
+      "inputs": "source-pinned video/audio evidence and P03/P07 technical rules",
+      "planned_output": "montage/creative-montage-qa-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define source-pinned video/audio evidence and P03/P07 technical rules; reject fake confidence, missing samples, false positives on deliberate cuts, detector exception.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake confidence, missing samples, false positives on deliberate cuts, detector exception",
+      "proposed_test_file": "tests/cloud-creative-qa.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P23-C02",
+      "feature": "P23",
+      "capability": "creative-montage-qa",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P23-C01",
+        "P17-C01",
+        "P18-C01",
+        "P19-C01",
+        "P20-C01",
+        "P21-C01",
+        "P22-C01"
+      ],
+      "inputs": "source-pinned video/audio evidence and P03/P07 technical rules",
+      "planned_output": "server/creative-qa.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: timecoded multimodal QA with technical FAIL vs aesthetic REVIEW, calibrated thresholds.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake confidence, missing samples, false positives on deliberate cuts, detector exception",
+      "proposed_test_file": "tests/cloud-creative-qa.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P23-C03",
+      "feature": "P23",
+      "capability": "creative-montage-qa",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P23-C02"
+      ],
+      "inputs": "source-pinned video/audio evidence and P03/P07 technical rules",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for useful QA without letting AI taste override human creativity; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake confidence, missing samples, false positives on deliberate cuts, detector exception",
+      "proposed_test_file": "tests/cloud-creative-qa.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P23-C04",
+      "feature": "P23",
+      "capability": "creative-montage-qa",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P23-C03"
+      ],
+      "inputs": "source-pinned video/audio evidence and P03/P07 technical rules",
+      "planned_output": "tests/cloud-creative-qa.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: fake confidence, missing samples, false positives on deliberate cuts, detector exception.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake confidence, missing samples, false positives on deliberate cuts, detector exception",
+      "proposed_test_file": "tests/cloud-creative-qa.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P23-C05",
+      "feature": "P23",
+      "capability": "creative-montage-qa",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P23-C04"
+      ],
+      "inputs": "source-pinned video/audio evidence and P03/P07 technical rules",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: 6 clean/corrupted fixtures, golden frame/audio evidence and precision/recall evaluation.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake confidence, missing samples, false positives on deliberate cuts, detector exception",
+      "proposed_test_file": "tests/cloud-creative-qa.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P23-C06",
+      "feature": "P23",
+      "capability": "creative-montage-qa",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "director-reviewer",
+      "dependencies": [
+        "P23-C05"
+      ],
+      "inputs": "source-pinned video/audio evidence and P03/P07 technical rules",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: useful QA without letting AI taste override human creativity. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "fake confidence, missing samples, false positives on deliberate cuts, detector exception",
+      "proposed_test_file": "tests/cloud-creative-qa.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P24-C01",
+      "feature": "P24",
+      "capability": "professional-timeline",
+      "name": "Contract and threat model",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [],
+      "inputs": "approved scene versions, rational timebase and owned audio tracks",
+      "planned_output": "montage/professional-timeline-v1.json and JSON Schema",
+      "implementation_steps": [
+        "Write schema with stable project/scene IDs, revision CAS, source SHA-256, byte limits, permission/lease checks, compatibility and no side effects on deck.json.",
+        "Define approved scene versions, rational timebase and owned audio tracks; reject stale worker, cyclic tracks, invalid trim, unsupported effect silently dropped.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Reviewed schema, 3 FRs mapped, positive and negative samples, old release unchanged.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "stale worker, cyclic tracks, invalid trim, unsupported effect silently dropped",
+      "proposed_test_file": "tests/cloud-timeline-otio.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P24-C02",
+      "feature": "P24",
+      "capability": "professional-timeline",
+      "name": "Bounded functional vertical slice",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P24-C01",
+        "P17-C01",
+        "P19-C01",
+        "P23-C01"
+      ],
+      "inputs": "approved scene versions, rational timebase and owned audio tracks",
+      "planned_output": "server/professional-timeline.mjs",
+      "implementation_steps": [
+        "Implement one deterministic end-to-end behavior behind disabled-by-default feature flag. Use integer/rational timebase, pinned fixtures, retries and safe fail-closed fallback.",
+        "Implement: versioned edit DAG with undo/redo, clean OTIO/EDL interchange and explicit loss report.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Core unit tests pass on repeated runs, stale source is rejected, deterministic output or documented tolerance.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "stale worker, cyclic tracks, invalid trim, unsupported effect silently dropped",
+      "proposed_test_file": "tests/cloud-timeline-otio.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P24-C03",
+      "feature": "P24",
+      "capability": "professional-timeline",
+      "name": "MCP + REST + Studio preview",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P24-C02"
+      ],
+      "inputs": "approved scene versions, rational timebase and owned audio tracks",
+      "planned_output": "MCP/REST route and Studio scene editor",
+      "implementation_steps": [
+        "Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor.",
+        "Expose revisioned preview for editable delivery alongside immutable MP4 with proven provenance; leave published release unchanged.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "stale worker, cyclic tracks, invalid trim, unsupported effect silently dropped",
+      "proposed_test_file": "tests/cloud-timeline-otio.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P24-C04",
+      "feature": "P24",
+      "capability": "professional-timeline",
+      "name": "Negative and regression suite",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P24-C03"
+      ],
+      "inputs": "approved scene versions, rational timebase and owned audio tracks",
+      "planned_output": "tests/cloud-timeline-otio.test.mjs",
+      "implementation_steps": [
+        "Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation.",
+        "Exercise deliberately broken cases: stale worker, cyclic tracks, invalid trim, unsupported effect silently dropped.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "stale worker, cyclic tracks, invalid trim, unsupported effect silently dropped",
+      "proposed_test_file": "tests/cloud-timeline-otio.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P24-C05",
+      "feature": "P24",
+      "capability": "professional-timeline",
+      "name": "Real six-scene E2E and QA",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P24-C04"
+      ],
+      "inputs": "approved scene versions, rational timebase and owned audio tracks",
+      "planned_output": "Docker real media job and immutable artifact",
+      "implementation_steps": [
+        "Render owned/licensed media through production-equivalent Chromium+FFmpeg in Docker; compare decoded PTS, timing, audio, screenshots and A/B against untouched baseline.",
+        "Run real media test: 6-scene NLE timeline roundtrip, exact cut PTS, audio tracks and reversible edits.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Real MP4/H.264 evidence with SHA and screenshot/frame IDs, no mandatory media tests skipped, independent human creative review.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "stale worker, cyclic tracks, invalid trim, unsupported effect silently dropped",
+      "proposed_test_file": "tests/cloud-timeline-otio.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    },
+    {
+      "id": "P24-C06",
+      "feature": "P24",
+      "capability": "professional-timeline",
+      "name": "Canary, operations and rollback",
+      "status": "TODO",
+      "owner_hint": "scene-developer",
+      "dependencies": [
+        "P24-C05"
+      ],
+      "inputs": "approved scene versions, rational timebase and owned audio tracks",
+      "planned_output": "Railway staging canary report",
+      "implementation_steps": [
+        "Run staging-only feature flag against tested commit; capture CPU/RAM/p95/render queue/cost and 5xx; kill/restart test and verify previous release restoration.",
+        "Measure and compare: editable delivery alongside immutable MP4 with proven provenance. Set stop conditions for crash/5xx/performance regression.",
+        "Verify source SHA/lease/revision and do not mutate another agent's work or last accepted release.",
+        "Document a negative case, evidence file paths and rollback before asking reviewer."
+      ],
+      "acceptance": [
+        "Staging SHA equals tested Git SHA, metric thresholds and rollback documented, reviewer + owner signoff required before production.",
+        "Observed exit_code=0 for applicable test, exact head commit and asset SHA attached.",
+        "Independent reviewer decision required; no unproven production claim."
+      ],
+      "negative_tests": "stale worker, cyclic tracks, invalid trim, unsupported effect silently dropped",
+      "proposed_test_file": "tests/cloud-timeline-otio.test.mjs",
+      "evidence": [],
+      "reviewer": null,
+      "started_at": null,
+      "completed_at": null,
+      "blocked_reason": null,
+      "accepted_release": null,
+      "release_eligible": false
+    }
+  ],
+  "release_gates": [
+    "GATE-01",
+    "GATE-02",
+    "GATE-03",
+    "GATE-04",
+    "GATE-05"
+  ]
+}
