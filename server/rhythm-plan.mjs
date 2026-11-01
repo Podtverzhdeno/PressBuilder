@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 
 const FPS = new Set(['24/1','25/1','30/1','60/1','24000/1001','30000/1001']);
 const IDENT = /^[a-zA-Z0-9_-]{1,96}$/;
-const PROJECT = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const PROJECT = /^[a-z0-9][a-z0-9_-]{0,40}$/;
 const HASH = /^[a-f0-9]{64}$/;
 const MICROS = 1_000_000n;
 
@@ -64,6 +64,14 @@ const frameAt = (timeUs, num, den) => {
   const numerator = BigInt(timeUs) * BigInt(num);
   const denominator = MICROS * BigInt(den);
   return Number((numerator * 2n + denominator) / (2n * denominator));
+};
+// Containment-preserving bounds: never round a word's trailing phoneme
+// *backwards* before checking whether a cut occurs during that word.
+const frameFloor = (us, num, den) =>
+  Number(BigInt(us) * BigInt(num) / (MICROS * BigInt(den)));
+const frameCeil = (us, num, den) => {
+  const a=BigInt(us) * BigInt(num), b=MICROS * BigInt(den);
+  return Number((a+b-1n)/b);
 };
 const canonical = (value) => Array.isArray(value)
   ? value.map(canonical)
@@ -131,13 +139,13 @@ function validate(input) {
   boundedInt(policy.max_cuts_per_10s, 1, 30, 'INVALID_POLICY');
   boundedInt(policy.max_cuts, 1, 100, 'INVALID_POLICY');
   const wordFrames = words.map(w => ({
-    start:frameAt(w.start_us,fps.num,fps.den),
-    end:frameAt(w.end_us,fps.num,fps.den),
+    start:frameFloor(w.start_us,fps.num,fps.den),
+    end:frameCeil(w.end_us,fps.num,fps.den),
     cue_id:w.cue_id, protected:!!w.protected
   }));
   const allProtected = [
-    ...protectedSpans.map(w=>({start:frameAt(w.start_us,fps.num,fps.den),
-                               end:frameAt(w.end_us,fps.num,fps.den)})),
+    ...protectedSpans.map(w=>({start:frameFloor(w.start_us,fps.num,fps.den),
+                               end:frameCeil(w.end_us,fps.num,fps.den)})),
     ...wordFrames.filter(w=>w.protected)
   ].sort((a,b)=>a.start-b.start || a.end-b.end);
   const protectedFrames=[];
@@ -186,6 +194,18 @@ function review(p, code, endFrame) {
     cuts:[], discarded:[], issues:[code], approved:false, persisted:false };
 }
 
+/** Does any actual half-open ten-second window contain too many cuts?
+ * Checking candidates on BOTH sides independently falsely uses 20 seconds.
+ */
+function exceedsActualWindow(candidateFrame,cuts,windowFrames,maxCuts) {
+  const all=[...cuts.map(c=>c.frame),candidateFrame].sort((a,b)=>a-b);
+  let left=0;
+  for(let right=0;right<all.length;right++){
+    while(all[right]-all[left]>=windowFrames)left++;
+    if(right-left+1>maxCuts)return true;
+  }
+  return false;
+}
 /** Propose (never apply) exact-frame rhythm cuts with strictly pinned inputs. */
 export function proposeRhythmCuts(input) {
   let state;
@@ -231,8 +251,8 @@ export function proposeRhythmCuts(input) {
     let why=cutoffReason(candidate.frame,state);
     if (!why && cuts.some(x => Math.abs(x.frame - candidate.frame) < policy.min_shot_frames)) why='MIN_SHOT_GAP';
     if (!why && cuts.length >= policy.max_cuts) why='MAX_CUTS';
-    if (!why && cuts.filter(x => Math.abs(x.frame-candidate.frame) < maxSpanFrames).length >=
-        policy.max_cuts_per_10s) why='DENSITY_LIMIT';
+    if (!why && exceedsActualWindow(candidate.frame,cuts,maxSpanFrames,
+        policy.max_cuts_per_10s)) why='DENSITY_LIMIT';
     if (why) {
       // Invalid manual changes require fresh human plan, never silently ignored.
       if (candidate.reason === 'manual') return review(p, 'MANUAL_CUT_' + why, endFrame);
