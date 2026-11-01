@@ -117,10 +117,14 @@ export function rhythmPreviewService({root,getDeck,enabled=false}){
         const cue=byKey.get((item.scene_id ??
           c.cues.find(x=>x.cue_id===item.cue_id)?.scene_id)+'/'+item.cue_id);
         if(!cue)deny('UNKNOWN_SCENE_CUE',409);
-        // A word cannot be confirmed by an unrelated slide cue.
-        if(source===input.words &&
-           (item.start_us<cue.start_us||item.end_us>cue.end_us))
-          deny('WORD_OUTSIDE_CUE',409);
+        // A word OR annotated pause must belong to the correct scene cue;
+        // names alone cannot authorize timestamps in other scenes.
+        if(!Number.isSafeInteger(item.start_us)||
+           !Number.isSafeInteger(item.end_us)||
+           item.end_us<=item.start_us||
+           item.start_us<cue.start_us||
+           item.end_us>cue.end_us)
+          deny(source===input.words?'WORD_OUTSIDE_CUE':'PAUSE_OUTSIDE_CUE',409);
       }
     }
     inspect(input.words);inspect(input.pauses);
