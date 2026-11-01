@@ -181,7 +181,9 @@
 
 | 2026-11-01 | P04–P06 | Реализованы валидируемый project style contract, hard-cut FFmpeg assembly из одобренных сцен, scoped bearer tokens, fenced leases и журнал аудита. | `server/style-contract.mjs`, `server/assemble-scenes.mjs`, `server/scene-leases.mjs`, `tests/cloud-production-p04-p06.test.mjs`. GitHub Actions cloud SUCCESS на `28d589a3` (повторные обновления документации/CI проверить). | **MVP IN PROGRESS**; полный DoD ещё не закрыт |
 
-**Следующая обязательная работа:** отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P06 выполняются на уровне MVP, P07–P10 остаются BACKLOG. Для P04 требуется редактор/реальная bbox-проверка и inheritance, для P05 — переходы/immutable artifacts, для P06 — распределённые транзакционные leases и rotation токенов.
+| 2026-11-01 | P10 | Шесть согласованных ТЗ и чекпоинтов, MCP-драфт (директор), ручное HTTP-утверждение, version checks, P04 snapshot, точечный replan с лимитом попыток, ручной финальный release-gate по шести QA/review и SHA-256 MP4. | GitHub Actions Cloud CI `41265515927`: `npm run build` PASS, `npm run test:cloud` — 20 passed, 1 skipped, 0 failed; `cloud-director.test.mjs` и `cloud-director-signoff.test.mjs` PASS. Docker smoke проверяется отдельно. | **P10.1–P10.2 MVP; P10.3–P10.5 PARTIAL; P10.6 OPEN** |
+
+**Следующая обязательная работа:** отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P06 выполняются на уровне MVP, P07–P09 остаются BACKLOG; P10 — Planning/Approval MVP (полная оркестрация ещё в работе). Для P04 требуется редактор/реальная bbox-проверка и inheritance, для P05 — переходы/immutable artifacts, для P06 — распределённые транзакционные leases и rotation токенов.
 
 
 ### P04–P06: пределы реализованного среза
@@ -190,4 +192,4 @@
 - **P05:** только детерминированный hard-cut H.264/AAC (нужны статус задачи `done`, QA PASS и сцены в порядке проекта). Нет crossfade/match cut, durable jobs или immutable аудита каждого рендера.
 - **P06:** отдельные scoped bearer keys для workers/reviewers/viewers, fenced TTL lease и аудит. Общий MCP_API_KEY/OAuth/Basic — **директор**, а не отдельный агент. Вся модель рассчитана на один процесс и не защищает от злоупотребления директором. См. [docs/production-p04-p06.md](docs/production-p04-p06.md).
 
-| 2026-11-01 | P10 | `server/director.mjs`: режиссёрский план на 6 сцен, briefs, MCP proposal/read, web-only approval, P04 style snapshot, optimistic locking, rollback journal, live progress. | `tests/cloud-director.test.mjs` добавлен, CI не подтверждён; инструкция `docs/director-agent.md`. | **MVP IMPLEMENTED, CI PENDING; NOT AUTONOMOUS** |
+
