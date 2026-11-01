@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P17-C03/C04 IN_PROGRESS (async exact P08 boundary evidence; FFmpeg media Docker CI and independent security review pending), P17-C01/C02 TESTED (data-only core; run 41350977938, 160/160 Docker, independent review pending), P18–P24 TODO. P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
+Progress: P17-C03/C04 IN_PROGRESS (async exact P08 boundary evidence; FFmpeg media 162/162 Docker PASS on b6c6c848; independent security review and J/L remain pending), P17-C01/C02 TESTED (data-only core; run 41350977938, 160/160 Docker, independent review pending), P18–P24 TODO. P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). P16-C01/C02 TESTED, P16-C03/C04 IN_PROGRESS (cloud CI 41349714899). 51 other checkpoints TODO. Neither real narration nor human artistic P16 acceptance is established.
 
 ## Evidence and progression rules
 
