@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P15-C01 and P15-C02 are TESTED by cloud CI (105 total, 91 pass, 14 skipped; run 41338415912), but remain unchecked pending independent reviewer acceptance. Other 58 checkpoints are TODO. Features are not in production.
+Progress: P15-C01 and P15-C02 are TESTED by cloud CI (run 41338415912; review pending). P15-C03 is IN_PROGRESS with read-only Studio+MCP+REST preview tested by cloud CI run 41340395952 (117 tests, 103 pass, 14 skipped); other 57 checkpoints TODO. No P15 feature is deployed or approved for production.
 
 ## Evidence and progression rules
 
@@ -48,7 +48,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C03 — MCP + REST + Studio preview
 
-- [ ] P15-C03 — TODO. Deliverable: MCP/REST route and Studio scene editor.
+- [ ] P15-C03 — IN_PROGRESS (read-only MCP/REST + Studio preview CI-tested; reviewer approval, CAS persistence and verified alignment/rights outstanding). Deliverable: MCP/REST route and Studio scene editor.
 - Actions: Implement typed read/write and preview endpoints scoped to distinct authenticated principals, P06 fence tokens and expected revisions; add undo and human override in editor. Expose revisioned preview for proposed cut list with source frames and deterministic review evidence; leave published release unchanged.
 - Dependencies: P15-C02.
 - Acceptance: Foreign worker and expired token are denied, CAS conflict shown in UI, reviewer can compare prior/candidate; no implicit approval.
