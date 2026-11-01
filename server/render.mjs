@@ -177,8 +177,20 @@ export async function renderWithChrome({id,slideId=null,outputName=null,port,use
     const clipDuration=scene?.dur??info.duration;
     if(clipDuration<=0||clipDuration>600)throw new Error('Render clip limited to 10 minutes');
     if(!Number.isFinite(clipStart)||clipStart<0)throw new Error('Invalid scene start time');
+    // Structural text audit and three representative actual rendered frames.
+    // These hooks run trusted application code only, never data-supplied JS.
+    const auditExpression='window.__PB_CLOUD_VISUAL_QA__?.('+JSON.stringify(slideId)+')';
+    const visualAudit=await evalBrowser(client,auditExpression,false,signal);
+    const frameSamples=[];
+    for(const fraction of [.22,.5,.78]){
+      const at=Number((clipStart+clipDuration*fraction).toFixed(6));
+      const stats=await evalBrowser(client,'window.__PB_CLOUD_FRAME_STATS__?.('+at+')',false,signal);
+      if(stats)frameSamples.push(stats);
+    }
     const destination=outputName||(slideId?id+'_'+slideId:id);
-    return await encode(client,{id,outputName:destination,from:clipStart,fps,height,duration:clipDuration,onProgress,signal});
+    const result=await encode(client,{id,outputName:destination,from:clipStart,
+      fps,height,duration:clipDuration,onProgress,signal});
+    return {...result,visualAudit,frameSamples};
   } finally {
     signal?.removeEventListener('abort',stop);
     if(client)try{client.socket.close()}catch{}
