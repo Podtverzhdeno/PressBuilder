@@ -17,6 +17,7 @@ import { renderWithChrome } from './render.mjs';
 import { inspectMp4 } from './video-qa.mjs';
 import {styleContractStore,enforceScene3D} from './style-contract.mjs';
 import {sceneLeaseStore,agentDirectory} from './scene-leases.mjs';
+import {sceneReviewStore} from './scene-review.mjs';
 import {assemblyService} from './assemble-scenes.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -37,6 +38,8 @@ const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','d
 const styles=styleContractStore({root:DECKS,getDeck});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
+const sceneReviews=sceneReviewStore({root:DECKS,getDeck});
+const webActor={id:'web-editor',role:'director'};
 const director={id:'web-director',role:'director'};
 
 function secureEq(a,b) {
@@ -214,6 +217,31 @@ async function api(req,res,url) {
     if(method==='POST'){
       const body=await readJson(req);
       return json(res,202,assembly.start(id,body?.scene_ids));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const renderInfo=/^\/api\/decks\/([^/]+)\/renders\/([^/]+)$/.exec(p);
+  if(renderInfo){
+    if(method!=='GET')throw new UserError('Method not allowed',405);
+    return json(res,200,getRender(deckId(escaped(renderInfo[1])),escaped(renderInfo[2])));
+  }
+  const reviewMatch=/^\/api\/decks\/([^/]+)\/reviews\/([^/]+)(?:\/([^/]+))?$/.exec(p);
+  if(reviewMatch){
+    const id=deckId(escaped(reviewMatch[1])),sid=escaped(reviewMatch[2]),item=reviewMatch[3]&&escaped(reviewMatch[3]);
+    if(item){
+      if(method==='GET')return json(res,200,sceneReviews.get(id,sid,item));
+      if(method==='PATCH'){
+        const result=sceneReviews.update(id,sid,item,await readJson(req),webActor);
+        leases.logWrite(id,sid,webActor,result.revision,'review_decision');
+        return json(res,200,result);
+      }
+      throw new UserError('Method not allowed',405);
+    }
+    if(method==='GET')return json(res,200,sceneReviews.list(id,sid));
+    if(method==='POST'){
+      const result=sceneReviews.create(id,sid,await readJson(req),webActor,getRender(id,sid));
+      leases.logWrite(id,sid,webActor,result.revision,'review_created');
+      return json(res,200,result);
     }
     throw new UserError('Method not allowed',405);
   }
