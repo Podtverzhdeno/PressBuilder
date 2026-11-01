@@ -133,6 +133,7 @@ async function encode(client,{id,fps,height,duration,from=0,outputName=id,onProg
 export async function renderWithChrome({id,slideId=null,outputName=null,outputNameOverride=null,
   port,username,password,timeoutMs=900000,onProgress,signal,previewOnly=false}) {
   signal?.throwIfAborted();
+  const timerStart=performance.now();
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'pb-render-'));
   const exe=process.env.CHROMIUM_PATH||'/usr/bin/chromium';
   const args=['--headless=new','--no-sandbox','--disable-dev-shm-usage',
@@ -185,6 +186,7 @@ export async function renderWithChrome({id,slideId=null,outputName=null,outputNa
     // no P03/P08 capture, no stable aliases and no approval side effects.
     if(previewOnly){
       if(!slideId)throw new Error('Draft preview requires a scene ID');
+      const beforeCapture=performance.now();
       const frames=[],previewHeight=Math.min(height,720);
       const maxTime=Math.max(0,clipDuration-1/fps);
       for(const [index,fraction] of [0.1,0.5,0.9].entries()){
@@ -200,7 +202,10 @@ export async function renderWithChrome({id,slideId=null,outputName=null,outputNa
         frames.push({index,t,bytes});
       }
       return {scope:'DRAFT_FRAMES_ONLY',fps,width:Math.round(previewHeight*16/9),
-        height:previewHeight,frames};
+        height:previewHeight,frames,timings_ms:{
+          browser_setup:Number((beforeCapture-timerStart).toFixed(2)),
+          capture_frames:Number((performance.now()-beforeCapture).toFixed(2))
+        }};
     }
     // Structural text audit and three representative actual rendered frames.
     // These hooks run trusted application code only, never data-supplied JS.

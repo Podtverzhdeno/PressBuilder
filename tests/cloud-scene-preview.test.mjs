@@ -33,11 +33,18 @@ test('P12 quick draft PNG: source-pinned cache, tamper detection and no P08 appr
     const done=await until(()=>f.preview.get('demo','s01').status==='completed'?f.preview.get('demo','s01'):null);
     assert.equal(done.frames.length,3);
     assert.equal(done.scope,'DRAFT_FRAMES_ONLY');
+    assert.ok(done.timings_ms.total>=done.timings_ms.chromium);
+    assert.ok(done.timings_ms.wait_resource>=0);
+    assert.ok(done.timings_ms.persist>=0);
+    assert.equal(done.process_metrics.scope,'PROCESS_DELTA_NOT_JOB_ISOLATED');
+    assert.ok(done.process_metrics.rss_before_mb>0);
     assert.equal(f.renders(),1);
     assert.ok(!fs.existsSync(path.join(f.out,'demo_s01.mp4')),'Preview must not create an MP4');
     assert.ok(!fs.existsSync(path.join(f.dir,'decks')),'Preview must not create P08 metadata');
     const hit=f.preview.start('demo','s01');
     assert.equal(hit.cache_hit,true);
+    assert.equal(hit.timings_ms.chromium,0);
+    assert.equal(hit.timings_ms.persist,0);
     assert.equal(f.renders(),1);
     assert.ok(f.preview.frame('demo','s01',0).endsWith('f0.png'));
     fs.appendFileSync(f.preview.frame('demo','s01',1),'corruption');

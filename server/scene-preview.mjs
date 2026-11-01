@@ -74,6 +74,7 @@ export function scenePreviewService({out,getDeck,fingerprint,render,baseUrl,
       source_fingerprint:source,...cache}:{id,slide_id:scene,status:'not_started'};
   }
   function start(id,scene){
+    const requestStart=performance.now();
     valid(id,scene);
     const source=fingerprint(id,scene),k=key(id,scene);
     const old=jobs.get(k);
@@ -83,14 +84,17 @@ export function scenePreviewService({out,getDeck,fingerprint,render,baseUrl,
     }
     const available=cached(id,scene,source);
     if(available){
+      const elapsed=Number((performance.now()-requestStart).toFixed(2));
       const job={id,slide_id:scene,job_id:randomUUID(),status:'completed',
-        progress:100,source_fingerprint:source,...available};
+        progress:100,source_fingerprint:source,...available,
+        timings_ms:{prepare:elapsed,chromium:0,persist:0,total:elapsed}};
       jobs.set(k,job);
       return structuredClone(job);
     }
     const controller=new AbortController(),job={
       id,slide_id:scene,job_id:randomUUID(),status:'queued',progress:0,
-      source_fingerprint:source,created_at:new Date().toISOString()
+      source_fingerprint:source,created_at:new Date().toISOString(),
+      timings_ms:{prepare:Number((performance.now()-requestStart).toFixed(2))}
     };
     jobs.set(k,job);controllers.set(k,controller);
     void (async()=>{
@@ -99,12 +103,26 @@ export function scenePreviewService({out,getDeck,fingerprint,render,baseUrl,
       const timeout=setTimeout(()=>controller.abort(new Error('Preview timeout')),timeoutMs);
       timeout.unref?.();
       try{
-        const startWait=Date.now();
+        const startWait=performance.now();
         release=await acquireResource({kind:'preview',id,scene,signal:controller.signal});
-        job.wait_resource_ms=Date.now()-startWait;
+        job.wait_resource_ms=Number((performance.now()-startWait).toFixed(2));
+        job.timings_ms.wait_resource=job.wait_resource_ms;
         controller.signal.throwIfAborted();
         job.status='running';
+        // Process CPU/RSS includes Node's unrelated requests, excludes Chrome
+        // subprocess memory. Never advertise it as isolated browser resources.
+        const cpuBefore=process.cpuUsage(),rssBefore=process.memoryUsage().rss;
+        const chromiumStart=performance.now();
         const result=await render({id,slideId:scene,signal:controller.signal});
+        job.timings_ms.chromium=Number((performance.now()-chromiumStart).toFixed(2));
+        const cpuAfter=process.cpuUsage(cpuBefore);
+        job.process_metrics={scope:'PROCESS_DELTA_NOT_JOB_ISOLATED',
+          cpu_user_ms:Number((cpuAfter.user/1000).toFixed(2)),
+          cpu_system_ms:Number((cpuAfter.system/1000).toFixed(2)),
+          rss_before_mb:Number((rssBefore/1048576).toFixed(2)),
+          rss_after_mb:Number((process.memoryUsage().rss/1048576).toFixed(2))};
+        if(result.timings_ms)job.render_timings_ms=result.timings_ms;
+        const persistStart=performance.now();
         controller.signal.throwIfAborted();
         if(result?.scope!=='DRAFT_FRAMES_ONLY'||result.frames?.length!==3)
           throw bad('Invalid draft frame response',502);
@@ -142,6 +160,7 @@ export function scenePreviewService({out,getDeck,fingerprint,render,baseUrl,
         job.scope=manifest.scope;
         job.frames=frames.map(f=>({...f,url:url(id,scene,f.index)}));
         job.width=manifest.width;job.height=manifest.height;
+        job.timings_ms.persist=Number((performance.now()-persistStart).toFixed(2));
       }catch(e){
         job.status=controller.signal.aborted?'cancelled':'failed';
         job.error=e instanceof Error?e.message:String(e);
@@ -150,6 +169,7 @@ export function scenePreviewService({out,getDeck,fingerprint,render,baseUrl,
         try{release?.()}catch{}
         if(stage)fs.rmSync(stage,{recursive:true,force:true});
         job.finished_at=new Date().toISOString();
+        job.timings_ms.total=Number((performance.now()-requestStart).toFixed(2));
         controllers.delete(k);
       }
     })();
