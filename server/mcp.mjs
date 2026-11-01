@@ -1,5 +1,7 @@
 /** Stateless Streamable HTTP MCP endpoint. No arbitrary shell or filesystem tools. */
-import { createDeck, getDeck, listDecks, patchCue, patchDeck, patchObject, patchSlide, reorderSlides, setVisuals, UserError } from './cloud-core.mjs';
+import { createDeck, DECKS, getDeck, listDecks, patchCue, patchDeck, patchObject, patchSlide, reorderSlides, setVisuals, UserError } from './cloud-core.mjs';
+import { sceneTaskStore } from './scene-tasks.mjs';
+const taskStore=sceneTaskStore({root:DECKS,getDeck});
 
 const obj = (properties, required=[]) => ({ type:'object', properties, required, additionalProperties:false });
 const str = (description) => ({ type:'string', description });
@@ -14,6 +16,10 @@ export const TOOLS = [
  { name:'update_slide', description:'Edit the slide label and lead/tail pauses.', inputSchema:obj({id:str('Project slug'),slide_id:str('Slide ID'),label:str('Slide label'),lead:nilNum('Seconds'),tail:nilNum('Seconds')},['id','slide_id']) },
  { name:'update_object', description:'Override an existing scene object by ID: position, size, text, visibility. Objects must already exist in scene code.', inputSchema:obj({id:str('Project slug'),slide_id:str('Slide ID'),object_id:str('Object ID'),x:nilNum('X coordinate'),y:nilNum('Y coordinate'),scale:nilNum('Scale'),text:{type:['string','null']},hidden:{type:'boolean'}},['id','slide_id','object_id']) },
  { name:'set_slide_visuals', description:'Create or replace an entire animated infographic scene with 1..30 editable graphics (text, rect, circle, line, bar). No code deployment required. Each element can animate from slide start or from a cue ID; existing TypeScript scenes take priority. Coordinates are in 1920x1080 pixels. A replacement list [] clears the graphics.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing slide ID'),elements:{type:'array',maxItems:30,items:{type:'object',additionalProperties:false,properties:{id:str('Unique object ID'),kind:{type:'string',enum:['text','rect','circle','line','bar']},x:num('Left coordinate'),y:num('Top coordinate'),w:num('Width or horizontal line delta'),h:num('Height or vertical line delta'),text:str('Display text, required for text kind'),radius:num('Radius / corner radius'),size:num('Font size'),line_width:num('Line width'),color:{type:'string',enum:['h1','accent','text','pos','panel','bg']},font:{type:'string',enum:['display','sans','mono']},weight:{type:'string',enum:['regular','bold']},cue_id:str('Start animation when this cue begins'),effect:{type:'string',enum:['fade','rise','slide','pop']},duration:num('Entrance duration in seconds')},required:['id','kind','x','y']}}},['id','slide_id','elements']) },
+ { name:'list_scene_tasks', description:'List all scene assignments, assignees, full prompts, statuses and individual checkpoints. Agents should call this after opening a video project.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'get_scene_task', description:'Get the full scene-specific agent assignment, detailed brief, deliverables, checkpoints and revision.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
+ { name:'set_scene_task', description:'Create or edit the full assignment for one scene (not the deck). Requires the latest expected_revision from get_scene_task or list_scene_tasks to avoid overwriting another agent. Keeps unspecified fields unchanged.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),expected_revision:{type:'integer',minimum:0},title:str('Scene task title'),assignee:str('Agent/owner name'),brief:str('Detailed task specification, up to 20000 characters'),deliverables:str('Acceptance criteria and deliverable requirements'),status:{type:'string',enum:['todo','in_progress','review','done','blocked']},checkpoints:{type:'array',maxItems:60,items:obj({id:str('Stable checkpoint id'),title:str('Checkpoint action'),done:{type:'boolean'},note:str('Completion evidence or blocker')},['id','title'])}},['id','slide_id','expected_revision']) },
+ { name:'set_scene_checkpoint', description:'Update exactly one scene checkpoint and preserve all other scenes/tasks. Use after completing and checking a milestone; provide evidence in note.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),checkpoint_id:str('Checkpoint ID'),done:{type:'boolean'},note:str('Evidence or details')},['id','slide_id','checkpoint_id']) },
  { name:'reorder_slides', description:'Reorder existing slides without losing any cue IDs.', inputSchema:obj({id:str('Project slug'),slide_ids:{type:'array',items:{type:'string'}}},['id','slide_ids']) },
  { name:'render_video', description:'Start a server-side Chromium + WebCodecs + FFmpeg render job for a video. Poll get_render_status. Server rendering uses deterministic Chromium Canvas frames encoded with FFmpeg.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
@@ -24,7 +30,11 @@ export function makeMcp({ startRender, getRender, baseUrl }) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) throw new UserError('Arguments must be an object');
     switch(name) {
       case 'list_decks': return listDecks();
-      case 'get_deck': return getDeck(args.id);
+      case 'get_deck': return {...getDeck(args.id),scene_tasks:taskStore.list(args.id).map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}))};
+      case 'list_scene_tasks': return taskStore.list(args.id);
+      case 'get_scene_task': return taskStore.read(args.id,args.slide_id);
+      case 'set_scene_task': {const {id,slide_id,expected_revision,...fields}=args;return taskStore.put(id,slide_id,fields,expected_revision)}
+      case 'set_scene_checkpoint': {const {id,slide_id,checkpoint_id,...patch}=args;return taskStore.checkpoint(id,slide_id,checkpoint_id,patch)}
       case 'create_deck': return createDeck(args);
       case 'update_deck': return patchDeck(args.id, args);
       case 'update_cue': return patchCue(args.id,args.slide_id,args.cue_id,args);
