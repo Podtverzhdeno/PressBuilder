@@ -152,6 +152,7 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes}){
         'Перед началом прочитать README, get_scene_task и get_deck. Изменять только сцену '+s.id+'.',
         'Не объявлять результат готовым без отдельного MP4, проверки QA и человеческой приёмки.'
       ].join('\n\n');
+      if(brief.length>20000)fail('Scene brief would exceed assignment limit: '+s.id,413);
       const checkpoints=[
         ['storyboard','Подтвердить смысл и раскадровку'],
         ['assets','Подготовить проверяемые 3D-объекты и визуальный язык'],
@@ -236,6 +237,15 @@ export function directorStore({root,getDeck,sceneTasks,projectReadmes}){
       throw err;
     }
     return read(id);
+  }
+  // Run recovery before the server accepts any scene-task requests. Without
+  // this, another API route might read half-published tasks after a crash.
+  if(fs.existsSync(root)){
+    for(const entry of fs.readdirSync(root,{withFileTypes:true})){
+      if(entry.isDirectory()&&SLUG.test(entry.name)&&
+        fs.existsSync(path.join(root,entry.name,'.director','pending.json')))
+        recover(entry.name);
+    }
   }
   return {read,propose,approve};
 }
