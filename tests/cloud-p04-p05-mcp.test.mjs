@@ -83,7 +83,7 @@ test('P04/P05: REST+MCP transition plan and style revision safety on real HTTP s
     const policy=await value('get_style_contract',{id:'p0405',slide_id:'s02'});
     assert.equal(policy.effective.typography.minFontSize,60);
     const context=await value('get_project_context',{id:'p0405'});
-    assert.equal(context.style_contract.revision,1);
+    assert.equal(context.style_contract.revision,2);
     const stale=await rpc('set_style_contract',{id:'p0405',expected_revision:0,contract:base.contract});
     assert.equal(stale.isError,true);
     const initial=await value('get_assembly_plan',{id:'p0405'});
