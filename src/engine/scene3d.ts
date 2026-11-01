@@ -15,7 +15,7 @@ export interface Scene3DCamera{
 export interface Scene3DObject{
   id:string;mesh:MeshName;pos:V3;scale:number;
   rotation:V3;spin:V3;color:string;edge_color:string|null;
-  wire:boolean;start:number;fade:number;
+  wire:boolean;start:number;start_marker?:string;fade:number;
 }
 export interface Scene3DSpec{version:1;camera:Scene3DCamera;objects:Scene3DObject[]}
 export interface Scene3DRecord{
