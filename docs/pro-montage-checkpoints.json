@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15-C01/C02 TESTED pending independent review, P15-C03 IN_PROGRESS with read-only UI + API tested, remaining 57 TODO. No production rhythm cut publishing.",
+  "notice": "P15 C01/C02 TESTED, C03/C04/C05 IN_PROGRESS; 55 TODO. Synthetic six-scene Docker and operator rights gates technically tested; no natural-speech alignment, artistic acceptance or production publish.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -164,7 +164,7 @@
       "feature": "P15",
       "capability": "rhythm-engine",
       "name": "Negative and regression suite",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P15-C03"
@@ -184,20 +184,34 @@
       ],
       "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
       "proposed_test_file": "tests/cloud-rhythm.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "adversarial_audio_rights_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41344739143",
+          "commit_sha": "f3316e71aaac3123b0b1276736720fa292329a38",
+          "command": "npm run build && npm run test:cloud (cloud and Docker); Docker render-smoke",
+          "exit_code": 0,
+          "cloud_total": 135,
+          "cloud_passed": 119,
+          "cloud_skipped": 16,
+          "artifact_path": "tests/cloud-rhythm-audio-evidence.test.mjs",
+          "note": "Security and regression tests for source-byte hashing, hardlinks/symlink checks, rights expiry, unsupported FFmpeg, audible false pauses and stale source. Independent security reviewer and negative tests on production roles/remote deployment pending."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "C03 upstream not accepted; no independent security QA, multi-instance/persistence audit, full word-level source verification or release authority. All checks remain non-publishable.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "f3316e71aaac3123b0b1276736720fa292329a38"
     },
     {
       "id": "P15-C05",
       "feature": "P15",
       "capability": "rhythm-engine",
       "name": "Real six-scene E2E and QA",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P15-C04"
@@ -217,13 +231,27 @@
       ],
       "negative_tests": "missing words, nonfinite BPM, stale source, cuts through protected narration",
       "proposed_test_file": "tests/cloud-rhythm.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "six_scene_ffmpeg_media_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41344739143",
+          "commit_sha": "f3316e71aaac3123b0b1276736720fa292329a38",
+          "command": "npm run build && npm run test:cloud (cloud and Docker); Docker render-smoke",
+          "exit_code": 0,
+          "cloud_total": 135,
+          "cloud_passed": 119,
+          "cloud_skipped": 16,
+          "artifact_path": "tests/cloud-rhythm-six-scene-media.test.mjs",
+          "note": "Docker builds six H.264 clips, muxes AAC with genuinely decoded synthesized WAV, checks 144 frames/24fps and ~6s duration; source MP4 and WAV unchanged. This is NOT natural narrated word alignment, 30000/1001 coverage or independent human A/B."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Technical six-scene synthetic audio/H264 test passed but 30000/1001, genuine voiced narration alignment, authenticated source rights and blind human artistic A/B not completed; independent reviewer/owner acceptance missing.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "f3316e71aaac3123b0b1276736720fa292329a38"
     },
     {
       "id": "P15-C06",
