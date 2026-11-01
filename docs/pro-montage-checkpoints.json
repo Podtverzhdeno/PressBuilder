@@ -137,12 +137,24 @@
           "tests_skipped": 14,
           "artifact_path": "server/rhythm-preview.mjs",
           "note": "GitHub cloud and Docker render-smoke PASS on exact implementation SHA. Real cloud REST/MCP wire tests included. Docker smoke regresses P01-P14; does not attest actual P15 aligned voice or creative edit quality. No reviewer acceptance, no production enable."
+        },
+        {
+          "kind": "cloud_test",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41342438863",
+          "commit_sha": "85312c6edb1c324d6b6836f06b8a48d01eb1c093",
+          "command": "npm run build && npm run test:cloud",
+          "exit_code": 0,
+          "tests_total": 126,
+          "tests_passed": 112,
+          "tests_skipped": 14,
+          "artifact_path": "server/rhythm-drafts.mjs",
+          "note": "CAS sidecar, restart re-read, prior revision history, separate reviewer role, full-scene scope and no production publish; real HTTP/MCP and unit tests passed. This CI entry refers only to the cloud job, not Docker or artistic E2E."
         }
       ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": "Read-only REST/MCP + Studio preview implemented and cloud-tested. Missing trusted word/music license attestation, persistent revision-CAS, separate reviewer signature, and approved workflow; no C03 acceptance.",
+      "blocked_reason": "P15-C03 now includes read-only preview, Studio CAS draft persistence and separate nonpublishable reviewer workflow; remains IN_PROGRESS because independent reviewer signoff, authenticated actual-audio alignment, trusted music rights, full six-scene media QA and rollback remain missing.",
       "accepted_release": null,
       "release_eligible": false,
       "source_commit_sha": "35fd4c0c84264167a5cc8322376f8db04e868bda"
