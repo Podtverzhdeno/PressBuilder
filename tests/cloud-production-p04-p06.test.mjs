@@ -91,7 +91,7 @@ test('P05 hard-cut assembly enforces approval, original hash and silent audio',{
     // Failure must keep the accepted previous release and manifest unchanged.
     fs.rmSync(path.join(root,'demo_s02.mp4'));
     assert.throws(()=>svc.start('demo',['s01','s02']),e=>e.status===409);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(root,'demo_final.manifest.json')).output.sha256,oldHash);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(root,'demo_final.manifest.json'),'utf8')).output.sha256,oldHash);
   }finally{cleanup(root)}
 });
 test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale writes',{timeout:45000},async()=>{
