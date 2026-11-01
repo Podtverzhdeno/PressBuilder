@@ -3,7 +3,7 @@ import { createDeck, DECKS, getDeck, listDecks, patchCue, patchDeck, patchObject
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
-import { styleContractStore, enforceScene3D, enforceVisuals } from './style-contract.mjs';
+import { styleContractStore, enforceScene3D, enforceVisuals, effectiveStyle } from './style-contract.mjs';
 import path from 'node:path';
 const taskStore=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const readmeStore=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
@@ -42,10 +42,13 @@ export const TOOLS = [
  { name:'get_style_contract', description:'Read P04 project style contract, revision, and per-scene inherited rules. Read before authoring visuals or 3D.', inputSchema:obj({id:str('Project slug'),slide_id:str('Optional scene ID for computed policy')},['id']) },
  { name:'set_style_contract', description:'Update machine-validated style contract with optimistic revision; enforces existing scenes and cannot weaken per-scene must-haves.', inputSchema:obj({id:str('Project slug'),expected_revision:{type:'integer',minimum:0},contract:{type:'object',description:'Style contract schemaVersion=1, palette, typography, safeArea, camera, motion, transitions, sceneOverrides'}},['id','expected_revision','contract']) },
  { name:'assemble_video', description:'P05: assemble approved and technically valid scene MP4s with project transition plan; returns async job status. Requires 2..12 scene IDs in timeline order.', inputSchema:obj({id:str('Project slug'),scene_ids:{type:'array',minItems:2,maxItems:12,items:{type:'string'}}},['id','scene_ids']) },
+ { name:'get_assembly_plan', description:'Read the revisioned P05 scene entry_state, exit_state, and transition_after rules.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'set_assembly_plan', description:'Save full ordered P05 storyboard of entry/exit states and transitions, guarded by expected revision and style rules.', inputSchema:obj({id:str('Project slug'),plan:{type:'object',description:'schemaVersion:1; scenes with entry_state, exit_state and transition_after'},expected_revision:{type:'integer',minimum:0}},['id','plan','expected_revision']) },
+ { name:'cancel_assembly', description:'Cancel an ongoing assembly job while retaining the previously published release.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_assembly_status', description:'Check P05 montage job, manifest and download URL.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
-export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
+export function makeMcp({ startRender, getRender, baseUrl, assembly, assemblyPlans }) {
   async function call(name, args) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) throw new UserError('Arguments must be an object');
     switch(name) {
@@ -64,12 +67,15 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
         const record=styles.read(args.id);
         if(args.slide_id){
           if(!getDeck(args.id).slides.some(s=>s.id===args.slide_id))throw new UserError('Scene not found',404);
-          return {...record,scene_id:args.slide_id,effective:((await import('./style-contract.mjs')).effectiveStyle)(record.contract,args.slide_id)};
+          return {...record,scene_id:args.slide_id,effective:effectiveStyle(record.contract,args.slide_id)};
         }
         return record;
       }
       case 'set_style_contract': return styles.put(args.id,args.contract,args.expected_revision);
+      case 'get_assembly_plan': if(!assemblyPlans)throw new UserError('Assembly plan unavailable',503);return assemblyPlans.read(args.id);
+      case 'set_assembly_plan': if(!assemblyPlans)throw new UserError('Assembly plan unavailable',503);return assemblyPlans.put(args.id,args.plan,args.expected_revision);
       case 'assemble_video': if(!assembly)throw new UserError('Assembly is not available',503);return assembly.start(args.id,args.scene_ids);
+      case 'cancel_assembly': if(!assembly)throw new UserError('Assembly is not available',503);return assembly.cancel(args.id);
       case 'get_assembly_status': if(!assembly)throw new UserError('Assembly is not available',503);return assembly.get(args.id);
       case 'update_project_readme': return readmeStore.write(args.id,args.content,args.expected_revision);
       case 'list_scene_tasks': return taskStore.list(args.id);
