@@ -24,8 +24,8 @@ function safeFile(root,id){
   if(reviewDir && (!reviewDir.isDirectory()||reviewDir.isSymbolicLink()))
     fail('UNSAFE_RHYTHM_DIR',403);
   const saved=fs.lstatSync(file,{throwIfNoEntry:false});
-  if(saved && (!saved.isFile()||saved.isSymbolicLink()||saved.size>256*1024))
-    fail('UNSAFE_RHYTHM_FILE',403);
+  if(saved && (!saved.isFile()||saved.isSymbolicLink()||saved.size>256*1024 ||
+     saved.nlink!==1)) fail('UNSAFE_RHYTHM_FILE',403);
   return {file,parent};
 }
 function atomic(file,data){
@@ -39,7 +39,30 @@ const blank=id=>({schema_version:1,project_id:id,revision:0,status:'empty',
   proposal:null,author:null,review:null,history:[]});
 function load(file,id){
   if(!fs.existsSync(file))return blank(id);
-  const s=fs.readFileSync(file,'utf8');
+  // Re-open with O_NOFOLLOW and compare descriptor identity to lstat.
+  // Reject a file replaced between the path check and read.
+  const before=fs.lstatSync(file);
+  if(!before.isFile()||before.isSymbolicLink()||before.nlink!==1||
+     before.size>256*1024)fail('UNSAFE_RHYTHM_FILE',403);
+  let fd;
+  let s;
+  try {
+    fd=fs.openSync(file,fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW??0));
+    const opened=fs.fstatSync(fd);
+    if(!opened.isFile()||opened.dev!==before.dev||opened.ino!==before.ino||
+       opened.size!==before.size||opened.nlink!==1)fail('RHYTHM_FILE_CHANGED',409);
+    const buf=Buffer.alloc(before.size);
+    let done=0;
+    while(done<buf.length){
+      const n=fs.readSync(fd,buf,done,buf.length-done,null);
+      if(!n)fail('RHYTHM_FILE_CHANGED',409);
+      done+=n;
+    }
+    const after=fs.fstatSync(fd);
+    if(after.size!==before.size||after.mtimeMs!==before.mtimeMs)
+      fail('RHYTHM_FILE_CHANGED',409);
+    s=buf.toString('utf8');
+  } finally {if(fd!==undefined)fs.closeSync(fd)}
   let record;try{record=JSON.parse(s)}catch{fail('CORRUPT_RHYTHM_RECORD')}
   if(!plain(record)||record.schema_version!==1||record.project_id!==id||
      !Number.isSafeInteger(record.revision)||record.revision<0||
