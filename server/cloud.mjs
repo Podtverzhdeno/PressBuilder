@@ -7,7 +7,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { timingSafeEqual, createHash } from 'node:crypto';
-import { makeRenderQueue } from './render-queue.mjs';
 import { DATA, DECKS, OUT, UserError, createDeck, deckId, getDeck, hasDeck, listDecks, putDeck } from './cloud-core.mjs';
 import { makeMcp } from './mcp.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
@@ -15,7 +14,11 @@ import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
+import { makeRenderQueue } from './render-queue.mjs';
 import { inspectMp4, mergeVisualQA } from './video-qa.mjs';
+import {styleContractStore,enforceScene3D} from './style-contract.mjs';
+import {sceneLeaseStore,agentDirectory} from './scene-leases.mjs';
+import {assemblyService} from './assemble-scenes.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = '0.0.0.0';
@@ -32,6 +35,10 @@ fs.mkdirSync(OUT, {recursive:true});
 const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
+const styles=styleContractStore({root:DECKS,getDeck});
+const leases=sceneLeaseStore({root:DECKS,getDeck});
+const agents=agentDirectory();
+const director={id:'web-director',role:'director'};
 
 function secureEq(a,b) {
   const aa=Buffer.from(String(a)), bb=Buffer.from(String(b));
@@ -179,6 +186,38 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const styleMatch=/^\/api\/decks\/([^/]+)\/style-contract$/.exec(p);
+  if(styleMatch){
+    const id=deckId(escaped(styleMatch[1]));
+    if(method==='GET')return json(res,200,styles.read(id));
+    if(method==='PUT'){
+      const body=await readJson(req);
+      return json(res,200,styles.put(id,body?.contract,body?.expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const leaseMatch=/^\/api\/decks\/([^/]+)\/leases\/([^/]+)$/.exec(p);
+  if(leaseMatch){
+    const id=deckId(escaped(leaseMatch[1])),scene=escaped(leaseMatch[2]);
+    if(method==='GET')return json(res,200,leases.read(id,scene));
+    if(method==='POST'){
+      const body=await readJson(req);
+      if(body?.action==='claim')return json(res,200,leases.claim(id,scene,director,body?.ttl??300));
+      if(body?.action==='release')return json(res,200,leases.release(id,scene,director,body?.fence_token));
+      throw new UserError('Unknown lease action');
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const assembleMatch=/^\/api\/decks\/([^/]+)\/assemble$/.exec(p);
+  if(assembleMatch){
+    const id=deckId(escaped(assembleMatch[1]));
+    if(method==='GET')return json(res,200,assembly.get(id));
+    if(method==='POST'){
+      const body=await readJson(req);
+      return json(res,202,assembly.start(id,body?.scene_ids));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const scene3dMatch=/^\/api\/decks\/([^/]+)\/scene3d(?:\/([^/]+))?$/.exec(p);
   if(scene3dMatch){
     const id=deckId(escaped(scene3dMatch[1]));
@@ -190,7 +229,10 @@ async function api(req,res,url) {
     if(method==='GET')return json(res,200,scene3d.read(id,slideId));
     if(method==='PUT'){
       const payload=await readJson(req);
-      return json(res,200,scene3d.put(id,slideId,payload?.spec,payload?.expected_revision));
+      enforceScene3D(styles.read(id).contract,payload?.spec);
+      const saved=scene3d.put(id,slideId,payload?.spec,payload?.expected_revision);
+      leases.logWrite(id,slideId,director,saved.revision,'write_3d');
+      return json(res,200,saved);
     }
     throw new UserError('Method not allowed',405);
   }
@@ -287,7 +329,8 @@ const baseUrl=()=>ORIGIN||'http://localhost:'+PORT;
 function sourceFingerprint(id,slideId){
   const d=getDeck(id);
   const payload={deck:slideId?{...d,slides:d.slides.filter(s=>s.id===slideId)}:d,
-    scene3d:slideId?scene3d.read(id,slideId).spec:scene3d.list(id).map(s=>({scene:s.scene_id,spec:s.spec}))};
+    scene3d:slideId?scene3d.read(id,slideId).spec:scene3d.list(id).map(s=>({scene:s.scene_id,spec:s.spec})),
+    style_contract:styles.read(id).contract};
   const voice=d.audio?.file;
   if(voice&&/^voice\.(?:mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/i.test(voice)){
     const f=path.join(DECKS,id,voice);
@@ -307,7 +350,8 @@ const getRender=(id,slideId=null)=>renderJobs.get(id,slideId);
 const startRender=(id,slideId=null)=>renderJobs.enqueue(id,slideId);
 const cancelRender=(id,slideId,jobId)=>renderJobs.cancel(id,slideId,jobId);
 const retryRender=(id,slideId,jobId)=>renderJobs.retry(id,slideId,jobId);
-const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl});
+const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),baseUrl});
+const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,assembly});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
@@ -316,11 +360,12 @@ const server=http.createServer(async(req,res)=>{
     if(oauth.enabled && oauth.canHandle(p))return await oauth.handle(req,res,url);
     if(p==='/mcp'){
       const bearer=String(req.headers.authorization||'').startsWith('Bearer ') ? String(req.headers.authorization).slice(7) : '';
-      if(!authMcp(req) && !oauth.verifyToken(bearer))return send(res,401,{error:'Unauthorized'},'application/json; charset=utf-8',
+      const actor=authMcp(req)||oauth.verifyToken(bearer)?{id:'mcp-director',role:'director'}:agents.authenticate(bearer);
+      if(!actor)return send(res,401,{error:'Unauthorized'},'application/json; charset=utf-8',
         {'WWW-Authenticate':oauth.enabled?oauth.challenge:'Bearer realm="PressBuilder MCP"'});
       if(req.method!=='POST')return json(res,405,{error:'Streamable HTTP supports POST' });
       const msg=await readJson(req);
-      const reply=await mcp(msg);
+      const reply=await mcp(msg,actor);
       if(reply===null){res.writeHead(202);res.end();return}
       return json(res,200,reply);
     }

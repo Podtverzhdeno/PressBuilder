@@ -44,7 +44,8 @@ test('invalid paths and unexpected values are rejected',()=>{
 });
 
 test('MCP initialize, list and tool responses',async()=>{
-  const handler=makeMcp({startRender:(id)=>({id,status:'queued'}),getRender:(id)=>({id,status:'not_started'}),baseUrl:()=> 'https://example.com'});
+  const mcp=makeMcp({startRender:(id)=>({id,status:'queued'}),getRender:(id)=>({id,status:'not_started'}),baseUrl:()=> 'https://example.com'});
+  const handler=message=>mcp(message,{id:'test-director',role:'director'});
   const init=await handler({jsonrpc:'2.0',id:1,method:'initialize',params:{}});
   assert.equal(init.result.serverInfo.name,'pressbuilder-cloud');
   const listed=await handler({jsonrpc:'2.0',id:2,method:'tools/list'});
