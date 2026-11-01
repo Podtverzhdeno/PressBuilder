@@ -43,10 +43,23 @@ test('P09 cue anchors track narration and FPS with <= half-frame rounding drift'
     assert.equal(shifted.timeline.fps,60);
     assert.ok(Math.abs(shifted.timeline.events[0].snapped_time-shifted.timeline.events[0].global_time)<=1/(2*60)+1e-8);
     assert.equal(s.sync.read('p1','s02').revision,0);
-    assert.throws(()=>s.sync.put('p1','s01',[{...beat,id:'bad',anchor:{type:'cue_start',cue_id:'unknown',offset:0}}],1),e=>e.status===409);
-    assert.throws(()=>s.sync.put('p1','s01',[beat,beat],1),/duplicate/);
-    assert.throws(()=>s.sync.put('p1','s01',[{...beat,inject:'eval'}],1),/Unknown marker/);
-    assert.throws(()=>s.sync.put('p1','s01',[{...camera,anchor:{type:'scene',offset:500}}],1),/outside scene/);
+    // A cue can be renamed by another editor: expose orphan markers so they
+    // can be repaired, instead of making both GET and PUT unusable.
+    const renamed=s.getDeck('p1');
+    renamed.slides[0].cues[1].id='two-new';
+    s.putDeck('p1',renamed);
+    const orphan=s.sync.read('p1','s01');
+    assert.match(orphan.validation_error,/Unknown cue_id/);
+    assert.equal(orphan.revision,1);
+    assert.equal(s.sync.put('p1','s01',[],1).revision,2);
+    const repaired=s.sync.read('p1','s01');
+    assert.equal(repaired.validation_error,null);
+    // Subsequent rejection checks use the fresh optimistic revision.
+
+    assert.throws(()=>s.sync.put('p1','s01',[{...beat,id:'bad',anchor:{type:'cue_start',cue_id:'unknown',offset:0}}],2),e=>e.status===409);
+    assert.throws(()=>s.sync.put('p1','s01',[beat,beat],2),/duplicate/);
+    assert.throws(()=>s.sync.put('p1','s01',[{...beat,inject:'eval'}],2),/Unknown marker/);
+    assert.throws(()=>s.sync.put('p1','s01',[{...camera,anchor:{type:'scene',offset:500}}],2),/outside scene/);
     assert.throws(()=>s.sync.read('p1','../s02'),e=>e.status===400);
   }finally{s.cleanup()}
 });
