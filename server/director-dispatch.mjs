@@ -180,8 +180,32 @@ export function directorDispatchStore({
       const result=getRender?.(id,scene);
       if(result?.status!=='completed'||result?.qa_report?.verdict!=='PASS')
         fail('A completed scene render with passing technical QA is required',409);
-      if(!out||!fs.existsSync(path.join(out,id+'_'+scene+'.mp4'))||
-        fs.statSync(path.join(out,id+'_'+scene+'.mp4')).size===0)
+      const asset=result?.result?.file;
+      const expected=id+'_'+scene;
+      if(asset!==undefined&&(typeof asset!=='string'||
+        !new RegExp('^out/'+expected+'(?:_v[a-f0-9]{16})?\\.mp4
+      nextStatus='review'; // Human acceptance is intentionally separate.
+    }else{
+      if(typeof reason!=='string'||!reason.trim()||reason.length>2000)
+        fail('Failure reason required (1..2000 chars)');
+    }
+    const updated={...r,state:kind==='submit'?'submitted':'failed',
+      finished_at:ISO(now()),...(kind==='fail'?{failure_reason:reason.trim()}:{})};
+    // State transition and persistent record are independently recoverable:
+    // if interrupted, the task state is authoritative for human review.
+    sceneTasks.put(id,scene,{status:nextStatus},task.revision);
+    persist(id,scene,updated);
+    event(id,scene,actor,kind,updated);
+    return {job:updated,scene_status:nextStatus};
+  }
+  function submit(id,scene,actor,args){return outcome(id,scene,actor,args,'submit')}
+  function failAttempt(id,scene,actor,args){return outcome(id,scene,actor,args,'fail')}
+  return {snapshot,claim,heartbeat,submit,fail:failAttempt};
+}
+).test(asset)))
+        fail('Unsafe or mismatched scene render artifact path',409);
+      const file=path.join(out||'',asset?path.basename(asset):expected+'.mp4');
+      if(!out||!fs.existsSync(file)||!fs.statSync(file).isFile()||fs.statSync(file).size===0)
         fail('Rendered scene MP4 was not found',409);
       nextStatus='review'; // Human acceptance is intentionally separate.
     }else{
