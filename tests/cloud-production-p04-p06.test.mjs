@@ -129,9 +129,17 @@ test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale 
     assert.deepEqual(JSON.parse(visible.content[0].text).map(p=>p.id),['scene-demo']);
     const noFence=await rpc(agent1,'set_scene_checkpoint',{id:'scene-demo',slide_id:'s01',checkpoint_id:'x',done:true});
     assert.equal(noFence.isError,true);
+    const noRenderLease=await rpc(agent1,'render_scene',{id:'scene-demo',slide_id:'s01'});
+    assert.equal(noRenderLease.isError,true,'worker must claim scene before expensive render');
+    const noCancelLease=await rpc(agent1,'cancel_scene_render',{id:'scene-demo',slide_id:'s01',job_id:'deadbeef'});
+    assert.equal(noCancelLease.isError,true,'cancel without a lease must be forbidden');
+    const noRetryLease=await rpc(agent1,'retry_scene_render',{id:'scene-demo',slide_id:'s01',job_id:'deadbeef'});
+    assert.equal(noRetryLease.isError,true,'retry without a lease must be forbidden');
     const lease=await rpc(agent1,'claim_scene',{id:'scene-demo',slide_id:'s01',ttl:60});
     assert.equal(lease.isError,false,JSON.stringify(lease));
     const {fence}=JSON.parse(lease.content[0].text);
+    const wrongFence=await rpc(agent1,'cancel_scene_render',{id:'scene-demo',slide_id:'s01',job_id:'deadbeef',fence_token:fence+1});
+    assert.equal(wrongFence.isError,true,'cancel with a stale/foreign fencing token must be forbidden');
     const task=await rpc(agent1,'set_scene_task',{id:'scene-demo',slide_id:'s01',fence_token:fence,expected_revision:0,title:'Owned scene'});
     assert.equal(task.isError,false,JSON.stringify(task));
     const otherWrite=await rpc(agent2,'set_scene_task',{id:'scene-demo',slide_id:'s01',fence_token:fence,expected_revision:1,title:'Hijack'});
