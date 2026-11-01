@@ -115,6 +115,29 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
     const progress=await good('get_director_plan',{id:'six-good'});
     assert.equal(progress.progress.checkpoints_done,1);
     assert.equal(progress.progress.scene_statuses[2].revision,2);
+    const blocked=await http('/api/decks/six-good/tasks/s03','PUT',
+      {expected_revision:2,status:'blocked'});
+    assert.equal(blocked.status,200);
+    assert.equal(blocked.json.revision,3);
+    const untouchedBefore=(await http('/api/decks/six-good/tasks/s02')).json;
+    const replan=await http('/api/decks/six-good/director/replan/s03','POST',{
+      expected_plan_revision:2,expected_task_revision:3,
+      reason:'Технический QA выявил наложение титра',
+      direction:'Изменить камеру и убрать пересечение текста',
+      reset_checkpoint_ids:['storyboard']
+    });
+    assert.equal(replan.status,200,JSON.stringify(replan.json));
+    assert.equal(replan.json.revision,3);
+    assert.equal(replan.json.replan_history.length,1);
+    assert.equal(replan.json.replan_history[0].scene_id,'s03');
+    const changedTask=(await http('/api/decks/six-good/tasks/s03')).json;
+    assert.equal(changedTask.status,'todo');
+    assert.equal(changedTask.revision,4);
+    assert.equal(changedTask.checkpoints[0].done,false);
+    assert.equal(changedTask.checkpoints[0].note,'Согласовано');
+    assert.deepEqual((await http('/api/decks/six-good/tasks/s02')).json,untouchedBefore);
+    assert.equal((await http('/api/decks/six-good/director/replan/s03','POST',{
+      expected_plan_revision:3,expected_task_revision:4,reason:'Повторное изменение'})).status,409);
 
     await create('six-conflict');
     const c=await good('propose_director_plan',{id:'six-conflict',expected_revision:0,goal:'Контроль неизменности'});
@@ -141,7 +164,7 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
       {expected_revision:stale.revision,confirm:'APPROVE'})).status,409);
 
     const bad=await http('/api/decks/six-good/director/plan','POST',{
-      expected_revision:2,goal:'Драфт',scene_directions:[{
+      expected_revision:3,goal:'Драфт',scene_directions:[{
         scene_id:'s02',depends_on:['s03']}]});
     assert.equal(bad.status,400,'forward dependency must not be accepted');
     const unavailable=await rpc('approve_director_plan',{id:'six-good',confirm:'APPROVE'});
