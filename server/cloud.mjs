@@ -395,6 +395,17 @@ const renderJobs=makeRenderQueue({
     catch(e){console.warn('Draft preview update failed:',String(e))}
     return {version_id:record.version_id};
   },
+  recoverCompleted:(job)=>{
+    const versionId=versions.versionId(job.job_id);
+    try{
+      const artifact=versions.verified(job.id,job.slide_id,versionId);
+      if(artifact.job_id!==job.job_id||artifact.qa?.verdict!=='PASS')return null;
+      return {version_id:versionId,result:{
+        file:artifact.file,size:artifact.size,
+        download_url:baseUrl().replace(/\/$/,'')+'/out/'+path.basename(artifact.file),
+      }};
+    }catch{return null}
+  },
   inspect:(file,{visualAudit,frameSamples,...expected})=>
     mergeVisualQA(inspectMp4(file,expected),visualAudit,frameSamples),
 });
