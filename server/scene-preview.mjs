@@ -61,6 +61,12 @@ export function scenePreviewService({out,getDeck,fingerprint,render,baseUrl,
     if(job){
       if(job.source_fingerprint!==source)
         return {id,slide_id:scene,status:'stale',error:'Scene source changed after preview request'};
+      if(job.status==='completed'){
+        const checked=cached(id,scene,source);
+        if(!checked)return {id,slide_id:scene,status:'failed',
+          error:'Draft preview cache corrupted or missing; regenerate'};
+        return {...structuredClone(job),frames:checked.frames};
+      }
       return structuredClone(job);
     }
     const cache=cached(id,scene,source);
