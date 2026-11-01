@@ -100,6 +100,10 @@ test('P07 + P06: scoped reviewer/worker MCP permissions and director REST access
     const edit=await rpc(worker,'set_scene_task',{id:'demo',slide_id:'s01',fence_token:fence,
       expected_revision:0,status:'in_progress'});
     assert.equal(edit.isError,false,JSON.stringify(edit));
+    const renderNoFence=await rpc(worker,'render_scene',{id:'demo',slide_id:'s01'});
+    assert.equal(renderNoFence.isError,true,'Workers need an active fencing token to queue renders');
+    const renderReviewer=await rpc(reviewer,'render_scene',{id:'demo',slide_id:'s01'});
+    assert.equal(renderReviewer.isError,true,'Reviewer cannot queue costly renders');
     const noFence=await rpc(worker,'update_scene_review_item',{id:'demo',slide_id:'s01',
       item_id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',expected_revision:1,status:'FIXED',note:'done'});
     assert.equal(noFence.isError,true);
