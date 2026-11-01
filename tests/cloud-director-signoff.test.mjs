@@ -69,6 +69,10 @@ test('Director P10 release boundary: exact six approved tasks, evidence, job and
     rejectStatus(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
       assembly_job_id:'test-job'}),409);
     delete deck.slides[0].lead;
+    job.review_valid=false;job.unresolved_scenes=['s01'];
+    rejectStatus(()=>director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
+      assembly_job_id:'test-job'}),409);
+    job.review_valid=true;job.unresolved_scenes=[];
     const released=director.signoff(id,{confirm:'RELEASE',expected_plan_revision:2,
       assembly_job_id:'test-job'});
     assert.equal(released.status,'released');
