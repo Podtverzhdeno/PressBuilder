@@ -148,6 +148,26 @@ test('P05 assembles only approved immutable MP4s even if newer unapproved render
     assert.equal(manifest.scenes[0].sha256,v1.sha256);
     assert.equal(manifest.scenes[1].approved_version_id,v2.version_id);
     assert.equal(f.v.approved('demo','s01').artifact.version_id,v1.version_id);
+    // An issue can be reopened while FFmpeg is assembling. A second gate must
+    // prevent this new output from replacing the last good published release.
+    const acceptedHash=fileHash(path.join(f.out,'demo_final.mp4'));
+    let reviewChecks=0;
+    const race=assemblyService({out:f.out,getDeck:f.getDeck,
+      getRender:()=>({status:'failed',job_id:'draft-error'}),
+      getTask:()=>({status:'done'}),getApproved:(id,scene)=>f.v.approved(id,scene),
+      reviewUnresolved:()=>++reviewChecks>2,
+      baseUrl:()=> 'http://localhost:3000'});
+    race.start('demo',['s01','s02']);
+    let racing;
+    for(let i=0;i<300;i++){
+      racing=race.get('demo');
+      if(['completed','failed'].includes(racing.status))break;
+      await new Promise(r=>setTimeout(r,75));
+    }
+    assert.equal(racing.status,'failed',JSON.stringify(racing));
+    assert.match(racing.error,/approval or source artifact changed/);
+    assert.equal(fileHash(path.join(f.out,'demo_final.mp4')),acceptedHash,
+      'Review reopening during export must preserve the last accepted final video');
     // P07 regression: a later issue on an already-approved version must invalidate
     // its review gate, even though the previously released MP4 remains archived.
     const reviewer=actor('reviewer','reviewer');
