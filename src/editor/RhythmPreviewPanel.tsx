@@ -1,6 +1,6 @@
-/** P15: read-only director Studio preview. Never saves, publishes or approves cuts. */
+/** P15: director Studio draft preview and CAS sidecar. Never publishes or approves cuts. */
 import {useEffect,useState} from 'preact/hooks';
-import {api,type RhythmContext,type RhythmPreview} from './api.ts';
+import {api,type RhythmContext,type RhythmPreview,type RhythmDraftRecord} from './api.ts';
 import {seek} from './store.ts';
 
 const fmtTime=(frame:number,fps:{num:number;den:number})=>
@@ -27,15 +27,17 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
   const [ctx,setCtx]=useState<RhythmContext|null>(null);
   const [draft,setDraft]=useState('');
   const [result,setResult]=useState<RhythmPreview|null>(null);
+  const [saved,setSaved]=useState<RhythmDraftRecord|null>(null);
+  const [note,setNote]=useState('');
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const [modified,setModified]=useState(false);
   useEffect(()=>{
     let alive=true;
     setCtx(null);setDraft('');setResult(null);setError('');setModified(false);
-    void api.getRhythmContext(projectId).then(c=>{
+    void Promise.all([api.getRhythmContext(projectId),api.getRhythmDraft(projectId)]).then(([c,r])=>{
       if(!alive)return;
-      setCtx(c);setDraft(template(c));
+      setCtx(c);setDraft(template(c));setSaved(r);
     }).catch(e=>{if(alive)setError(e instanceof Error?e.message:String(e))});
     return ()=>{alive=false};
   },[projectId]);
@@ -44,8 +46,11 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
     if(modified&&!confirm('Сбросить введённую разметку и перечитать источник озвучки?'))return;
     setBusy(true);setError('');
     try{
-      const next=await api.getRhythmContext(projectId);
-      setCtx(next);setDraft(template(next));setModified(false);setResult(null);
+      const [next,record]=await Promise.all([
+        api.getRhythmContext(projectId),api.getRhythmDraft(projectId)
+      ]);
+      setCtx(next);setDraft(template(next));setSaved(record);
+      setModified(false);setResult(null);
     }catch(e){setError(e instanceof Error?e.message:String(e))}
     finally{setBusy(false)}
   }
@@ -58,6 +63,20 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
         throw new Error('Корневой элемент разметки должен быть объектом JSON');
       const next=await api.previewRhythm(projectId,parsed as Record<string,unknown>);
       setResult(next);
+    }catch(e){setError(e instanceof Error?e.message:String(e))}
+    finally{setBusy(false)}
+  }
+  async function saveDraft(){
+    if(busy||!saved||result?.status!=='READY_FOR_REVIEW'||!result.plan_sha256)return;
+    if(note.trim().length<10){setError('Укажите пояснение к черновику (не менее 10 символов)');return}
+    setBusy(true);setError('');
+    try{
+      const parsed:unknown=JSON.parse(draft);
+      if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
+        throw new Error('Некорректная разметка JSON');
+      const stored=await api.submitRhythmDraft(projectId,parsed as Record<string,unknown>,saved.revision,note);
+      setSaved(stored);setModified(false);setResult(null);
+      setNote('');
     }catch(e){setError(e instanceof Error?e.message:String(e))}
     finally{setBusy(false)}
   }
@@ -85,6 +104,12 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
             {ctx.frame_rate.num}/{ctx.frame_rate.den} FPS · {(ctx.duration_us/1e6).toFixed(2)} с ·
             {ctx.cues.length} реплик.
           </p>
+          {saved&&<p class="task-readme-help">
+            Черновик: версия {saved.revision} · состояние {saved.status} ·
+            источник {saved.source_state} ·
+            рецензия {saved.review?.reviewer_id??'отсутствует'}.
+            <b> Даже проверенный черновик не разрешён к публикации.</b>
+          </p>}
           <p class="task-readme-help">
             Важно: файл озвучки и расписание проверяет сервер, но <b>точность разметки слов и права
             на музыку пока не проверены</b>. Пустые <code>words</code> вернут REVIEW.
@@ -104,6 +129,15 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
             <textarea class="task-readme-editor" rows={14} spellcheck={false} value={draft}
               onInput={e=>{setDraft(e.currentTarget.value);setModified(true);setResult(null)}} />
           </label>
+          {result?.status==='READY_FOR_REVIEW'&&saved&&<>
+            <label class="task-field">Пояснение к новой версии черновика
+              <textarea rows={2} value={note} maxLength={1000}
+                onInput={e=>setNote(e.currentTarget.value)}
+                placeholder="Почему эти монтажные точки предлагаются режиссёру и что нужно перепроверить" />
+            </label>
+            <p class="task-readme-help">Сохранение использует CAS по ревизии {saved.revision}.
+              Предыдущие решения проверяющего станут недействительными. Это не монтаж MP4.</p>
+          </>}
           {result&&<div style={{marginTop:'16px'}}>
             <h3>{result.status==='READY_FOR_REVIEW'?'Кандидаты монтажных точек':'Не хватает подтверждённых данных'}</h3>
             <p class="task-readme-help">
@@ -124,7 +158,11 @@ export function RhythmPreviewPanel({projectId,onClose}:{projectId:string;onClose
       </section>
       <footer class="task-footer" style={{margin:0,position:'static'}}>
         <span>Склейки не применяются к MP4, deck.json или утверждённым сценам</span>
-        <button type="button" class="btn is-primary" onClick={()=>void preview()}
+        <button type="button" class="btn" onClick={()=>void saveDraft()}
+          disabled={busy||!saved||result?.status!=='READY_FOR_REVIEW'||note.trim().length<10}>
+          Сохранить новый черновик
+        </button>
+        <button type="button" class="btn is-primary" onClick={()=>void preview()
           disabled={!ctx||busy}>{busy?'Проверяю…':'Предложить склейки'}</button>
       </footer>
     </div>
