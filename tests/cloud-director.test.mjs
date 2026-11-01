@@ -122,6 +122,14 @@ test('Director P10: six-scene plan, human approval, progress and stale-write pro
     assert.equal(typed.json.acceptance.publication_allowed,false);
     assert.equal(typed.json.factual_integrity.claims_evidence_status,'UNVERIFIED');
     assert.equal(typed.json.assignee,'Agent-01');
+    const completeBriefSet=await Promise.all(
+      ['s01','s02','s03','s04','s05','s06'].map(scene=>http('/api/decks/six-good/director/brief/'+scene)));
+    assert.ok(completeBriefSet.every(x=>x.status===200),JSON.stringify(completeBriefSet.map(x=>x.status)));
+    assert.equal(new Set(completeBriefSet.map(x=>x.json.brief_sha256)).size,6);
+    assert.deepEqual(completeBriefSet.map(x=>x.json.assignee),
+      ['Agent-01','Agent-02','Agent-03','Agent-04','Agent-05','Agent-06']);
+    assert.ok(completeBriefSet.every(x=>x.json.acceptance.publication_allowed===false));
+
     assert.match(typed.json.brief_sha256,/^[a-f0-9]{64}$/);
     const fromMcp=await good('get_typed_scene_brief',{id:'six-good',slide_id:'s01'});
     assert.equal(fromMcp.brief_sha256,typed.json.brief_sha256);
