@@ -13,6 +13,7 @@ import {rhythmPreviewService} from './rhythm-preview.mjs';
 import {musicRightsVerifier} from './rhythm-music-rights.mjs';
 import {rhythmDraftStore} from './rhythm-drafts.mjs';
 import {creativeStoryboardService} from './creative-storyboard.mjs';
+import {continuityBoundaryService} from './continuity-boundary.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
@@ -84,6 +85,7 @@ const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scen
     deck.slides[index]=slide;
     putDeck(id,deck);
   }});
+const continuity=continuityBoundaryService({versions,enabled:process.env.PB_CONTINUITY_REVIEW==='1'});
 const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
 const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,
   getRender:(id,scene)=>getRender(id,scene),versions,out:OUT});
@@ -224,6 +226,17 @@ async function api(req,res,url) {
     return json(res,200,{file:f,size:b.length});
   }
   // Per-scene assignments live apart from deck.json to support parallel agents.
+  const boundaryMatch=/^\/api\/decks\/([^/]+)\/continuity\/(context|preview)$/.exec(p);
+  if(boundaryMatch){
+    const id=deckId(escaped(boundaryMatch[1]));
+    if(method==='GET'&&boundaryMatch[2]==='context')
+      return json(res,200,continuity.context(id,url.searchParams.get('left'),url.searchParams.get('right')));
+    if(method==='POST'&&boundaryMatch[2]==='preview'){
+      const body=await readJson(req);
+      return json(res,200,continuity.preview(id,body));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const creativeMatch=/^\/api\/decks\/([^/]+)\/creative\/(context|preview)$/.exec(p);
   if(creativeMatch){
     const id=deckId(escaped(creativeMatch[1]));
@@ -629,7 +642,7 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
   benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
-  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory});
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
