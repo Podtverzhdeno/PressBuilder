@@ -116,7 +116,8 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreS
     // Project-level inputs apply to ALL scenes. Never silently overwrite shared settings,
     // narration, or deployed JS/CSS while restoring a single scene.
     if(JSON.stringify(targetSettings)!==JSON.stringify(live)||
-      JSON.stringify(targetAssets)!==JSON.stringify(liveAssets))
+      JSON.stringify(targetAssets)!==JSON.stringify(liveAssets)||
+      JSON.stringify(saved.timeline_context)!==JSON.stringify(before.snapshot.timeline_context))
       bad('Shared settings, narration or deployed application assets differ; isolated source restoration refused',409);
     if(!saved.slide||saved.slide.id!==scene||!saved.scene3d||
       typeof saved.scene3d.revision!=='number')bad('Invalid archived source snapshot',409);
@@ -147,6 +148,17 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreS
     const file=path.join(out,name);
     if(!fs.existsSync(file)||fs.statSync(file).size!==item.size||fileHash(file)!==item.sha256)
       bad('Immutable scene artifact missing or corrupted',409);
+    if(item.frame_evidence){
+      if(item.frame_evidence.frames?.length!==3)bad('Invalid immutable frame manifest',409);
+      for(let i=0;i<3;i++){
+        const entry=item.frame_evidence.frames[i];
+        const expected=id+'_'+scene+'_v'+version+'_f'+i+'.jpg';
+        const jpg=path.join(out,expected);
+        if(entry.index!==i||entry.file!=='out/'+expected||!fs.existsSync(jpg)||
+          fs.statSync(jpg).size!==entry.size||fileHash(jpg)!==entry.sha256)
+          bad('Archived QA frame was modified or removed: '+i,409);
+      }
+    }
     return {...item,absolute_file:file};
   }
   function approved(id,scene){
