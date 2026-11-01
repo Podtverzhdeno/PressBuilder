@@ -1,6 +1,6 @@
 # SDD 002 — Detailed P15–P24 Checkpoints
 
-Progress: P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41344739143: 135 cloud tests, 119 passed, 16 skipped; Docker six-scene H264/AAC and render-smoke PASS). 55 other checkpoints TODO. Synthetic audio != actual human speech alignment or artistic release.
+Progress: P15-C01/C02 TESTED (review pending), C03/C04/C05 IN_PROGRESS (run 41348091992: Docker 147/147 tests PASS, real worker/REST/MCP WAV and six-scene H264/AAC render-smoke; cloud 129 PASS, 18 skipped). 55 other checkpoints TODO. Synthetic audio != actual human speech alignment or artistic release.
 
 ## Evidence and progression rules
 
@@ -60,7 +60,7 @@ OpenSpec: openspec/changes/professional-montage-p15-p24/specs/rhythm-engine/spec
 
 #### P15-C04 — Negative and regression suite
 
-- [ ] P15-C04 — IN_PROGRESS (voice PCM/rights negative security suite run 41344739143; independent review and real speech-source validation outstanding). Deliverable: tests/cloud-rhythm.test.mjs.
+- [ ] P15-C04 — IN_PROGRESS (audio worker backpressure/cancel/timeout, real WAV and rights adversarial tests run 41348091992; independent security review and word alignment outstanding). Deliverable: tests/cloud-rhythm.test.mjs.
 - Actions: Add adversarial tests for malformed input, external URLs, hash drift, resource exhaustion, concurrency, cancellation, corrupt media and post-approval mutation. Exercise deliberately broken cases: missing words, nonfinite BPM, stale source, cuts through protected narration.
 - Dependencies: P15-C03.
 - Acceptance: All relevant threat cases fail closed, no neighboring scene touched, old approved MP4 survives; CI exact exit code recorded.
