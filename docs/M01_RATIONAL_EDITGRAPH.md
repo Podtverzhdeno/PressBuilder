@@ -25,3 +25,7 @@ Implementation status: IN_PROGRESS. Feature flag PB_EDITGRAPH_PREVIEW=1 (OFF by 
 ## Incomplete requirements / no false acceptance
 
 M01-C01 independent architecture and security review; M01-C02 cross-platform fractional fps behavior including VFR/source mismatch; M01-C03 real applying of trim/split/move with reversible 1000-operation undo/redo and P06 lease-controlled writes; M01-C04 sub-sample audio drift/true PCM/video sync, P05 transition handles and validated source duration; M01-C05 six actual mixed 24/30000/1001 fps P08 MP4 end-to-end with decoded QA; M01-C06 time-and-cost measurement; M01-C07 separate creative/security review; M01-C08 staging canary, rollback and feature flag decision. These remain unchecked. Existing generic Docker MP4 smoke is regression evidence for the old renderer, NOT proof the new EditGraph drives it.
+
+## CI evidence (M01-R01)
+
+GitHub Actions https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41361188906 on SHA 9b177777c7e4fa8e4e61376cb65e3321ade97a61: cloud suite PASS, production Docker 181/181 passed, 0 skipped, 0 failures; existing real MP4 smoke rendered 332050 bytes. OpenSpec/SDD strict validation https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41361188887 PASS. No full six-scene mixed-fps EditGraph-to-render test, no independent signoff. Feature flag stays OFF.
