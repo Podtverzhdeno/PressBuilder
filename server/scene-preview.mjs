@@ -28,7 +28,7 @@ export function scenePreviewService({out,getDeck,fingerprint,render,baseUrl,
     if(!getDeck(id)?.slides?.some(s=>s.id===scene))throw bad('Preview scene not found',404);
   }
   const root=(id,scene)=>path.join(out,'previews',id,scene);
-  const url=(id,scene,i)=>baseUrl().replace(/\/$/,'')+'/api/decks/'+encodeURIComponent(id)+
+  const url=(id,scene,i)=>'/api/decks/'+encodeURIComponent(id)+
     '/preview/'+encodeURIComponent(scene)+'/'+i+'.png';
   function cached(id,scene,source){
     if(!HEX.test(source||''))throw bad('Invalid preview fingerprint',500);
