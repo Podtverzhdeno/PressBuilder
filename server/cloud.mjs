@@ -19,6 +19,7 @@ import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import {directorStore} from './director.mjs';
 import {directorDispatchStore} from './director-dispatch.mjs';
+import {typedSceneBriefService} from './typed-scene-brief.mjs';
 import { sceneSyncStore } from './scene-sync.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
@@ -69,6 +70,8 @@ const styles=styleContractStore({root:DECKS,getDeck});
 const assemblyPlans=assemblyPlanStore({root:DECKS,getDeck,getStyle:id=>styles.read(id)});
 const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks,projectReadmes,styles,
   getAssembly:()=>assembly,getApproved:(id,scene)=>versions.approved(id,scene),out:OUT});
+const typedBriefs=typedSceneBriefService({getDeck,directorPlan,sceneTasks,styles,
+  enabled:process.env.PB_TYPED_SCENE_BRIEFS==='1'});
 const creativeStory=creativeStoryboardService({
   getDeck,getDirectorPlan:id=>directorPlan.read(id),
   enabled:process.env.PB_CREATIVE_STORY_PREVIEW==='1'
@@ -430,6 +433,11 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const typedBriefMatch=/^\/api\/decks\/([^/]+)\/director\/brief\/([^/]+)$/.exec(p);
+  if(typedBriefMatch){
+    if(method!=='GET')throw new UserError('Method not allowed',405);
+    return json(res,200,typedBriefs.read(deckId(escaped(typedBriefMatch[1])),escaped(typedBriefMatch[2])));
+  }
   const directorMatch=/^\/api\/decks\/([^/]+)\/director\/(plan|approve)$/.exec(p);
   if(directorMatch){
     const id=deckId(escaped(directorMatch[1]));
@@ -642,7 +650,7 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
   benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
-  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity});
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
