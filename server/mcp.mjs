@@ -4,6 +4,7 @@ import { sceneTaskStore } from './scene-tasks.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import {directorStore} from './director.mjs';
+import {typedSceneBriefService} from './typed-scene-brief.mjs';
 import {directorDispatchStore} from './director-dispatch.mjs';
 import {styleContractStore,enforceScene3D,enforceVisuals,effectiveStyle} from './style-contract.mjs';
 import {styleById} from '../src/engine/styles.ts';
@@ -32,6 +33,7 @@ export const TOOLS = [
  { name:'update_object', description:'Override an existing scene object by ID: position, size, text, visibility. Objects must already exist in scene code.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Slide ID'),object_id:str('Object ID'),x:nilNum('X coordinate'),y:nilNum('Y coordinate'),scale:nilNum('Scale'),text:{type:['string','null']},hidden:{type:'boolean'}},['id','slide_id','object_id']) },
  { name:'set_slide_visuals', description:'Create or replace an entire animated infographic scene with 1..30 editable graphics (text, rect, circle, line, bar). No code deployment required. Each element can animate from slide start or from a cue ID; existing TypeScript scenes take priority. Coordinates are in 1920x1080 pixels. A replacement list [] clears the graphics.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Existing slide ID'),elements:{type:'array',maxItems:30,items:{type:'object',additionalProperties:false,properties:{id:str('Unique object ID'),kind:{type:'string',enum:['text','rect','circle','line','bar']},x:num('Left coordinate'),y:num('Top coordinate'),w:num('Width or horizontal line delta'),h:num('Height or vertical line delta'),text:str('Display text, required for text kind'),radius:num('Radius / corner radius'),size:num('Font size'),line_width:num('Line width'),color:{type:'string',enum:['h1','accent','text','pos','panel','bg']},font:{type:'string',enum:['display','sans','mono']},weight:{type:'string',enum:['regular','bold']},cue_id:str('Start animation when this cue begins'),effect:{type:'string',enum:['fade','rise','slide','pop']},duration:num('Entrance duration in seconds')},required:['id','kind','x','y']}}},['id','slide_id','elements']) },
  { name:'list_scene_tasks', description:'List all scene assignments, assignees, full prompts, statuses and individual checkpoints. Agents should call this after opening a video project.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'get_typed_scene_brief', description:'M40 read-only, server-proven six-scene P10 execution contract with source fingerprint, cue IDs, task revision and no publish permission. Requires an approved P10 plan and scoped actor assignment. Disabled by default.', inputSchema:obj({id:str('Project ID'),slide_id:str('Assigned scene ID')},['id','slide_id']) },
  { name:'get_scene_task', description:'Get the full scene-specific agent assignment, detailed brief, deliverables, checkpoints and revision.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'set_scene_task', description:'Create or edit the full assignment for one scene (not the deck). Requires the latest expected_revision from get_scene_task or list_scene_tasks to avoid overwriting another agent. Keeps unspecified fields unchanged.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Scene ID'),expected_revision:{type:'integer',minimum:0},title:str('Scene task title'),assignee:str('Agent/owner name'),brief:str('Detailed task specification, up to 20000 characters'),deliverables:str('Acceptance criteria and deliverable requirements'),status:{type:'string',enum:['todo','in_progress','review','done','blocked']},checkpoints:{type:'array',maxItems:60,items:obj({id:str('Stable checkpoint id'),title:str('Checkpoint action'),done:{type:'boolean'},note:str('Completion evidence or blocker')},['id','title'])}},['id','slide_id','expected_revision']) },
  { name:'set_scene_checkpoint', description:'Update exactly one scene checkpoint and preserve all other scenes/tasks. Use after completing and checking a milestone; provide evidence in note.', inputSchema:obj({fence_token:{type:'integer',minimum:1,description:'Fencing token from claim_scene (required for agent writes)'},id:str('Project slug'),slide_id:str('Scene ID'),checkpoint_id:str('Checkpoint ID'),done:{type:'boolean'},note:str('Evidence or details')},['id','slide_id','checkpoint_id']) },
@@ -97,12 +99,13 @@ export const TOOLS = [
 export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly,
   assemblyPlans,versions,reviews,sceneSync,comparisons=null,previews=null,
   directorPlan:providedDirectorPlan=null,
-  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null,continuity=null }) {
+  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null,continuity=null,typedBriefs:providedTypedBriefs=null }) {
   const directorPlan=providedDirectorPlan||directorStore({root:DECKS,getDeck,
     sceneTasks:taskStore,projectReadmes:readmeStore,styles,getAssembly:()=>assembly,
     getApproved:(id,scene)=>versions?.approved(id,scene),out:OUT});
   const dispatch=providedDispatch||directorDispatchStore({root:DECKS,director:directorPlan,
     sceneTasks:taskStore,leases,getRender,versions,out:OUT});
+  const typedBriefs=providedTypedBriefs||typedSceneBriefService({getDeck,directorPlan,sceneTasks:taskStore,styles,enabled:process.env.PB_TYPED_SCENE_BRIEFS==='1'});
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
   const visibleTasks=(id,actor)=>taskStore.list(id)
@@ -155,6 +158,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'get_project_readme': return readmeStore.read(args.id);
       case 'update_project_readme': directorOnly(actor);return readmeStore.write(args.id,args.content,args.expected_revision);
       case 'list_scene_tasks': return visibleTasks(args.id,actor);
+      case 'get_typed_scene_brief': scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);return typedBriefs.read(args.id,args.slide_id);
       case 'get_scene_task': scoped(args.id,args.slide_id,actor);return taskStore.read(args.id,args.slide_id);
       case 'set_scene_task': {const {id,slide_id,expected_revision,fence_token,...fields}=args;return write(id,slide_id,actor,fence_token,'write_task',()=>taskStore.put(id,slide_id,fields,expected_revision))}
       case 'set_scene_checkpoint': {const {id,slide_id,checkpoint_id,fence_token,...patch}=args;return write(id,slide_id,actor,fence_token,'checkpoint',()=>taskStore.checkpoint(id,slide_id,checkpoint_id,patch))}
