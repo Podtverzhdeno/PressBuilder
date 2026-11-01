@@ -1,6 +1,6 @@
 # OpenSpec Tasks — Professional Montage P15–P24
 
-All 60 checkboxes remain unchecked until independent review. P15-C01/C02 TESTED, P15-C03/C04/C05 IN_PROGRESS with evidence for six-scene synthetic-media CI (run 41344739143); other 55 TODO. This does not approve natural human speech alignment or publication.
+All 60 checkboxes remain unchecked until independent acceptance. P15 C01/C02 TESTED and C03/C04/C05 IN_PROGRESS; P16 C01/C02 TESTED and C03/C04 IN_PROGRESS (cloud evidence run 41349714899), remaining 51 TODO. No actual narrated storyboard, human P16 approval or publication has been accepted.
 
 ## Apply checklist
 
