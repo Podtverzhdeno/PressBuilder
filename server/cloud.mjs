@@ -230,6 +230,13 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const sourceStateMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)\/source-state$/.exec(p);
+  if(sourceStateMatch){
+    if(method!=='GET')throw new UserError('Method not allowed',405);
+    const id=deckId(escaped(sourceStateMatch[1])),scene=deckId(escaped(sourceStateMatch[2]));
+    const {snapshot,...current}=versions.source(id,scene);
+    return json(res,200,current);
+  }
   const sourceMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)\/([a-f0-9]{16})\/source$/.exec(p);
   if(sourceMatch){
     const id=deckId(escaped(sourceMatch[1])),scene=deckId(escaped(sourceMatch[2])),version=sourceMatch[3];
