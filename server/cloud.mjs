@@ -14,6 +14,7 @@ import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
+import { inspectMp4 } from './video-qa.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = '0.0.0.0';
@@ -315,7 +316,7 @@ async function workQueue(){
       j.startedAt=new Date().toISOString();
       persistJob(j);
       try {
-        await renderWithChrome({id,slideId,port:PORT,username:WEB_USER,password:WEB_PASS,
+        const rendered=await renderWithChrome({id,slideId,port:PORT,username:WEB_USER,password:WEB_PASS,
           timeoutMs:900000,onProgress:p=>{
             const percent=Math.round(p*100);
             if(Math.floor(percent/10)!==Math.floor((j.progress||0)/10)){
@@ -325,6 +326,10 @@ async function workQueue(){
         const name=slideId?id+'_'+slideId:id;
         const file=path.join(OUT,name+'.mp4');
         if(!fs.existsSync(file))throw new Error('Video was not produced');
+        j.qa_report=inspectMp4(file,{fps:rendered.fps,height:rendered.height,duration:rendered.duration});
+        if(j.qa_report.verdict==='FAIL'){
+          throw new Error('Technical video QA failed: '+j.qa_report.issues.map(x=>x.id).join(', '));
+        }
         j.status='completed';
         j.result={file:'out/'+name+'.mp4',size:fs.statSync(file).size,
           download_url:baseUrl()+'/out/'+encodeURIComponent(name)+'.mp4'};
