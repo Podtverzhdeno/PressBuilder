@@ -7,6 +7,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {buildSchedule} from '../src/engine/schedule.ts';
 import {proposeRhythmCuts, RhythmInputError} from './rhythm-plan.mjs';
+import {inspectRhythmSilence} from './rhythm-audio-evidence.mjs';
 
 const PROJECT=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const VOICE=/^voice\.(?:mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)$/;
@@ -54,7 +55,10 @@ function voiceHash(root,id,filename){
   }
 }
 
-export function rhythmPreviewService({root,getDeck,enabled=false}){
+export function rhythmPreviewService({
+  root,getDeck,enabled=false,audioEvidenceEnabled=false,
+  rightsVerifier=null,audioInspector=inspectRhythmSilence
+}){
   function context(id){
     if(!enabled)deny('RHYTHM_PREVIEW_DISABLED',501);
     if(typeof id!=='string'||!PROJECT.test(id))deny('INVALID_PROJECT',400);
@@ -134,9 +138,46 @@ export function rhythmPreviewService({root,getDeck,enabled=false}){
       if(e instanceof RhythmInputError)deny(e.code,400);
       throw e;
     }
-    return {...result,provenance:{
+    let audio_evidence=null,music_rights_evidence=null;
+    const issues=[];
+    if(input.beats?.length) {
+      try {
+        if(!rightsVerifier)throw Object.assign(new Error('MUSIC_CATALOG_NOT_CONFIGURED'),
+          {code:'MUSIC_CATALOG_NOT_CONFIGURED'});
+        music_rights_evidence=rightsVerifier.verify(id,input.music);
+      }catch(e) {issues.push(e?.code??'MUSIC_RIGHTS_UNVERIFIED')}
+    }
+    if(audioEvidenceEnabled&&Array.isArray(input.pauses)&&input.pauses.length) {
+      try {
+        audio_evidence=audioInspector({
+          root,project_id:id,filename:getDeck(id).audio.file,
+          voice_source_sha256:c.voice_source_sha256,duration_us:c.duration_us,
+          spans:input.pauses
+        });
+        if(audio_evidence.status!=='PAUSES_SUPPORTED')
+          issues.push('PAUSE_AUDIO_NOT_SILENT');
+      }catch(e){issues.push(e?.code??'AUDIO_EVIDENCE_UNAVAILABLE')}
+    }
+    // This remains *advisory* quality evidence. The engine MUST NOT use a
+    // caller's music.licensed=true as trusted rights proof for beats.
+    const validated_rights=Boolean(music_rights_evidence?.verified);
+    const validated_audio=Boolean(audio_evidence?.status==='PAUSES_SUPPORTED');
+    if(issues.length) {
+      return {...result,status:'REVIEW',cuts:[],
+        plan_sha256:undefined,issues:[...result.issues,...issues],
+        audio_evidence,music_rights_evidence,
+        provenance:{voice_sha_verified:true,deck_clock_verified:true,
+          pause_audio_verified:validated_audio,
+          word_alignment_verified:false,
+          music_rights_verified:validated_rights,
+          caller_markers_unverified:true},
+        approved:false,persisted:false,publication_allowed:false};
+    }
+    return {...result,audio_evidence,music_rights_evidence,provenance:{
       voice_sha_verified:true,deck_clock_verified:true,
-      word_alignment_verified:false,music_rights_verified:false,
+      pause_audio_verified:validated_audio,
+      word_alignment_verified:false,
+      music_rights_verified:validated_rights,
       caller_markers_unverified:true
     },publication_allowed:false};
   }
