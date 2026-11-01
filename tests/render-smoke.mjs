@@ -94,9 +94,14 @@ const newReview=unwrap(await rpc('tools/call',{name:'add_scene_review_item',argu
 }}));
 if(newReview.item.status!=='OPEN'||newReview.item.version_id!==version.version_id)throw new Error('P07 review not anchored');
 unwrap(await rpc('tools/call',{name:'set_scene_task',arguments:{id,slide_id:firstSlide,expected_revision:0,status:'done'}}));
-const blocked=await rpc('tools/call',{name:'approve_scene_version',arguments:{
-  id,slide_id:firstSlide,version_id:version.version_id,expected_revision:0}});
-if(!blocked.isError)throw new Error('P07 unresolved issue did not block approval');
+let approvalWasBlocked=false;
+try{
+  await rpc('tools/call',{name:'approve_scene_version',arguments:{
+    id,slide_id:firstSlide,version_id:version.version_id,expected_revision:0}});
+}catch(e){
+  approvalWasBlocked=String(e).includes('Unresolved review issues prevent approval');
+}
+if(!approvalWasBlocked)throw new Error('P07 unresolved issue did not block approval with expected reason');
 const fixed=unwrap(await rpc('tools/call',{name:'transition_scene_review_item',arguments:{
   id,slide_id:firstSlide,item_id:newReview.item.id,status:'FIXED',
   note:'Correct composition confirmed in frame samples',expected_revision:1}}));
