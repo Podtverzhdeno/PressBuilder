@@ -33,11 +33,10 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
   function withReviewState(result){
     if(result.status!=='completed'||!result.manifest?.scenes)return result;
     const unresolved_scenes=result.manifest.scenes
-      .filter(s=>s.approved_version_id&&reviewUnresolved(idFromResult(result),s.id,s.approved_version_id))
+      .filter(s=>s.approved_version_id&&reviewUnresolved(result.id,s.id,s.approved_version_id))
       .map(s=>s.id);
     return {...result,review_valid:unresolved_scenes.length===0,unresolved_scenes};
   }
-  function idFromResult(result){return result.id}
   function get(id){
     if(!valid.test(id))bad('Invalid project ID');
     const active=jobs.get(id);
