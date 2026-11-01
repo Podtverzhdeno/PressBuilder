@@ -4,7 +4,7 @@
  * requires screenshot review. The font stack/fit routine mirrors visuals.ts.
  */
 import {FONT,H,SAFE_BOTTOM,W,setStyle} from './theme.ts';
-import type {DeckData,VisualElement} from './types.ts';
+import type {DeckData} from './types.ts';
 
 export interface VisualIssue{
   id:string;severity:'FAIL'|'REVIEW';slide_id:string;object_id:string;
