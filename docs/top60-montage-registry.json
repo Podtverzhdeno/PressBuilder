@@ -1,0 +1,2267 @@
+{
+  "schema_version": 1,
+  "title": "PressBuilder Top-60 — качество и эффективность видеомонтажа",
+  "as_of": "2026-11-02",
+  "baseline_main": "d988e1e95e453a4716a1cb7642387f58f8a18160",
+  "status": "SPECIFICATION_ONLY",
+  "rubric": {
+    "scale": "0..10; higher = better",
+    "weights": {
+      "quality_gain": 0.3,
+      "edit_time_gain": 0.25,
+      "feasibility": 0.2,
+      "tco_efficiency": 0.1,
+      "safety_reliability": 0.1,
+      "platform_leverage": 0.05
+    },
+    "formula": "round(0.30 Q + 0.25 E + 0.20 F + 0.10 C + 0.10 S + 0.05 L, 2)",
+    "tie_break": [
+      "Q desc",
+      "E desc",
+      "F desc",
+      "id asc"
+    ],
+    "confidence": "expert estimates, not measured quality/time/cost improvements"
+  },
+  "items": [
+    {
+      "id": "M40",
+      "title": "Director briefs как исполняемые типизированные контракты",
+      "scope": "Системная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.7,
+      "depends_on": [
+        "P06",
+        "P10",
+        "P16",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 1,
+      "tier": "S",
+      "wave": "W0",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M50",
+      "title": "Журнал задач с восстановлением, отменой и транзакционным release",
+      "scope": "Системная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.7,
+      "depends_on": [
+        "P02",
+        "P05",
+        "P08",
+        "P13"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 2,
+      "tier": "S",
+      "wave": "W0",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M51",
+      "title": "Единый QC-кокпит с покадровыми исправлениями",
+      "scope": "Системная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.7,
+      "depends_on": [
+        "P03",
+        "P07",
+        "P11",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 3,
+      "tier": "S",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M58",
+      "title": "SLO качества + производительности на одном релизном шлюзе",
+      "scope": "Системная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.7,
+      "depends_on": [
+        "P02",
+        "P03",
+        "P05",
+        "P13",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 4,
+      "tier": "S",
+      "wave": "W0",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M26",
+      "title": "Типографический QA с кириллицей и fallback-шрифтами",
+      "scope": "Атомарная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 9
+      },
+      "score": 9.65,
+      "depends_on": [
+        "P03",
+        "P04",
+        "P20"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 5,
+      "tier": "S",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M42",
+      "title": "Моментальный preview с proxy → master согласованностью",
+      "scope": "Системная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 9,
+        "platform_leverage": 10
+      },
+      "score": 9.6,
+      "depends_on": [
+        "P02",
+        "P11",
+        "P12"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 6,
+      "tier": "S",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M41",
+      "title": "Инкрементальный рендер через контент-адресный DAG",
+      "scope": "Системная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 8,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.5,
+      "depends_on": [
+        "P02",
+        "P05",
+        "P08",
+        "P13"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 7,
+      "tier": "S",
+      "wave": "W2",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M13",
+      "title": "Финальное микширование с EBU-профилями и автодакингом",
+      "scope": "Системная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 9.45,
+      "depends_on": [
+        "P09",
+        "P19",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 8,
+      "tier": "S",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M32",
+      "title": "Контент-адресный реестр медиа, прав и происхождения",
+      "scope": "Системная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 9,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.45,
+      "depends_on": [
+        "P01",
+        "P08",
+        "P22",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 9,
+      "tier": "S",
+      "wave": "W0",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M54",
+      "title": "Детектор фоточувствительных вспышек и безопасный motion-mode",
+      "scope": "Системная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 9,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.45,
+      "depends_on": [
+        "P18",
+        "P20",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 10,
+      "tier": "S",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M05",
+      "title": "Транзакционный ripple edit и групповой undo",
+      "scope": "Атомарная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.4,
+      "depends_on": [
+        "P06",
+        "P08",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 11,
+      "tier": "S",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M56",
+      "title": "Golden-frame и PCM регрессии без шумных diff",
+      "scope": "Системная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.4,
+      "depends_on": [
+        "P03",
+        "P08",
+        "P11",
+        "P13"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 12,
+      "tier": "S",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M11",
+      "title": "Достоверная покомпонентная синхронизация слов",
+      "scope": "Атомарная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 10
+      },
+      "score": 9.3,
+      "depends_on": [
+        "P09",
+        "P15",
+        "P19"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 13,
+      "tier": "A",
+      "wave": "W1",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M52",
+      "title": "Мультиметр звука и разборчивости речи",
+      "scope": "Атомарная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 9,
+        "feasibility": 9,
+        "tco_efficiency": 8,
+        "safety_reliability": 10,
+        "platform_leverage": 9
+      },
+      "score": 9.3,
+      "depends_on": [
+        "P03",
+        "P19",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 14,
+      "tier": "A",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M01",
+      "title": "Единый рациональный монтажный граф",
+      "scope": "Системная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 7,
+        "tco_efficiency": 8,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.2,
+      "depends_on": [
+        "P05",
+        "P08",
+        "P09",
+        "P17",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 15,
+      "tier": "A",
+      "wave": "W0",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M17",
+      "title": "Умная работа с паузами и вдохами",
+      "scope": "Атомарная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 10,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 9.2,
+      "depends_on": [
+        "P09",
+        "P15",
+        "P19"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 16,
+      "tier": "A",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M24",
+      "title": "Интеллектуальный мультиформатный reframe",
+      "scope": "Системная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 8,
+        "tco_efficiency": 7,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 9.15,
+      "depends_on": [
+        "P03",
+        "P20",
+        "P22",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 17,
+      "tier": "A",
+      "wave": "W2",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M18",
+      "title": "Контроль дрейфа аудио/видео вплоть до sample",
+      "scope": "Системная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 9.15,
+      "depends_on": [
+        "P05",
+        "P09",
+        "P17",
+        "P19"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 18,
+      "tier": "A",
+      "wave": "W1",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M44",
+      "title": "Настоящая параллельная шести-сценная оркестрация",
+      "scope": "Системная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 10,
+        "feasibility": 7,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 10
+      },
+      "score": 9.1,
+      "depends_on": [
+        "P02",
+        "P06",
+        "P08",
+        "P10"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 19,
+      "tier": "A",
+      "wave": "W2",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M59",
+      "title": "Доступные субтитры и проверка точности смысла",
+      "scope": "Системная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 9
+      },
+      "score": 9.1,
+      "depends_on": [
+        "P09",
+        "P20",
+        "P23",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 20,
+      "tier": "A",
+      "wave": "W1",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M39",
+      "title": "Изготовление коротких версий без искажения смысла",
+      "scope": "Системная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 10,
+        "feasibility": 8,
+        "tco_efficiency": 9,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 9.05,
+      "depends_on": [
+        "P15",
+        "P16",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 21,
+      "tier": "A",
+      "wave": "W2",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M03",
+      "title": "Монтаж по утверждённым фразам",
+      "scope": "Системная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 9,
+      "depends_on": [
+        "P09",
+        "P10",
+        "P15",
+        "P16",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 22,
+      "tier": "A",
+      "wave": "W2",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M21",
+      "title": "Субтитры с динамической безопасной раскладкой",
+      "scope": "Атомарная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 9,
+      "depends_on": [
+        "P09",
+        "P20",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 23,
+      "tier": "A",
+      "wave": "W2",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M55",
+      "title": "Мобильный тест читабельности и безопасных зон",
+      "scope": "Атомарная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 9,
+      "depends_on": [
+        "P03",
+        "P20",
+        "P21",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 24,
+      "tier": "A",
+      "wave": "W2",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M15",
+      "title": "Непрерывный разговор через реальные аудиохэндлы J/L",
+      "scope": "Атомарная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 8.95,
+      "depends_on": [
+        "P08",
+        "P17",
+        "P19"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 25,
+      "tier": "A",
+      "wave": "W2",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M08",
+      "title": "Параллельные монтажные версии и A/B-матрица",
+      "scope": "Системная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 9,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 8.9,
+      "depends_on": [
+        "P07",
+        "P08",
+        "P16",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 26,
+      "tier": "A",
+      "wave": "W2",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M45",
+      "title": "Компилятор безопасного графа FFmpeg-фильтров",
+      "scope": "Атомарная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 9,
+        "safety_reliability": 10,
+        "platform_leverage": 9
+      },
+      "score": 8.9,
+      "depends_on": [
+        "P05",
+        "P19",
+        "P21"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 27,
+      "tier": "A",
+      "wave": "W2",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M47",
+      "title": "Побайтово воспроизводимая инструментальная цепочка",
+      "scope": "Системная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 8.85,
+      "depends_on": [
+        "P02",
+        "P03",
+        "P08",
+        "P13"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 28,
+      "tier": "A",
+      "wave": "W0",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M07",
+      "title": "Покадровый редактор стыков и J/L со слышимым предпросмотром",
+      "scope": "Атомарная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 9,
+        "feasibility": 7,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 8.8,
+      "depends_on": [
+        "P08",
+        "P09",
+        "P17",
+        "P19"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 29,
+      "tier": "A",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M48",
+      "title": "Слияние параллельных редакторских намерений без потери данных",
+      "scope": "Системная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 10,
+        "feasibility": 7,
+        "tco_efficiency": 7,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 8.8,
+      "depends_on": [
+        "P06",
+        "P08",
+        "P10",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 30,
+      "tier": "A",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M22",
+      "title": "Кривые движения с ограничением jerk",
+      "scope": "Атомарная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 9,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 8.8,
+      "depends_on": [
+        "P18",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 31,
+      "tier": "A",
+      "wave": "W3",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M27",
+      "title": "Адаптивная дизайн-система для титров и графики",
+      "scope": "Системная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 9,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 8.8,
+      "depends_on": [
+        "P04",
+        "P20",
+        "P21"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 32,
+      "tier": "A",
+      "wave": "W3",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M12",
+      "title": "Деликатная очистка голоса и двойной A/B-спектр",
+      "scope": "Атомарная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 10,
+        "feasibility": 8,
+        "tco_efficiency": 7,
+        "safety_reliability": 8,
+        "platform_leverage": 9
+      },
+      "score": 8.75,
+      "depends_on": [
+        "P09",
+        "P19",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 33,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M29",
+      "title": "Палитра переходов по форме и смысловому действию",
+      "scope": "Атомарная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 9,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 8.75,
+      "depends_on": [
+        "P05",
+        "P17",
+        "P21"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 34,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M46",
+      "title": "Адаптивное качество рендера под ресурсный бюджет",
+      "scope": "Атомарная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 9,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 8.75,
+      "depends_on": [
+        "P02",
+        "P12",
+        "P18"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 35,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M31",
+      "title": "Доказательные текстовые утверждения и fact overlays",
+      "scope": "Системная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 10,
+        "edit_time_gain": 8,
+        "feasibility": 7,
+        "tco_efficiency": 8,
+        "safety_reliability": 10,
+        "platform_leverage": 10
+      },
+      "score": 8.7,
+      "depends_on": [
+        "P07",
+        "P10",
+        "P16",
+        "P22",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 36,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M04",
+      "title": "Карта внимания, ритма и смысловых кульминаций",
+      "scope": "Системная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 9,
+        "safety_reliability": 8,
+        "platform_leverage": 9
+      },
+      "score": 8.7,
+      "depends_on": [
+        "P15",
+        "P16",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 37,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M09",
+      "title": "Типизированная библиотека режиссёрских паттернов",
+      "scope": "Атомарная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 9,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 8.65,
+      "depends_on": [
+        "P04",
+        "P10",
+        "P16"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 38,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M43",
+      "title": "Предсказание цены и длительности до запуска рендера",
+      "scope": "Атомарная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 9,
+        "feasibility": 9,
+        "tco_efficiency": 9,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 8.65,
+      "depends_on": [
+        "P02",
+        "P12",
+        "P13"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 39,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "small, ~2–5 dev-days",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M49",
+      "title": "Умный smart-render без повторного кодирования неизменённых фрагментов",
+      "scope": "Атомарная",
+      "category": "Рендер и эксплуатация",
+      "category_key": "pipeline",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 7,
+        "tco_efficiency": 9,
+        "safety_reliability": 8,
+        "platform_leverage": 9
+      },
+      "score": 8.5,
+      "depends_on": [
+        "P05",
+        "P08",
+        "P13"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/pipeline/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 40,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M14",
+      "title": "Просодический ритм вместо резки по BPM",
+      "scope": "Атомарная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 7,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 8.45,
+      "depends_on": [
+        "P09",
+        "P15"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 41,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M34",
+      "title": "Лицензированный B-roll recommender по смысловому слоту",
+      "scope": "Системная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 7,
+        "tco_efficiency": 7,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 8.4,
+      "depends_on": [
+        "P16",
+        "P22",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 42,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M20",
+      "title": "Произношение имён и терминов в озвучке",
+      "scope": "Атомарная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 9,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 8.35,
+      "depends_on": [
+        "P09",
+        "P10",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 43,
+      "tier": "B",
+      "wave": "W1",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M02",
+      "title": "Независимый режиссёрский совет A/B",
+      "scope": "Системная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 7,
+        "tco_efficiency": 7,
+        "safety_reliability": 8,
+        "platform_leverage": 9
+      },
+      "score": 8.3,
+      "depends_on": [
+        "P07",
+        "P10",
+        "P16",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 44,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M33",
+      "title": "Видеопоиск по смыслу и временному отрезку",
+      "scope": "Системная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 7,
+        "tco_efficiency": 7,
+        "safety_reliability": 8,
+        "platform_leverage": 9
+      },
+      "score": 8.3,
+      "depends_on": [
+        "P22",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 45,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M38",
+      "title": "Мультикритериальный best-take selector",
+      "scope": "Системная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 9,
+        "feasibility": 7,
+        "tco_efficiency": 7,
+        "safety_reliability": 8,
+        "platform_leverage": 8
+      },
+      "score": 8.25,
+      "depends_on": [
+        "P03",
+        "P07",
+        "P22"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 46,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M06",
+      "title": "Ограничительный solver связности шести сцен",
+      "scope": "Системная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 8,
+        "feasibility": 7,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 8.2,
+      "depends_on": [
+        "P04",
+        "P10",
+        "P17",
+        "P21"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 47,
+      "tier": "B",
+      "wave": "W3",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M23",
+      "title": "Перцептуальное выравнивание цвета между сценами",
+      "scope": "Атомарная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 8,
+        "feasibility": 7,
+        "tco_efficiency": 7,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 8.15,
+      "depends_on": [
+        "P03",
+        "P17",
+        "P21"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 48,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M53",
+      "title": "Перцептуальное качество после экспорта и обнаружение banding",
+      "scope": "Атомарная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 8,
+        "feasibility": 7,
+        "tco_efficiency": 7,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 8.15,
+      "depends_on": [
+        "P03",
+        "P11",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 49,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M57",
+      "title": "Арт-оценка качества с калибровкой человеческих судей",
+      "scope": "Системная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 8,
+        "feasibility": 7,
+        "tco_efficiency": 7,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 8.15,
+      "depends_on": [
+        "P07",
+        "P11",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 50,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M60",
+      "title": "Профессиональный round-trip монтажного проекта (OTIO)",
+      "scope": "Системная",
+      "category": "QC и доступность",
+      "category_key": "quality",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 9,
+        "feasibility": 7,
+        "tco_efficiency": 7,
+        "safety_reliability": 9,
+        "platform_leverage": 9
+      },
+      "score": 8.1,
+      "depends_on": [
+        "P05",
+        "P08",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/quality/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 51,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M16",
+      "title": "Семантические звуковые акценты по лицензированным ассетам",
+      "scope": "Атомарная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 8,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 7
+      },
+      "score": 8.05,
+      "depends_on": [
+        "P19",
+        "P22"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 52,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M19",
+      "title": "Шины и stems как настоящий монтажный микшер",
+      "scope": "Системная",
+      "category": "Речь и звук",
+      "category_key": "audio",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 8,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 8,
+        "platform_leverage": 8
+      },
+      "score": 8,
+      "depends_on": [
+        "P19",
+        "P24"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/audio/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 53,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M35",
+      "title": "Поиск визуальных повторов и смыслового разнообразия",
+      "scope": "Атомарная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 8,
+        "feasibility": 8,
+        "tco_efficiency": 8,
+        "safety_reliability": 8,
+        "platform_leverage": 8
+      },
+      "score": 8,
+      "depends_on": [
+        "P03",
+        "P16",
+        "P22"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 54,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M37",
+      "title": "Семантическая проверка предмета и действия без идентификации личности",
+      "scope": "Атомарная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 8,
+        "feasibility": 8,
+        "tco_efficiency": 7,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 8,
+      "depends_on": [
+        "P03",
+        "P22",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 55,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "medium, ~1–2 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M10",
+      "title": "Аудит пространственной грамматики и направления взгляда",
+      "scope": "Атомарная",
+      "category": "Режиссура и таймлайн",
+      "category_key": "editorial",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 8,
+        "feasibility": 7,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 7.9,
+      "depends_on": [
+        "P03",
+        "P17",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/editorial/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 56,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M30",
+      "title": "Размытие по реальной скорости без мерцания",
+      "scope": "Атомарная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 8,
+        "feasibility": 7,
+        "tco_efficiency": 8,
+        "safety_reliability": 9,
+        "platform_leverage": 8
+      },
+      "score": 7.9,
+      "depends_on": [
+        "P18",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 57,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "large, ~2–4 dev-weeks",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M25",
+      "title": "Кинематографический конструктор движения 3D-камеры",
+      "scope": "Системная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 9,
+        "edit_time_gain": 8,
+        "feasibility": 6,
+        "tco_efficiency": 7,
+        "safety_reliability": 8,
+        "platform_leverage": 8
+      },
+      "score": 7.8,
+      "depends_on": [
+        "P01",
+        "P04",
+        "P18"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 58,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "R&D, ≥1–2 dev-months",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M28",
+      "title": "Предметные маски и параллакс с глубинной проверкой",
+      "scope": "Атомарная",
+      "category": "Визуал, цвет и анимация",
+      "category_key": "visual",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 8,
+        "feasibility": 6,
+        "tco_efficiency": 6,
+        "safety_reliability": 7,
+        "platform_leverage": 7
+      },
+      "score": 7.25,
+      "depends_on": [
+        "P01",
+        "P18",
+        "P22"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/visual/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 59,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "R&D, ≥1–2 dev-months",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    },
+    {
+      "id": "M36",
+      "title": "Контролируемое генеративное расширение клипа с provenance",
+      "scope": "Атомарная",
+      "category": "Контент и ассеты",
+      "category_key": "content",
+      "scores": {
+        "quality_gain": 8,
+        "edit_time_gain": 7,
+        "feasibility": 5,
+        "tco_efficiency": 5,
+        "safety_reliability": 6,
+        "platform_leverage": 8
+      },
+      "score": 6.65,
+      "depends_on": [
+        "P08",
+        "P22",
+        "P23"
+      ],
+      "spec_path": "openspec/changes/video-quality-top60/specs/content/spec.md",
+      "status": "PROPOSED",
+      "evidence": "SPEC_ONLY",
+      "implementation_verified": false,
+      "production_enabled": false,
+      "rank": 60,
+      "tier": "C",
+      "wave": "W4",
+      "effort_hint": "R&D, ≥1–2 dev-months",
+      "critical_gates": [
+        "signed approved source/license SHA",
+        "P06 principal/lease/CAS",
+        "negative/security + real-media test",
+        "independent human artistic approval",
+        "rollback + canary"
+      ]
+    }
+  ]
+}
