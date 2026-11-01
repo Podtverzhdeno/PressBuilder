@@ -18,7 +18,7 @@ const copiedPrompt = (project:string,t:SceneTask) =>
   '\n\nПОДРОБНОЕ ТЗ:\n'+(t.brief||'ТЗ ещё не заполнено')+
   '\n\nКРИТЕРИИ ПРИЁМКИ:\n'+(t.deliverables||'Не заданы')+
   '\n\nЧЕКПОИНТЫ:\n'+t.checkpoints.map(c=>'- ['+(c.done?'x':' ')+'] '+c.id+': '+c.title+(c.note?' — '+c.note:'')).join('\n')+
-  '\n\nИзучи проект через MCP get_deck и get_scene_task. Работай только со своей сценой; '+
+  '\n\nНачни с MCP get_project_context (README, правила и карта сцен), затем get_scene_task и get_deck. Работай только со своей сценой; '+
   'после проверенного результата отмечай чекпоинт через set_scene_checkpoint. '+
   'Не меняй чужие сцены и не объявляй сцену готовой без тестов.';
 
