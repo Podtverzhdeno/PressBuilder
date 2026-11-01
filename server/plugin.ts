@@ -25,6 +25,7 @@ import { styleContractStore,enforceScene3D,enforceVisuals } from './style-contra
 import {styleById} from '../src/engine/styles.ts';
 import { assemblyPlanStore } from './assembly-plan.mjs';
 import {rhythmPreviewService} from './rhythm-preview.mjs';
+import {rhythmDraftStore} from './rhythm-drafts.mjs';
 
 const ROOT = process.cwd();
 const DECKS_DIR = path.join(ROOT, 'src', 'decks');
@@ -76,6 +77,9 @@ const assemblyPlans=assemblyPlanStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.
 const rhythmPreview=rhythmPreviewService({root:DECKS_DIR,
   getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),
   enabled:process.env.PB_RHYTHM_PREVIEW==='1'});
+const rhythmDrafts=rhythmDraftStore({root:DECKS_DIR,
+  getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8')),
+  previewService:rhythmPreview});
 
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -159,6 +163,36 @@ export function presbuilder(): Plugin {
       return fail(res, 405, 'method');
     }
 
+    const rhythmDraft=/^([^/]+)\/rhythm\/draft$/.exec(rest);
+    if(rhythmDraft){
+      const id=rhythmDraft[1];
+      if(!ID_RE.test(id)||!fs.existsSync(deckFile(id)))return fail(res,404,'Ролик не найден');
+      try{
+        const actor={id:'local-studio-director',role:'director'};
+        if(req.method==='GET')return json(res,rhythmDrafts.status(id,actor));
+        if(req.method==='POST'){
+          const chunks:Buffer[]=[];let total=0;
+          const raw=await new Promise<Buffer>((resolve,reject)=>{
+            req.on('data',(piece:Buffer)=>{
+              total+=piece.length;
+              if(total>512*1024){reject(Object.assign(new Error('Rhythm draft too large'),{status:413}));req.destroy()}
+              else chunks.push(piece);
+            });
+            req.on('end',()=>resolve(Buffer.concat(chunks)));
+            req.on('error',reject);
+          });
+          let payload;
+          try{payload=JSON.parse(raw.toString('utf8'))}
+          catch{return fail(res,400,'Неверный JSON')}
+          return json(res,rhythmDrafts.submit(id,actor,payload?.manifest,
+            payload?.expected_revision,payload?.note));
+        }
+        return fail(res,405,'method');
+      }catch(e){
+        const status=Number((e as {status?:number})?.status||500);
+        return fail(res,status,e instanceof Error?e.message:String(e));
+      }
+    }
     const rhythm=/^([^/]+)\/rhythm\/(context|preview)$/.exec(rest);
     if(rhythm){
       const id=rhythm[1];
