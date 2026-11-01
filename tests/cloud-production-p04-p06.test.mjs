@@ -87,6 +87,11 @@ test('P05 hard-cut assembly enforces approval, original hash and silent audio',{
     assert.equal(manifest.scenes.length,2);assert.equal(manifest.output.qa.verdict,'PASS');
     assert.equal(manifest.output.qa.metadata.has_audio,true);
     assert.ok(fs.existsSync(path.join(root,'demo_final.mp4')));
+    const recovered=assemblyService({out:root,getDeck:()=>({slides:[{id:'s01'},{id:'s02'}],format}),
+      getRender:()=>({status:'not_started'}),getTask:()=>({status:'review'}),
+      baseUrl:()=> 'https://example.test'});
+    assert.equal(recovered.get('demo').status,'completed');
+    assert.equal(recovered.get('demo').recovered,true);
     const oldHash=manifest.output.sha256;
     // Failure must keep the accepted previous release and manifest unchanged.
     fs.rmSync(path.join(root,'demo_s02.mp4'));
