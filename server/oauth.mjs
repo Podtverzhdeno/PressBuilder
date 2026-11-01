@@ -45,6 +45,9 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
     const parsed=new URL(u);
     if(parsed.protocol!=='https:' || parsed.hash || parsed.username || parsed.password)throw new Error('OAuth redirect URI must be exact HTTPS');
   }
+  // Chromium/WebKit also enforce form-action on the redirect *after* a POST.
+  // Include only registered OAuth callback origins, never an arbitrary wildcard.
+  const consentCallbackOrigins=[...new Set([...allowedRedirects].map(u=>new URL(u).origin))].join(' ');
   fs.mkdirSync(dataDir,{recursive:true});
   const stateFile=path.join(dataDir,'oauth-state.json');
   let records={codes:{},access:{},refresh:{}};
@@ -167,7 +170,7 @@ export function createOAuth({ publicUrl, clientId, clientSecret, dataDir, authWe
 <button name="decision" value="deny" style="padding:12px 22px;cursor:pointer">Отмена</button></form>
 <p style="font-size:12px;color:#666">Запрос действителен 10 минут. Подтверждайте только если вы сами начали подключение.</p>
 </body></html>`;
-    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",'X-Frame-Options':'DENY','Referrer-Policy':'no-referrer'});
+    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self' "+consentCallbackOrigins+"; base-uri 'none'; frame-ancestors 'none'",'X-Frame-Options':'DENY','Referrer-Policy':'no-referrer'});
     res.end(page);
   }
   async function authorizePost(req,res){
