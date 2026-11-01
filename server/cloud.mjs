@@ -224,7 +224,7 @@ async function api(req,res,url) {
     return json(res,200,{file:f,size:b.length});
   }
   // Per-scene assignments live apart from deck.json to support parallel agents.
-  const creativeMatch=/^\\/api\\/decks\\/([^/]+)\\/creative\\/(context|preview)$/.exec(p);
+  const creativeMatch=/^\/api\/decks\/([^/]+)\/creative\/(context|preview)$/.exec(p);
   if(creativeMatch){
     const id=deckId(escaped(creativeMatch[1]));
     if(method==='GET'&&creativeMatch[2]==='context')
