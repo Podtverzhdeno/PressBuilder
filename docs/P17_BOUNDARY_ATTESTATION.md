@@ -11,7 +11,7 @@
 - Media jobs are asynchronous; one in-flight boundary analysis per process, bounded binary stdout, 12-second timeout per FFmpeg/FFprobe invocation. No synchronous media decoding on the HTTP event loop.
 
 ## Trust and limits
-- This is **not full P17-C03 acceptance**. No visual Studio side-by-side UI yet; camera angle, object motion, independent audio handles and artist evaluation are not proven. J/L and match-on-action intentionally reject rather than hallucinate support.
+- This is **not full P17-C03 acceptance**. Studio now shows a read-only side-by-side A/B of exact decoded last/first frames, SHA and approval revisions; it does not apply edits. Camera angle, object motion, independent audio handles and artist evaluation are not proven. J/L and match-on-action intentionally reject rather than hallucinate support.
 - Single-process concurrency gate is not a distributed worker reservation. Source is local P08 protected media, maximum 45 sec / 2700 frames / 64 MiB; supported rational FPS: 24, 25, 30, 60, 24000/1001, 30000/1001. No remote fetch, arbitrary filter graph, or shell interpolation.
 - `PB_CONTINUITY_REVIEW` must remain disabled in production pending separate security review, multi-instance rate limit and release authorization.
 - Approval and release pointers are never modified.
@@ -23,3 +23,7 @@
 4. P17-C06: isolated staging canary, observed CPU/RAM/latency/error rates, rollback, independent signoff.
 
 Disable the flag for immediate rollback; no persistent P17 state was written.
+
+## Observed CI evidence
+
+Run https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41353039220 on b6c6c848: production Docker 162/162 PASS (0 skipped), Node cloud 142 PASS / 20 skipped where media prerequisites are unavailable. This verifies live REST/MCP exact approved MP4 first/last JPEG evidence, role refusal, CSRF, stale approval, invalid source requests and actual MP4 regression. Subsequent UI/document commits require current-head build + integrity before release.
