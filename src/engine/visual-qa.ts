@@ -38,7 +38,7 @@ export function auditDataText(deck:DeckData,ctx:CanvasRenderingContext2D,sceneId
       const family=v.font==='mono'?FONT.mono:v.font==='sans'?FONT.sans:FONT.display;
       const weight=v.weight==='regular'?'400':'700';
       const lines=String(text).split(/(?:\\n|\n)/);
-      const available=Math.max(24,Math.min(v.w??400,W-x-40));
+      const available=Math.max(24,Math.min(v.w??400,W-v.x-40)); // matches the actual text renderer
       const requested=v.size??80;
       let size=requested;
       ctx.font=weight+' '+size+'px '+family;
@@ -48,25 +48,30 @@ export function auditDataText(deck:DeckData,ctx:CanvasRenderingContext2D,sceneId
       }
       const measured=Math.max(...lines.map(line=>ctx.measureText(line).width),0);
       const height=Math.max(1,lines.length)*size*1.18;
-      const right=x+measured*scale;
-      const bottom=y+height*scale;
+      // Timeline.renderSlide scales around the frame centre, reserving
+      // SAFE_BOTTOM for player controls. Audit the actual visible projection.
+      const stageScale=(H-SAFE_BOTTOM)/H;
+      const sx=W/2+(x-W/2)*stageScale;
+      const sy=y*stageScale;
+      const right=W/2+(x+measured*scale-W/2)*stageScale;
+      const bottom=(y+height*scale)*stageScale;
       if(measured>available+2){
         report('TEXT_UNFIT','FAIL',slide.id,v.id,
           'Glyphs are wider than the usable text box even at minimum font size',
           {measured_width:Math.round(measured),available_width:Math.round(available),font_size:size});
       }
-      if(x < -1 || y < -1 || right>W+1 || bottom>H+1){
+      if(sx < -1 || sy < -1 || right>W+1 || bottom>H+1){
         report('TEXT_OUTSIDE_FRAME','FAIL',slide.id,v.id,'Text extends outside the 1920x1080 logical frame',
-          {x,y,right:Math.round(right),bottom:Math.round(bottom)});
-      }else if(x<55||right>W-55||bottom>H-SAFE_BOTTOM){
+          {x:Math.round(sx),y:Math.round(sy),right:Math.round(right),bottom:Math.round(bottom)});
+      }else if(sx<55||right>W-55||bottom>H-SAFE_BOTTOM){
         report('TEXT_SAFE_AREA','REVIEW',slide.id,v.id,'Text touches the safe-area border',
-          {x,right:Math.round(right),bottom:Math.round(bottom)});
+          {x:Math.round(sx),right:Math.round(right),bottom:Math.round(bottom)});
       }
       if(requested>=40&&size/requested<.6){
         report('TEXT_EXCESSIVE_SHRINK','REVIEW',slide.id,v.id,'Font size was reduced by more than 40% to fit',
           {requested_font_size:requested,actual_font_size:size});
       }
-      rectangles.push({id:v.id,x,y,w:measured*scale,h:height*scale});
+      rectangles.push({id:v.id,x:sx,y:sy,w:measured*scale*stageScale,h:height*scale*stageScale});
     }
     for(let i=0;i<rectangles.length;i++)for(let j=i+1;j<rectangles.length;j++){
       const a=rectangles[i],b=rectangles[j];
