@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15 C01/C02 TESTED, C03/C04/C05 IN_PROGRESS with worker-backed audio CI (147 Docker tests PASS, 0 skipped); C06 TODO; 55 overall TODO. No real-human word alignment or artistic ACCEPTED review.",
+  "notice": "P15 C01/C02 TESTED; C03/C04/C05 IN_PROGRESS. P16 C01/C02 TESTED; C03/C04 IN_PROGRESS; C05/C06 TODO. All other P17–P24 TODO. Neither natural speech/creative quality nor any P16 publication is accepted.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -315,7 +315,7 @@
       "feature": "P16",
       "capability": "creative-director",
       "name": "Contract and threat model",
-      "status": "TODO",
+      "status": "TESTED",
       "owner_hint": "director-reviewer",
       "dependencies": [],
       "inputs": "approved script and P10 scene briefs",
@@ -333,20 +333,31 @@
       ],
       "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
       "proposed_test_file": "tests/cloud-director-professional.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "p16_source_anchored_storyboard_cloud_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41349714899",
+          "commit_sha": "0eb9a6f61ad3601e904edc439f7af402d1b87867",
+          "command": "npm run build && npm run test:cloud",
+          "exit_code": 0,
+          "artifact_path": "schemas/montage/creative-storyboard-request-v1.schema.json",
+          "note": "Strict request with current P10 approved script fingerprint and source SHA; independent threat review pending."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Independent security reviewer acceptance missing.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "0eb9a6f61ad3601e904edc439f7af402d1b87867"
     },
     {
       "id": "P16-C02",
       "feature": "P16",
       "capability": "creative-director",
       "name": "Bounded functional vertical slice",
-      "status": "TODO",
+      "status": "TESTED",
       "owner_hint": "director-reviewer",
       "dependencies": [
         "P16-C01",
@@ -367,20 +378,31 @@
       ],
       "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
       "proposed_test_file": "tests/cloud-director-professional.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "p16_source_anchored_storyboard_cloud_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41349714899",
+          "commit_sha": "0eb9a6f61ad3601e904edc439f7af402d1b87867",
+          "command": "npm run build && npm run test:cloud",
+          "exit_code": 0,
+          "artifact_path": "server/creative-storyboard.mjs",
+          "note": "Two deterministic narrative orders preserve exact cue text and project source; no creative quality or publication approval."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Human artistic assessment of alternatives and P10 dependency/voice order compatibility missing.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "0eb9a6f61ad3601e904edc439f7af402d1b87867"
     },
     {
       "id": "P16-C03",
       "feature": "P16",
       "capability": "creative-director",
       "name": "MCP + REST + Studio preview",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "director-reviewer",
       "dependencies": [
         "P16-C02"
@@ -400,20 +422,31 @@
       ],
       "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
       "proposed_test_file": "tests/cloud-director-professional.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "p16_source_anchored_storyboard_cloud_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41349714899",
+          "commit_sha": "0eb9a6f61ad3601e904edc439f7af402d1b87867",
+          "command": "npm run build && npm run test:cloud",
+          "exit_code": 0,
+          "artifact_path": "src/editor/CreativeStoryPanel.tsx",
+          "note": "Authenticated cloud REST/MCP preview and Studio comparison exist. P16 human acceptance, persist, safe replan, voice remapping missing."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "No signed P16 reviewer workflow, immutable storyboard approval, source-backed scene reorder or verified audio remap.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "0eb9a6f61ad3601e904edc439f7af402d1b87867"
     },
     {
       "id": "P16-C04",
       "feature": "P16",
       "capability": "creative-director",
       "name": "Negative and regression suite",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "director-reviewer",
       "dependencies": [
         "P16-C03"
@@ -433,13 +466,24 @@
       ],
       "negative_tests": "fake factual claims, stale actor/signature, unrelated scene rewrite",
       "proposed_test_file": "tests/cloud-director-professional.test.mjs",
-      "evidence": [],
+      "evidence": [
+        {
+          "kind": "p16_source_anchored_storyboard_cloud_ci",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41349714899",
+          "commit_sha": "0eb9a6f61ad3601e904edc439f7af402d1b87867",
+          "command": "npm run build && npm run test:cloud",
+          "exit_code": 0,
+          "artifact_path": "tests/cloud-creative-storyboard.test.mjs",
+          "note": "Basic negative tests for stale source/revision, unknown fields, duplicate scenes, no independent full security review."
+        }
+      ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "More multi-instance, actor-scope, media and post-approval adversarial tests required; no independent review.",
       "accepted_release": null,
-      "release_eligible": false
+      "release_eligible": false,
+      "source_commit_sha": "0eb9a6f61ad3601e904edc439f7af402d1b87867"
     },
     {
       "id": "P16-C05",
