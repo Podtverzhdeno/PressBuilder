@@ -507,8 +507,8 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/out/')){
       const name=escaped(p.slice('/out/'.length));
-      const validMp4=/^[a-z0-9][a-z0-9_-]{0,125}\\.mp4$/.test(name);
-      const validEvidence=/^[a-z0-9][a-z0-9_-]{0,40}_[a-z0-9][a-z0-9_-]{0,40}_v[0-9a-f]{16}_f[012]\\.jpg$/.test(name);
+      const validMp4=/^[a-z0-9][a-z0-9_-]{0,125}\.mp4$/.test(name);
+      const validEvidence=/^[a-z0-9][a-z0-9_-]{0,40}_[a-z0-9][a-z0-9_-]{0,40}_v[0-9a-f]{16}_f[012]\.jpg$/.test(name);
       if(!validMp4&&!validEvidence)throw new UserError('Invalid filename');
       const file=inside(OUT,name);
       if(!file || !fs.existsSync(file))throw new UserError('Video not found',404);
