@@ -89,7 +89,7 @@ export function makeRenderQueue({
                 file:'out/'+path.basename(immutable),
                 legacy_file:'out/'+path.basename(legacy),
                 size:fs.statSync(immutable).size,
-                download_url:baseUrl().replace(/\\/$/,'')+'/out/'+path.basename(immutable),
+                download_url:baseUrl().replace(/\/$/,'')+'/out/'+path.basename(immutable),
               };
             }else{
               j.status='failed';j.error='Legacy MP4 not found';
