@@ -1974,3 +1974,20 @@ kbd {
   .task-row { grid-template-columns: 1fr; }
   .task-detail { padding:15px; }
 }
+
+/* Project README editor — Markdown stays proportionate and readable. */
+.task-readme-editor {
+  min-height: 430px;
+  width: 100%;
+  resize: vertical;
+  white-space: pre-wrap;
+  font: 13px/1.65 ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  tab-size: 2;
+}
+.task-readme-help {
+  line-height: 1.6;
+  font-size: 13px;
+  color: var(--dim);
+  max-width: 100ch;
+}
+.task-readme-help code { color: var(--h1); }
