@@ -20,7 +20,7 @@ function atomic(file,obj){
   fs.writeFileSync(temp,JSON.stringify(obj,null,2)+'\n',{mode:0o600});
   try{fs.renameSync(temp,file)}finally{fs.rmSync(temp,{force:true})}
 }
-export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,staticRoot=path.join(process.cwd(),'build'),now=()=>new Date().toISOString()}){
+export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,restoreSlide=null,restoreScene3D=null,staticRoot=path.join(process.cwd(),'build'),now=()=>new Date().toISOString()}){
   function locate(id,scene){
     if(typeof id!=='string'||!SLUG.test(id)||typeof scene!=='string'||!SLUG.test(scene))bad('Invalid project/scene ID');
     const deck=getDeck(id);
@@ -102,6 +102,43 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,staticRo
     if(sha!==item.source?.fingerprint)bad('Source snapshot integrity mismatch',409);
     return {version_id:version,source:snapshot,fingerprint:sha};
   }
+  function restoreSource(id,scene,version,expectedFingerprint,expected3DRevision,actor){
+    if(!restoreSlide||!restoreScene3D)bad('Source restoration is not configured',501);
+    if(!actor||actor.role!=='director')bad('Only director can restore scene source',403);
+    verified(id,scene,version); // restore only real, integrity-checked immutable MP4 versions
+    const saved=readSource(id,scene,version).source;
+    const before=source(id,scene);
+    if(typeof expectedFingerprint!=='string'||before.fingerprint!==expectedFingerprint ||
+      !Number.isSafeInteger(expected3DRevision)||before.scene3d_revision!==expected3DRevision)
+      bad('Scene source changed; reload and retry restoration',409);
+    const targetSettings=saved.project_settings,live=before.snapshot.project_settings;
+    const targetAssets=saved.assets,liveAssets=before.snapshot.assets;
+    // Project-level inputs apply to ALL scenes. Never silently overwrite shared settings,
+    // narration, or deployed JS/CSS while restoring a single scene.
+    if(JSON.stringify(targetSettings)!==JSON.stringify(live)||
+      JSON.stringify(targetAssets)!==JSON.stringify(liveAssets))
+      bad('Shared settings, narration or deployed application assets differ; isolated source restoration refused',409);
+    if(!saved.slide||saved.slide.id!==scene||!saved.scene3d||
+      typeof saved.scene3d.revision!=='number')bad('Invalid archived source snapshot',409);
+    const old3D=before.snapshot.scene3d;
+    const new3D=restoreScene3D(id,scene,saved.scene3d.spec,expected3DRevision);
+    try{
+      restoreSlide(id,scene,structuredClone(saved.slide));
+    }catch(e){
+      // Compensate a second-file write failure (process crashes remain non-transactional).
+      try{restoreScene3D(id,scene,old3D.spec,new3D.revision)}catch{}
+      throw e;
+    }
+    const after=source(id,scene);
+    const {dir}=locate(id,scene);
+    const audit=path.join(dir,'source-restores.jsonl');
+    fs.appendFileSync(audit,JSON.stringify({version_id:version,project:id,scene_id:scene,
+      actor:actor.id,from_fingerprint:before.fingerprint,to_fingerprint:after.fingerprint,
+      restored_at:now(),trace_id:randomUUID()})+'\n',{mode:0o600});
+    return {ok:true,project:id,scene_id:scene,restored_from_version:version,
+      previous_fingerprint:before.fingerprint,fingerprint:after.fingerprint,
+      scene3d_revision:after.scene3d_revision};
+  }
   function verified(id,scene,version){
     const item=read(id,scene,version);
     const name=path.basename(item.file||'');
@@ -153,5 +190,5 @@ export function sceneVersionStore({root,out,getDeck,getScene3D,getStyle,staticRo
     fs.copyFileSync(path.join(out,path.basename(item.file)),stage);
     try{fs.renameSync(stage,original)}finally{fs.rmSync(stage,{force:true})}
   }
-  return {source,versionId,capture,read,readSource,list,pointer,approved,approve,restore,verified,publishPreview};
+  return {source,versionId,capture,read,readSource,restoreSource,list,pointer,approved,approve,restore,verified,publishPreview};
 }
