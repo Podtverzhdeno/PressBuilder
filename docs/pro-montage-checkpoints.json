@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15 C01/C02 TESTED; C03/C04/C05 IN_PROGRESS. P16 C01/C02 TESTED; C03/C04 IN_PROGRESS. P17 C01/C02 TESTED on current hardened data-only planner (160/160 Docker, real MP4 regression); independent reviewer and P08/P03 source attestation pending; P17 C03–C06 and P18–P24 TODO. No P17 publishing.",
+  "notice": "P15/P16 partial; P17 C01/C02 TESTED, C03/C04 follow-up PR #38 under review; P18 C01/C02 IN_PROGRESS with safe pure motion engine / CI pending, C03-C06 TODO; P19-P24 TODO. No extra production features or creative QA approved.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -806,7 +806,7 @@
       "feature": "P18",
       "capability": "professional-motion",
       "name": "Contract and threat model",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [],
       "inputs": "P15 timebase and scene property IDs",
@@ -828,7 +828,7 @@
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Motion schema, bounded deterministic easing, exact rational FPS, velocity/acceleration/flash limits and negative tests implemented in branch. Current-head CI, independent reviewer, real renderer/Studio and source-attestation remain pending. No publication.",
       "accepted_release": null,
       "release_eligible": false
     },
@@ -837,7 +837,7 @@
       "feature": "P18",
       "capability": "professional-motion",
       "name": "Bounded functional vertical slice",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "owner_hint": "scene-developer",
       "dependencies": [
         "P18-C01",
@@ -862,7 +862,7 @@
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": null,
+      "blocked_reason": "Motion schema, bounded deterministic easing, exact rational FPS, velocity/acceleration/flash limits and negative tests implemented in branch. Current-head CI, independent reviewer, real renderer/Studio and source-attestation remain pending. No publication.",
       "accepted_release": null,
       "release_eligible": false
     },
