@@ -8,6 +8,10 @@ import { DeckDialog } from './DeckDialog.tsx';
 import { ExportDialog } from './ExportDialog.tsx';
 import { Inspector } from './Inspector.tsx';
 import { ScriptPanel } from './ScriptPanel.tsx';
+import { SceneTasksPanel } from './SceneTasksPanel.tsx';
+import { ProjectReadmePanel } from './ProjectReadmePanel.tsx';
+import { Scene3DPanel } from './Scene3DPanel.tsx';
+import { SceneReviewPanel } from './SceneReviewPanel.tsx';
 import { StyleDialog } from './StyleDialog.tsx';
 import { Stage } from './Stage.tsx';
 import {
@@ -42,7 +46,7 @@ import { TimelinePanel } from './TimelinePanel.tsx';
 import { Icon, IconBtn, MenuBtn } from './ui.tsx';
 import { clock, isTyping, nSlides } from './util.ts';
 
-type Modal = null | 'new' | 'resplit' | 'style' | 'export' | 'export-auto';
+type Modal = null | 'new' | 'resplit' | 'style' | 'tasks' | 'readme' | 'scene3d' | 'review' | 'export' | 'export-auto';
 
 const SAVE_TEXT = { saved: 'сохранено', dirty: 'изменено', saving: 'сохраняю…', error: 'не сохранилось' };
 
@@ -156,6 +160,18 @@ export function App() {
             <button type="button" class="btn" onClick={() => setModal('resplit')}>
               <Icon name="text" size={15} /> Текст и разбивка
             </button>
+            <button type="button" class="btn" title="README видеопроекта, доступный каждому агенту по MCP" onClick={() => setModal('readme')}>
+              <Icon name="text" size={15} /> README проекта
+            </button>
+            <button type="button" class="btn" title="3D-объекты и анимация выбранной сцены" onClick={() => setModal('scene3d')}>
+              <Icon name="film" size={15} /> 3D сцена
+            </button>
+            <button type="button" class="btn" title="Задания для агентов и чекпоинты по каждой сцене" onClick={() => setModal('tasks')}>
+              <Icon name="check" size={15} /> Задания агентам
+            </button>
+            <button type="button" class="btn" title="Ревью кадров и версии MP4, доступно в облачном редакторе" onClick={() => setModal('review')}>
+              <Icon name="film" size={15} /> Ревью MP4
+            </button>
             <DurationChip onClick={() => setModal('export')} />
             <button type="button" class="btn is-primary" onClick={() => setModal('export')}>
               <Icon name="film" size={15} /> Вывод
@@ -173,6 +189,10 @@ export function App() {
       {modal === 'new' && <DeckDialog mode="new" onClose={() => setModal(null)} />}
       {modal === 'resplit' && <DeckDialog mode="resplit" onClose={() => setModal(null)} />}
       {modal === 'style' && <StyleDialog onClose={() => setModal(null)} />}
+      {modal === 'tasks' && d && <SceneTasksPanel projectId={d.id} initialSlide={curSlide.value?.slide.id} onClose={() => setModal(null)} />}
+      {modal === 'readme' && d && <ProjectReadmePanel projectId={d.id} onClose={() => setModal(null)} />}
+      {modal === 'scene3d' && d && <Scene3DPanel projectId={d.id} slideId={curSlide.value?.slide.id??d.slides[0]?.id} onClose={() => setModal(null)} />}
+      {modal === 'review' && d && <SceneReviewPanel projectId={d.id} initialSlide={curSlide.value?.slide.id} onClose={() => setModal(null)} />}
       {(modal === 'export' || modal === 'export-auto') && (
         <ExportDialog autoStart={modal === 'export-auto'} slides={modal === 'export-auto' ? exportSlides : undefined} onClose={() => setModal(null)} />
       )}

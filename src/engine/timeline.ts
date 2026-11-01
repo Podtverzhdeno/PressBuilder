@@ -2,6 +2,7 @@
 
 import { clamp01, seg } from './anim.ts';
 import { placeholderScene } from './placeholder.ts';
+import { visualScene } from './visuals.ts';
 import { buildSchedule, slideAt, type SchedCue, type SchedSlide, type Schedule } from './schedule.ts';
 import { C, FONT, H, SAFE_BOTTOM, setStyle, W } from './theme.ts';
 import { TIMING } from './timing.ts';
@@ -115,7 +116,7 @@ export class Timeline {
     if (!sc) return;
     setStyle(this.deck.style);
     const slide = sc.slide;
-    const scene = this.scenes.get(slide.id) ?? placeholderScene;
+    const scene = this.scenes.get(slide.id) ?? (slide.visuals?.length ? visualScene(slide.visuals) : placeholderScene);
     const t = gt - sc.start;
     const cues = sc.cues.map((c) => toCueTime(c, t));
     const byId = new Map(cues.map((c) => [c.id, c]));

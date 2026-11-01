@@ -6,6 +6,7 @@
 
 import { computed, effect, signal } from '@preact/signals';
 import { loadScenes } from '../decks/registry.ts';
+import { assetsReady } from '../engine/assets.ts';
 import { Player } from '../engine/player.ts';
 import { slideAt } from '../engine/schedule.ts';
 import { Timeline, type ObjInfo } from '../engine/timeline.ts';
@@ -394,6 +395,17 @@ if (import.meta.hot) {
   });
 }
 
+// MCP/HTTP 3D scene data changed: keep the timeline, playback position and unsaved deck intact.
+if (import.meta.hot) {
+  import.meta.hot.on('pb:scenes3d', ({id}: {id:string})=>{
+    const current=deck.peek();
+    if(!current||current.id!==id||exporting.peek())return;
+    void loadScenes(id).then(sc=>{scenes.value=sc;}).catch(e=>{
+      say('Ошибка обновления 3D-сцены: '+String(e));
+    });
+  });
+}
+
 // код сцен обновился без перезагрузки страницы
 window.addEventListener('pb:scenes', (e) => {
   const d = deck.peek();
@@ -404,3 +416,30 @@ window.addEventListener('pb:scenes', (e) => {
     void refreshDecks();
   });
 });
+
+
+/** Deterministic browser frames for the authenticated cloud renderer.
+ * No general script execution or filesystem access is exposed.
+ */
+declare global {
+  interface Window {
+    __PB_CLOUD_INFO__?: () => Promise<{ duration: number; slides: Array<{id:string;start:number;dur:number}> }>;
+    __PB_CLOUD_FRAME__?: (at: number, height: number) => string;
+  }
+}
+window.__PB_CLOUD_INFO__ = async () => {
+  await Promise.all([assetsReady(), document.fonts.ready]);
+  if (!player || !deck.peek()) throw new Error('Video project is not loaded');
+  return { duration: player.duration,
+    slides:(player.timeline?.schedule.slides??[]).map(s=>({id:s.slide.id,start:s.start,dur:s.dur}))
+  };
+};
+window.__PB_CLOUD_FRAME__ = (at: number, height: number) => {
+  if (!player || !deck.peek()) throw new Error('Video project is not loaded');
+  if (![720, 1080, 1440, 2160].includes(height)) throw new Error('Unsupported render height');
+  player.pause();
+  if (player.canvas.height !== height) player.setQuality(height / 1080);
+  player.seek(at);
+  player.draw();
+  return player.canvas.toDataURL('image/png').split(',')[1];
+};

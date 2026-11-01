@@ -8,3 +8,7 @@ presbuilder.config.json
 .claude/settings.local.json
 .DS_Store
 Thumbs.db
+.cloud-data/
+.env
+.env.*
+!.env.example
