@@ -50,7 +50,7 @@ function runFFmpeg(args,{maxBytes=2*1024*1024,timeoutMs=20000}={}){
 const filters=(size)=>'[0:v]scale='+size+':flags=area,format=gbrp[a];'+
   '[1:v]scale='+size+':flags=area,format=gbrp[b];'+
   '[a][b]blend=all_mode=difference,format=rgb24[d]';
-const makeUrl=(base,id,scene,from,to,index)=>base.replace(/\/$/,'')+
+const makeUrl=(base,id,scene,from,to,index)=>
   '/api/decks/'+encodeURIComponent(id)+'/versions/'+encodeURIComponent(scene)+
   '/compare/'+from+'/'+to+'/'+index+'.jpg';
 export function sceneComparisonService({
@@ -104,8 +104,8 @@ export function sceneComparisonService({
       frames:item.frames.map((f,i)=>({index:i,from_t:loc.pairs[i].before.t,
         to_t:loc.pairs[i].after.t,mean_absolute_difference:f.mean_absolute_difference,
         changed_fraction:f.changed_fraction,
-        before_url:baseUrl().replace(/\/$/,'')+'/'+loc.pairs[i].before.file,
-        after_url:baseUrl().replace(/\/$/,'')+'/'+loc.pairs[i].after.file,
+        before_url:'/'+loc.pairs[i].before.file,
+        after_url:'/'+loc.pairs[i].after.file,
         difference_url:makeUrl(baseUrl(),id,scene,from,to,i)})),
       note:'Pixel difference at three relative times is not artistic QA. Different lengths shift the compared moments.'};
   }
