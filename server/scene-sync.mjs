@@ -87,8 +87,17 @@ export function sceneSyncStore({root,seedRoot,getDeck}){
     const saved=src?JSON.parse(fs.readFileSync(src,'utf8')):{revision:0,markers:[],updated_at:null};
     // Persisted anchors survive narration retiming; a missing cue is reported as a
     // conflict so the agent cannot silently synchronize a beat to the wrong cue.
+    let timeline,validation_error=null;
+    try{timeline=resolveSceneSync(deck,sceneId,saved.markers||[])}
+    catch(e){
+      // Keep orphaned cue sheets recoverable after a cue was renamed/deleted.
+      // Returning the raw markers and revision lets the agent fix them via PUT.
+      if(e.status!==409)throw e;
+      validation_error=e.message;
+      timeline=resolveSceneSync(deck,sceneId,[]);
+    }
     return {id,scene_id:sceneId,revision:saved.revision||0,markers:saved.markers||[],
-      updated_at:saved.updated_at||null,timeline:resolveSceneSync(deck,sceneId,saved.markers||[])};
+      updated_at:saved.updated_at||null,timeline,validation_error};
   }
   function put(id,sceneId,markers,expectedRevision){
     const {deck,file}=locate(id,sceneId);
