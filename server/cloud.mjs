@@ -15,7 +15,7 @@ import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
-import { inspectMp4 } from './video-qa.mjs';
+import { inspectMp4, mergeVisualQA } from './video-qa.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = '0.0.0.0';
@@ -300,7 +300,8 @@ const renderJobs=makeRenderQueue({
   resolveDeck:getDeck,baseUrl,
   fingerprint:sourceFingerprint,
   render:args=>renderWithChrome({...args,port:PORT,username:WEB_USER,password:WEB_PASS,timeoutMs:900000}),
-  inspect:(file,expected)=>inspectMp4(file,expected),
+  inspect:(file,{visualAudit,frameSamples,...expected})=>
+    mergeVisualQA(inspectMp4(file,expected),visualAudit,frameSamples),
 });
 const getRender=(id,slideId=null)=>renderJobs.get(id,slideId);
 const startRender=(id,slideId=null)=>renderJobs.enqueue(id,slideId);
