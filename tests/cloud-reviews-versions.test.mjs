@@ -7,6 +7,8 @@ import {sceneVersionStore,fileHash} from '../server/scene-versions.mjs';
 import {sceneReviewStore} from '../server/scene-reviews.mjs';
 import {sceneLeaseStore} from '../server/scene-leases.mjs';
 import {assemblyService} from '../server/assemble-scenes.mjs';
+import {assemblyPlanStore} from '../server/assembly-plan.mjs';
+import {styleContractStore} from '../server/style-contract.mjs';
 import {spawnSync} from 'node:child_process';
 
 const actor=(id,role)=>({id,role,projects:['demo'],scenes:['s01','s02']});
@@ -130,11 +132,20 @@ test('P05 assembles only approved immutable MP4s even if newer unapproved render
     f.v.approve('demo','s02',v2.version_id,0,director);
     const draft=make('s01','newer-draft','green');
     assert.notEqual(draft.sha256,v1.sha256);
+    const styles=styleContractStore({root:f.root,getDeck:f.getDeck});
+    const plans=assemblyPlanStore({root:f.root,getDeck:f.getDeck,getStyle:id=>styles.read(id)});
     const svc=assemblyService({out:f.out,getDeck:f.getDeck,
       getRender:()=>({status:'failed',job_id:'draft-error'}),
       getTask:()=>({status:'done'}),getApproved:(id,scene)=>f.v.approved(id,scene),
       reviewUnresolved:f.reviews.unresolved,
+      getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
       baseUrl:()=> 'http://localhost:3000'});
+    const preflightIssue=f.reviews.create('demo','s01',{version_id:v1.version_id,
+      t:0.1,text:'Approved video needs updated framing',severity:'medium'},director,0);
+    assert.throws(()=>svc.start('demo',['s01','s02']),e=>e.status===409,
+      'An open review item must still block assembly on an approved version');
+    f.reviews.transition('demo','s01',preflightIssue.item.id,'FIXED','Fixed in validated frame',director,1);
+    f.reviews.transition('demo','s01',preflightIssue.item.id,'VERIFIED','Verified approved MP4',director,2);
     svc.start('demo',['s01','s02']);
     let result;
     for(let i=0;i<300;i++){
@@ -143,19 +154,22 @@ test('P05 assembles only approved immutable MP4s even if newer unapproved render
       await new Promise(r=>setTimeout(r,75));
     }
     assert.equal(result.status,'completed',JSON.stringify(result));
-    const manifest=JSON.parse(fs.readFileSync(path.join(f.out,'demo_final.manifest.json'),'utf8'));
+    const manifest=result.manifest;
     assert.equal(manifest.scenes[0].approved_version_id,v1.version_id);
     assert.equal(manifest.scenes[0].sha256,v1.sha256);
     assert.equal(manifest.scenes[1].approved_version_id,v2.version_id);
     assert.equal(f.v.approved('demo','s01').artifact.version_id,v1.version_id);
     // An issue can be reopened while FFmpeg is assembling. A second gate must
     // prevent this new output from replacing the last good published release.
-    const acceptedHash=fileHash(path.join(f.out,'demo_final.mp4'));
+    const accepted=svc.current('demo');
+    assert.ok(accepted?.release_id);
+    const acceptedHash=fileHash(svc.download('demo',accepted.release_id));
     let reviewChecks=0;
     const race=assemblyService({out:f.out,getDeck:f.getDeck,
       getRender:()=>({status:'failed',job_id:'draft-error'}),
       getTask:()=>({status:'done'}),getApproved:(id,scene)=>f.v.approved(id,scene),
       reviewUnresolved:()=>++reviewChecks>2,
+      getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
       baseUrl:()=> 'http://localhost:3000'});
     race.start('demo',['s01','s02']);
     let racing;
@@ -165,25 +179,26 @@ test('P05 assembles only approved immutable MP4s even if newer unapproved render
       await new Promise(r=>setTimeout(r,75));
     }
     assert.equal(racing.status,'failed',JSON.stringify(racing));
-    assert.match(racing.error,/approval or source artifact changed/);
-    assert.equal(fileHash(path.join(f.out,'demo_final.mp4')),acceptedHash,
-      'Review reopening during export must preserve the last accepted final video');
+    assert.match(racing.error,/review reopened during montage/i);
+    assert.equal(fileHash(svc.download('demo',accepted.release_id)),acceptedHash,
+      'Review reopening during export must preserve immutable release bytes');
+    assert.equal(svc.current('demo').release_id,accepted.release_id);
     // P07 regression: a later issue on an already-approved version must invalidate
     // its review gate, even though the previously released MP4 remains archived.
     const reviewer=actor('reviewer','reviewer');
     const issue=f.reviews.create('demo','s01',{
       version_id:v1.version_id,t:0.15,severity:'high',text:'Opening frame has a readability defect'
-    },reviewer,0);
+    },reviewer,3);
     assert.equal(svc.get('demo').review_valid,false);
     assert.deepEqual(svc.get('demo').unresolved_scenes,['s01']);
-    assert.throws(()=>svc.start('demo',['s01','s02']),e=>e.status===409&&/unresolved review/.test(e.message));
+    assert.throws(()=>svc.start('demo',['s01','s02']),e=>e.status===409&&/unresolved scene review/i.test(e.message));
     f.reviews.transition('demo','s01',issue.item.id,'FIXED','Adjusted text readability',
-      director,1);
+      director,4);
     f.reviews.transition('demo','s01',issue.item.id,'VERIFIED','Checked against version',
-      reviewer,2);
+      reviewer,5);
     assert.equal(svc.get('demo').review_valid,true);
     f.reviews.transition('demo','s01',issue.item.id,'REOPENED',
-      'Regression spotted on the selected frame',reviewer,3);
+      'Regression spotted on the selected frame',reviewer,6);
     assert.equal(svc.get('demo').review_valid,false);
     assert.throws(()=>svc.start('demo',['s01','s02']),e=>e.status===409);
   }finally{f.cleanup()}
