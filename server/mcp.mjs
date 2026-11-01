@@ -5,12 +5,14 @@ import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import {styleContractStore,enforceScene3D,enforceVisuals} from './style-contract.mjs';
 import {sceneLeaseStore} from './scene-leases.mjs';
+import {sceneReviewStore} from './scene-review.mjs';
 import path from 'node:path';
 const taskStore=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const readmeStore=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const styles=styleContractStore({root:DECKS,getDeck});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
+const reviews=sceneReviewStore({root:DECKS,getDeck});
 
 const obj = (properties, required=[]) => ({ type:'object', properties, required, additionalProperties:false });
 const str = (description) => ({ type:'string', description });
@@ -49,6 +51,10 @@ export const TOOLS = [
  { name:'get_video_qa_report', description:'Read technical MP4 QA after a full video render. Validates stream metadata, not artistic composition.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'get_scene_render_status', description:'Check the independent render job status for one scene and get a direct MP4 download URL when complete.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
  { name:'get_render_status', description:'Get status of a render job and download URL when finished.', inputSchema:obj({id:str('Project slug')},['id']) },
+ { name:'list_scene_review_items', description:'List review comments anchored to a scene render timestamp/frame, annotations and status. Each item includes render_job_id; thumbnails are read separately.', inputSchema:obj({id:str('Project'),slide_id:str('Scene')},['id','slide_id']) },
+ { name:'get_scene_review_item', description:'Retrieve one review comment and its permanently stored frame JPEG/PNG, if available.', inputSchema:obj({id:str('Project'),slide_id:str('Scene'),item_id:str('Review UUID')},['id','slide_id','item_id']) },
+ { name:'create_scene_review_item', description:'Reviewer/director: mark a concrete frame of an existing COMPLETED render_scene job. Anchored to render_revision=job_id, seconds, fps, frame number and optional annotation and JPEG thumbnail.', inputSchema:obj({id:str('Project'),slide_id:str('Scene'),render_revision:str('Completed scene render job_id'),t:num('Time in scene seconds'),fps:{type:'integer',minimum:1,maximum:120},frame:{type:'integer',minimum:0},severity:{type:'string',enum:['minor','major','blocker']},text:str('Issue description'),region:obj({x:num('Relative x 0..1'),y:num('Relative y 0..1'),w:num('Relative width 0..1'),h:num('Relative height 0..1')},['x','y','w','h']),frame_evidence:str('Optional JPEG/PNG data URL, 130KB decoded max')},['id','slide_id','render_revision','t','fps','frame','severity','text']) },
+ { name:'update_scene_review_item', description:'Workers with live scene fence can mark OPEN/REOPENED as FIXED. Reviewers/director verify or reopen with explanation. Revision CAS required; history is preserved.', inputSchema:obj({id:str('Project'),slide_id:str('Scene'),item_id:str('Review UUID'),expected_revision:{type:'integer',minimum:1},status:{type:'string',enum:['FIXED','VERIFIED','REOPENED']},note:str('Required evidence'),fence_token:{type:'integer',minimum:1}},['id','slide_id','item_id','expected_revision','status','note']) },
  { name:'get_editor_link', description:'Get a browser link for opening a project in the hosted PressBuilder editor.', inputSchema:obj({id:str('Project slug')},['id']) }
 ].map(tool=>({...tool,securitySchemes:[{type:'oauth2',scopes:['mcp:tools']}]}));
 export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
@@ -65,6 +71,17 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
     if (!actor || !['director','worker','reviewer','viewer'].includes(actor.role)) throw new UserError('Unauthenticated MCP identity',401);
     if (args.id && actor.role!=='director' && !actor.projects?.includes(args.id))
       throw new UserError('Project is outside agent scope',403);
+    // P06: worker identity cannot reassign scene ownership, approve own work,
+    // or silently change narration and project timing.
+    if(actor.role==='worker'&&name==='set_scene_task'&&
+      (Object.hasOwn(args,'assignee')||args.status==='done'))
+      throw new UserError('Workers cannot reassign scenes or self-approve',403);
+    if(actor.role==='worker'&&name==='update_cue'&&
+      ['say','dur','hold'].some(key=>Object.hasOwn(args,key)))
+      throw new UserError('Only director may change narration or cue timing',403);
+    if(actor.role==='worker'&&name==='update_slide'&&
+      ['lead','tail'].some(key=>Object.hasOwn(args,key)))
+      throw new UserError('Only director may change scene timing',403);
     switch(name) {
       case 'list_decks': return actor.role==='director'?listDecks():listDecks().filter(d=>actor.projects.includes(d.id));
       case 'get_deck': return {...getDeck(args.id),project_readme:readmeStore.read(args.id),scene_tasks:taskStore.list(args.id).map(t=>({scene_id:t.scene_id,title:t.title,assignee:t.assignee,status:t.status,revision:t.revision,checkpoints_done:t.checkpoints.filter(c=>c.done).length,checkpoints_total:t.checkpoints.length}))};
@@ -105,6 +122,30 @@ export function makeMcp({ startRender, getRender, baseUrl, assembly }) {
       case 'get_scene_qa_report': {scoped(args.id,args.slide_id,actor);const r=getRender(args.id,args.slide_id);return {id:args.id,slide_id:args.slide_id,status:r.status,report:r.qa_report||null};}
       case 'get_video_qa_report': {const r=getRender(args.id);return {id:args.id,status:r.status,report:r.qa_report||null};}
       case 'get_render_status': return getRender(args.id);
+      case 'list_scene_review_items': scoped(args.id,args.slide_id,actor);return reviews.list(args.id,args.slide_id);
+      case 'get_scene_review_item': scoped(args.id,args.slide_id,actor);return reviews.get(args.id,args.slide_id,args.item_id);
+      case 'create_scene_review_item': {
+        scoped(args.id,args.slide_id,actor);
+        leases.role(actor,['reviewer','director']);
+        const {id,slide_id,...payload}=args;
+        const item=reviews.create(id,slide_id,payload,actor,getRender(id,slide_id));
+        leases.logWrite(id,slide_id,actor,item.revision,'review_created');
+        return item;
+      }
+      case 'update_scene_review_item': {
+        if(args.status==='FIXED'){
+          leases.role(actor,['worker','director']);
+          return write(args.id,args.slide_id,actor,args.fence_token,'review_fixed',
+            ()=>reviews.update(args.id,args.slide_id,args.item_id,
+              {expected_revision:args.expected_revision,status:args.status,note:args.note},actor));
+        }
+        scoped(args.id,args.slide_id,actor);
+        leases.role(actor,['reviewer','director']);
+        const updated=reviews.update(args.id,args.slide_id,args.item_id,
+          {expected_revision:args.expected_revision,status:args.status,note:args.note},actor);
+        leases.logWrite(args.id,args.slide_id,actor,updated.revision,'review_decision');
+        return updated;
+      }
       case 'get_editor_link': getDeck(args.id); return { url:baseUrl().replace(/\/$/,'')+'/?deck='+encodeURIComponent(args.id), note:'Opens a password-protected editor. New projects use placeholder visuals unless scene code is deployed.' };
       default: throw new UserError('Unknown tool: '+name,404);
     }
