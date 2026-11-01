@@ -183,3 +183,27 @@ test('P10 dispatch rejects stale immutable P08 source and mismatched render path
     assert.equal(x.sceneTasks.read(id,'s01').status,'review');
   }finally{x.clean()}
 });
+
+test('P10 dispatch recovers interrupted task/job transition without claiming false success',()=>{
+  const x=setup(),agent=x.actor('s01'),id=x.id;
+  try{
+    const svc=x.dispatch(),lease=x.leases.claim(id,'s01',agent,60);
+    const claim=svc.claim(id,'s01',agent,{fence_token:lease.fence,expected_task_revision:1});
+    const before=x.sceneTasks.read(id,'s01');
+    // Simulate a process crash immediately after submitting the scene status
+    // and before writing the dispatch completion marker.
+    x.sceneTasks.put(id,'s01',{status:'review'},before.revision);
+    const recovered=x.dispatch().snapshot(id,agent);
+    assert.equal(recovered.jobs[0].dispatch_status,'needs_reconciliation');
+    assert.equal(recovered.jobs[0].ready_to_claim,false);
+    assert.equal(x.sceneTasks.read(id,'s01').status,'review');
+    issue(()=>svc.submit(id,'s01',agent,{job_id:claim.job.job_id,
+      fence_token:lease.fence,expected_task_revision:3}),409);
+    const events=fs.readFileSync(path.join(x.root,id,'.director','dispatch-events.jsonl'),'utf8');
+    assert.equal(events.split('"type":"reconciliation_required"').length-1,1);
+    x.dispatch().snapshot(id,agent);
+    const again=fs.readFileSync(path.join(x.root,id,'.director','dispatch-events.jsonl'),'utf8');
+    assert.equal(again.split('"type":"reconciliation_required"').length-1,1,
+      'recovery event must be idempotent');
+  }finally{x.clean()}
+});
