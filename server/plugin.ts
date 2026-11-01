@@ -18,6 +18,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
+import { sceneTaskStore } from './scene-tasks.mjs';
 
 const ROOT = process.cwd();
 const DECKS_DIR = path.join(ROOT, 'src', 'decks');
@@ -61,6 +62,7 @@ function ffmpegOk(): boolean {
 }
 
 const deckFile = (id: string) => path.join(DECKS_DIR, id, 'deck.json');
+const taskStore=sceneTaskStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -141,6 +143,33 @@ export function presbuilder(): Plugin {
         return json(res, { ok: true });
       }
       return fail(res, 405, 'method');
+    }
+
+    const task=/^([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(rest);
+    if(task) {
+      const id=task[1],scene=task[2],cp=task[3];
+      if(!ID_RE.test(id)||!fs.existsSync(deckFile(id)))return fail(res,404,'Ролик не найден');
+      try {
+        if(!scene) {
+          if(req.method!=='GET')return fail(res,405,'method');
+          return json(res,taskStore.list(id));
+        }
+        if(cp) {
+          if(req.method!=='PATCH')return fail(res,405,'method');
+          const patch=JSON.parse((await readBody(req)).toString('utf8'));
+          return json(res,taskStore.checkpoint(id,scene,cp,patch));
+        }
+        if(req.method==='GET')return json(res,taskStore.read(id,scene));
+        if(req.method==='PUT') {
+          const body=JSON.parse((await readBody(req)).toString('utf8'));
+          const {expected_revision,...fields}=body;
+          return json(res,taskStore.put(id,scene,fields,expected_revision));
+        }
+        return fail(res,405,'method');
+      }catch(e) {
+        const status=Number((e as {status?:number})?.status||500);
+        return fail(res,status,e instanceof Error?e.message:String(e));
+      }
     }
 
     const audio = /^([^/]+)\/audio$/.exec(rest);
