@@ -142,7 +142,7 @@
 
 ## P09 — единый audio/motion timeline
 
-- [ ] **P09.1** Общий buildSchedule timebase и привязка narration/beat/camera/SFX/motion реализованы на уровне metadata; фактическая аудиосборка пока не подключена.
+- [ ] **P09.1** Общий buildSchedule timebase и привязка narration/beat/camera/SFX/motion реализованы; 3D start_marker уже управляет появлением объекта при рендере, но SFX/music mixing ещё не подключён.
 - [x] **P09.2** Cue points и независимые маркеры beat/camera/SFX/animation c устойчивыми id, start/duration, emphasis/silence; schema validation, frame snap и conflict detection.
 - [ ] **P09.3** Автоматическая подстройка переходов по речевым паузам, но без подмены текста озвучки.
 - [ ] **P09.4** Инструменты beat markers и правила loudness/ducking; лицензирование/происхождение музыкальных файлов фиксировать.
@@ -180,6 +180,6 @@
 | 2026-11-01 | P03 | `server/video-qa.mjs`, ffprobe отчёты QA и MCP `get_scene_qa_report` / `get_video_qa_report`, синтетические PASS/FAIL тесты. | CI `cloud` SUCCESS на `f683600088`; PR Docker `render-smoke` SUCCESS на `ef1925ed26` (workflow 41264142281): оба H.264 MP4 отрендерены, скачаны и прошли ffprobe QA. | P03 TECHNICAL QA VERIFIED; visual QA backlog |
 
 | 2026-11-01 | P08 | Immutable per-scene snapshot и MP4 archive, SHA-256 source/video; compare, explicit approval pointer, guarded rollback, audit, REST/MCP. | `tests/cloud-scene-versions-sync.test.mjs`: rollback/stale render/2 scenes/integrity (CI pending); `docs/scene-versions-sync.md`. | IN PROGRESS — no visual diff/GC/per-agent ACL |
-| 2026-11-01 | P09 | Отдельная `.scene-sync/sNN.json`, cue_start/cue_end/scene anchored events и пересчёт глобальных FPS по buildSchedule; REST/MCP. | Unit tests: narrator duration retiming, 24→60 fps, revision/unknown cue validation (CI pending). | IN PROGRESS — no SFX mixer/ducking/end-to-end AV |
+| 2026-11-01 | P09 | Отдельная `.scene-sync/sNN.json`, cue_start/cue_end/scene anchored events, пересчёт FPS по buildSchedule и start_marker для 3D animation; REST/MCP. | Unit tests: narrator duration retiming, 24→60 fps, revision/unknown cue validation (CI pending). | IN PROGRESS — no SFX mixer/ducking/end-to-end AV |
 
 **Следующая обязательная работа:** отдельно протестировать restart/recovery у P02.4, реализовать cancel/retry/worker pool, затем визуальные QA-контрольные кадры P03.1–P03.4. До перехода к P04 критичные P01.5 (GLB asset pipeline), P02 и P03 остаются в работе. P04–P07 и P10 пока BACKLOG; P08/P09 выполнены частично и требуют production-проверок.
