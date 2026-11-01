@@ -98,7 +98,13 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
   function get(id){
     if(typeof id!=='string'||!ID.test(id))throw bad('Invalid project ID');
     getDeck(id);
-    return {...(jobs.get(id)||{id,status:'not_started'}),current_release:current(id)};
+    const release=current(id);
+    const unresolved_scenes=(release?.manifest?.scenes||[])
+      .filter(scene=>scene.approved_version_id&&
+        reviewUnresolved(id,scene.id,scene.approved_version_id))
+      .map(scene=>scene.id);
+    return {...(jobs.get(id)||{id,status:'not_started'}),current_release:release,
+      review_valid:unresolved_scenes.length===0,unresolved_scenes};
   }
   function download(id,releaseId){
     getDeck(id);
