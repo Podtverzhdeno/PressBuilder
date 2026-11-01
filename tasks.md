@@ -24,8 +24,8 @@
 | P04 | Машинный style contract | 9.5 | Средняя | P01 + P03 | **IN PROGRESS — project contract MVP** |
 | P05 | Автоматическая сборка/переходы | 9.4 | Высокая | P02 + P04 | **IN PROGRESS — hard-cut MVP** |
 | P06 | Scene ownership/leases/ACL | 9.3 | Средняя | MCP identity + хранилище | **IN PROGRESS — scoped leases MVP** |
-| P07 | Покадровые комментарии и ревью | 9.1 | Средняя | P02 + P03 | BACKLOG |
-| P08 | Версии сцен, артефактов, rollback | 9.0 | Средняя | P01 + P02 | BACKLOG |
+| P07 | Покадровые комментарии и ревью | 9.1 | Средняя | P02 + P03 | **IN PROGRESS — frame-review MVP** |
+| P08 | Версии сцен, артефактов, rollback | 9.0 | Средняя | P01 + P02 | **IN PROGRESS — immutable MP4 MVP** |
 | P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | BACKLOG |
 | P10 | Director Agent/оркестрация | 8.8 | Высокая | P01–P09 | BACKLOG |
 
@@ -120,10 +120,10 @@
 
 ## P07 — покадровые замечания и ревью агента
 
-- [ ] **P07.1** Comment schema: `scene_id, render_revision, t, frame, author, severity, text, status`.
-- [ ] **P07.2** Веб-UI: пауза на 3.4с, создать замечание и нарисовать область/стрелку в координатах видео; attachment не должен теряться.
-- [ ] **P07.3** MCP `list_scene_review_items/update_scene_review_item`: агент получает конкретные дефекты и evidence.
-- [ ] **P07.4** Статусы OPEN/FIXED/VERIFIED/REOPENED; исправление не удаляет историю, комментарий закреплён за версией артефакта.
+- [x] **P07.1 (MVP)** Comment schema: `scene_id, render_revision, t, frame, author, severity, text, status`.
+- [ ] **P07.2 (частично: видео, пауза, привязка к времени/прямоугольнику; стрелки/архивные PNG нет)** Веб-UI: пауза на 3.4с, создать замечание и нарисовать область/стрелку в координатах видео; attachment не должен теряться.
+- [x] **P07.3 (MCP list/add/transition)** MCP `list_scene_review_items/update_scene_review_item`: агент получает конкретные дефекты и evidence.
+- [x] **P07.4 (ревизия + история переходов, immutable video_id)** Статусы OPEN/FIXED/VERIFIED/REOPENED; исправление не удаляет историю, комментарий закреплён за версией артефакта.
 - [ ] **P07.5** Тест: ревью одной сцены не блокирует другие, исправление реальное, временная метка после смены FPS корректна.
 - **DoD:** цикл «замечание → исправление → проверка» проходит без обмена скриншотами вручную.
 - **Риски:** отсутствующие исходные кадры после GC надо уметь показывать из архивной версии.
@@ -131,11 +131,11 @@
 
 ## P08 — версии сцен/артефактов и rollback
 
-- [ ] **P08.1** Immutable `scene_revision` c SHA-256 исходников/ассетов/параметров, manifest с provenance.
-- [ ] **P08.2** Хранить принятые версии MP4 и превью, не перезаписывать путь при новом рендере; отделить draft от approved.
-- [ ] **P08.3** MCP `list_scene_versions/restore_scene_version` с audit trail и правами.
+- [ ] **P08.1 (частично: immutable MP4 + SHA-256 + fingerprint deck/3D/style, но полный provenance исходников/ассетов отсутствует)** Immutable `scene_revision` c SHA-256 исходников/ассетов/параметров, manifest с provenance.
+- [x] **P08.2 (immutable MP4 и approved pointer; независимые PNG-превью ещё не выделены)** Хранить принятые версии MP4 и превью, не перезаписывать путь при новом рендере; отделить draft от approved.
+- [x] **P08.3 (single-node MVP)** MCP `list_scene_versions/restore_scene_version` с audit trail и правами.
 - [ ] **P08.4** Быстрое сравнение V1/V2 (таймкод, текст, 3 контрольных кадра); ретеншн и GC под лимиты storage.
-- [ ] **P08.5** Тест rollback после неудачного рендера и одновременного обновления двух сцен.
+- [ ] **P08.5 (частично: rollback/повреждение файла/смена контента в ходе рендера тестируются; межпроцессные гонки ещё не покрыты)** Тест rollback после неудачного рендера и одновременного обновления двух сцен.
 - **DoD:** восстановление принятого ролика без повторного вычисления и без потери истории решений.
 - **Риски:** стоимость и лимиты хранилища; согласовать retention policy.
 - **Оценка:** 9.0/10.
@@ -189,3 +189,14 @@
 - **P04:** проектный контракт хранится отдельно, default `enforce:false` сохраняет совместимость. Поддержаны MCP get/set и ограниченная проверка новых 3D/2D-публикаций; без schema-engine, scene overrides и реального визуального QA.
 - **P05:** только детерминированный hard-cut H.264/AAC (нужны статус задачи `done`, QA PASS и сцены в порядке проекта). Нет crossfade/match cut, durable jobs или immutable аудита каждого рендера.
 - **P06:** отдельные scoped bearer keys для workers/reviewers/viewers, fenced TTL lease и аудит. Общий MCP_API_KEY/OAuth/Basic — **директор**, а не отдельный агент. Вся модель рассчитана на один процесс и не защищает от злоупотребления директором. См. [docs/production-p04-p06.md](docs/production-p04-p06.md).
+
+
+## 2026-11-01 — следующий этап: P07, P08 и надёжность P02/P05
+
+| Направление | Реализация | Подтверждение | Состояние |
+|---|---|---|---|
+| P07 | Версионные покадровые замечания, прямоугольники в нормализованных координатах, ревизии, ролевые переходы OPEN→FIXED→VERIFIED/REOPENED, вкладка «Ревью MP4» в Cloud Studio | `server/scene-reviews.mjs`, `src/editor/SceneReviewPanel.tsx`, `tests/cloud-reviews-versions.test.mjs` | IN PROGRESS — MVP |
+| P08 | Неизменяемые MP4 с SHA-256, отдельный approved pointer, утверждение только при task.done и отсутствии открытых замечаний, rollback только к ранее утверждённой версии; артефакты не перезаписываются повторной попыткой worker | `server/scene-versions.mjs`, `server/render.mjs`, `tests/cloud-reviews-versions.test.mjs` | IN PROGRESS — MVP |
+| P02/P05 | Исправлена утечка FFmpeg drain/error listeners, версия MP4 уникальна для перезапускающейся попытки, финальная сборка теперь закреплена за утверждёнными версиями и проверяет их неизменность | `server/render.mjs`, `server/cloud.mjs`, `server/assemble-scenes.mjs` | PATCHED / контрольный Docker smoke |
+
+Документация: [docs/scene-review-versions.md](docs/scene-review-versions.md). Полный P07/P08 DoD остаётся открытым: нет image snapshot/стрелок, профессионального визуального QA, полного исходного provenance, восстановления исходного JSON/TS кода, retention/GC, межпроцессной сериализации и E2E тестов нескольких реплик. Человеческая приёмка по-прежнему необходима.
