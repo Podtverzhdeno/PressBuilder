@@ -34,9 +34,3 @@ The system SHALL enforce minimum readable hold time, contrast policy and accessi
 #### Scenario: Rejected or degraded readable and accessible motion
 - **WHEN** a user-defined visual effect violates the documented safe-area or readability policy
 - **THEN** the system proposes a compliant alternative without silently discarding words
-
-## Verification constraints
-- All scenarios are proposed behavior; no implementation is implied by this file.
-- Tests MUST include timecoded media evidence, SHA-256 pinning and negative cases relevant to P20.
-- Any subjective evaluation stays REVIEW until a real independent human signoff.
-- See SDD user story P20, checkpoints P20-C01…P20-C06 and release gate in `specs/002-professional-montage/tasks.md`.
