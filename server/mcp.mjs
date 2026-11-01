@@ -205,9 +205,15 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
         return {...catalog,assets:catalog.assets.filter(a=>actor.role==='director'||a.allowed_scenes.includes(args.slide_id))
           .map(a=>({...a,rights_attestation_is_legal_proof:false}))};
       }
-      case 'verify_media_asset':
+      case 'verify_media_asset': {
         scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
+        // Do not disclose hashes/rights of an unrelated scene merely because
+        // an agent guessed an asset_id; scope the consumer grant before verify.
+        if(actor.role!=='director'&&!mediaCatalog.read(args.id).assets.some(a=>
+          a.asset_id===args.asset_id&&a.allowed_scenes.includes(args.slide_id)))
+          throw new UserError('Media asset not available to this scene',403);
         return mediaCatalog.verify(args.id,args.asset_id,args.slide_id,args.use);
+      }
       case 'propose_media_asset': {
         directorOnly(actor);
         const {id,...body}=args;
