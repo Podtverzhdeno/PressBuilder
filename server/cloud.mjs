@@ -10,6 +10,7 @@ import { timingSafeEqual, createHash } from 'node:crypto';
 import { DATA, DECKS, OUT, UserError, createDeck, deckId, getDeck, hasDeck, listDecks, putDeck } from './cloud-core.mjs';
 import { makeMcp } from './mcp.mjs';
 import {rhythmPreviewService} from './rhythm-preview.mjs';
+import {rhythmDraftStore} from './rhythm-drafts.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
@@ -51,6 +52,7 @@ const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.c
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const sceneSync=sceneSyncStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const rhythmPreview=rhythmPreviewService({root:DECKS,getDeck,enabled:process.env.PB_RHYTHM_PREVIEW==='1'});
+const rhythmDrafts=rhythmDraftStore({root:DECKS,getDeck,previewService:rhythmPreview});
 const styles=styleContractStore({root:DECKS,getDeck});
 const assemblyPlans=assemblyPlanStore({root:DECKS,getDeck,getStyle:id=>styles.read(id)});
 const directorPlan=directorStore({root:DECKS,getDeck,sceneTasks,projectReadmes,styles,
@@ -207,6 +209,17 @@ async function api(req,res,url) {
     return json(res,200,{file:f,size:b.length});
   }
   // Per-scene assignments live apart from deck.json to support parallel agents.
+  const rhythmDraftMatch=/^\/api\/decks\/([^/]+)\/rhythm\/draft$/.exec(p);
+  if(rhythmDraftMatch){
+    const id=deckId(escaped(rhythmDraftMatch[1]));
+    if(method==='GET')return json(res,200,rhythmDrafts.status(id,director));
+    if(method==='POST'){
+      const body=await readJson(req);
+      return json(res,200,rhythmDrafts.submit(id,director,body?.manifest,
+        body?.expected_revision,body?.note));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const rhythmMatch=/^\/api\/decks\/([^/]+)\/rhythm\/(context|preview)$/.exec(p);
   if(rhythmMatch){
     const id=deckId(escaped(rhythmMatch[1]));
@@ -590,7 +603,7 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
   benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
-  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview});
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
