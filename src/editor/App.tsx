@@ -12,6 +12,7 @@ import { SceneTasksPanel } from './SceneTasksPanel.tsx';
 import { ProjectReadmePanel } from './ProjectReadmePanel.tsx';
 import { Scene3DPanel } from './Scene3DPanel.tsx';
 import { SceneReviewPanel } from './SceneReviewPanel.tsx';
+import { RhythmPreviewPanel } from './RhythmPreviewPanel.tsx';
 import { StyleDialog } from './StyleDialog.tsx';
 import { StyleContractPanel } from './StyleContractPanel.tsx';
 import { Stage } from './Stage.tsx';
@@ -47,7 +48,7 @@ import { TimelinePanel } from './TimelinePanel.tsx';
 import { Icon, IconBtn, MenuBtn } from './ui.tsx';
 import { clock, isTyping, nSlides } from './util.ts';
 
-type Modal = null | 'new' | 'resplit' | 'style' | 'tasks' | 'readme' | 'scene3d' | 'style-contract' | 'export' | 'export-auto' | 'review';
+type Modal = null | 'new' | 'resplit' | 'style' | 'tasks' | 'readme' | 'scene3d' | 'style-contract' | 'export' | 'export-auto' | 'review' | 'rhythm';
 
 const SAVE_TEXT = { saved: 'сохранено', dirty: 'изменено', saving: 'сохраняю…', error: 'не сохранилось' };
 
@@ -173,6 +174,9 @@ export function App() {
             <button type="button" class="btn" title="Задания для агентов и чекпоинты по каждой сцене" onClick={() => setModal('tasks')}>
               <Icon name="check" size={15} /> Задания агентам
             </button>
+            <button type="button" class="btn" title="P15: серверный черновик ритмических склеек по разметке слов и пауз" onClick={() => setModal('rhythm')}>
+              <Icon name="clock" size={15} /> Ритм монтажа
+            </button>
             <button type="button" class="btn" title="Ревью кадров и версии MP4, доступно в облачном редакторе" onClick={() => setModal('review')}>
               <Icon name="film" size={15} /> Ревью MP4
             </button>
@@ -198,6 +202,7 @@ export function App() {
       {modal === 'style-contract' && d && <StyleContractPanel projectId={d.id} onClose={() => setModal(null)} />}
       {modal === 'scene3d' && d && <Scene3DPanel projectId={d.id} slideId={curSlide.value?.slide.id??d.slides[0]?.id} onClose={() => setModal(null)} />}
       {modal === 'review' && d && <SceneReviewPanel projectId={d.id} initialSlide={curSlide.value?.slide.id} onClose={() => setModal(null)} />}
+      {modal === 'rhythm' && d && <RhythmPreviewPanel projectId={d.id} onClose={() => setModal(null)} />}
       {(modal === 'export' || modal === 'export-auto') && (
         <ExportDialog autoStart={modal === 'export-auto'} slides={modal === 'export-auto' ? exportSlides : undefined} onClose={() => setModal(null)} />
       )}
