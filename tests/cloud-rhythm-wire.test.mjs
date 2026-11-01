@@ -14,7 +14,7 @@ async function port(){const s=net.createServer();await new Promise(r=>s.listen(0
 test('P15 live cloud HTTP + MCP: real-source context, role checks and read-only preview',{timeout:55_000},async()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-rhythm-wire-'));
  const p=await port(),url='http://127.0.0.1:'+p;
- const mcpKey=randomBytes(32).toString('hex'),viewerKey=randomBytes(32).toString('hex');
+ const mcpKey=randomBytes(32).toString('hex'),viewerKey=randomBytes(32).toString('hex'),reviewerKey=randomBytes(32).toString('hex'),partialKey=randomBytes(32).toString('hex');
  const auth='Basic '+Buffer.from('editor:longDirectorSecret987654').toString('base64');
  const id='rhythm-clip';
  const child=spawn(process.execPath,['server/cloud.mjs'],{
@@ -22,7 +22,11 @@ test('P15 live cloud HTTP + MCP: real-source context, role checks and read-only 
   env:{...process.env,PORT:String(p),PB_DATA_DIR:root,MCP_API_KEY:mcpKey,
    PB_WEB_USER:'editor',PB_WEB_PASSWORD:'longDirectorSecret987654',
    PB_RHYTHM_PREVIEW:'1',
-   PB_AGENT_KEYS_JSON:JSON.stringify([{id:'view-1',role:'viewer',token:viewerKey,projects:[id],scenes:['s01','s02']}])
+   PB_AGENT_KEYS_JSON:JSON.stringify([
+    {id:'view-1',role:'viewer',token:viewerKey,projects:[id],scenes:['s01','s02']},
+    {id:'review-all',role:'reviewer',token:reviewerKey,projects:[id],scenes:['s01','s02']},
+    {id:'review-partial',role:'reviewer',token:partialKey,projects:[id],scenes:['s02']}
+   ])
   }
  });
  let logs='';child.stdout.on('data',v=>logs+=v);child.stderr.on('data',v=>logs+=v);
@@ -108,8 +112,45 @@ test('P15 live cloud HTTP + MCP: real-source context, role checks and read-only 
   const ambiguous=structuredClone(fixture);
   delete ambiguous.words[0].scene_id;
   assert.equal((await http('/api/decks/'+id+'/rhythm/preview','POST',{manifest:ambiguous})).status,409);
+  const pauseEscape=structuredClone(fixture);
+  pauseEscape.pauses[0].end_us=3_000_000;
+  assert.equal((await http('/api/decks/'+id+'/rhythm/preview','POST',{manifest:pauseEscape})).status,409);
   const stale={...fixture,voice_source_sha256:'c'.repeat(64)};
   assert.equal((await http('/api/decks/'+id+'/rhythm/preview','POST',{manifest:stale})).status,409);
+  // CAS proposal exists only in sidecar; reviewer actor must have every scene.
+  const empty=(await http('/api/decks/'+id+'/rhythm/draft')).body;
+  assert.equal(empty.revision,0);assert.equal(empty.publication_allowed,false);
+  assert.equal((await http('/api/decks/'+id+'/rhythm/draft','GET',undefined,null)).status,401);
+  const saved=await http('/api/decks/'+id+'/rhythm/draft','POST',{
+    manifest:fixture,expected_revision:0,note:'Director proposes two cuts, pending word alignment verification'});
+  assert.equal(saved.status,200,JSON.stringify(saved.body));
+  assert.equal(saved.body.status,'submitted');
+  assert.equal(saved.body.revision,1);
+  assert.equal(saved.body.publication_allowed,false);
+  const staleWrite=await http('/api/decks/'+id+'/rhythm/draft','POST',{
+    manifest:fixture,expected_revision:0,note:'Stale revision should be denied'});
+  assert.equal(staleWrite.status,409);
+  const getRpc=await rpc('get_rhythm_draft',{id},reviewerKey);
+  assert.equal(getRpc.isError,false,getRpc.text);
+  assert.equal(getRpc.data.proposal.plan_sha256,saved.body.proposal.plan_sha256);
+  assert.equal((await rpc('get_rhythm_draft',{id},partialKey)).isError,true);
+  const attempt=await rpc('review_rhythm_draft',{id,expected_revision:1,
+    plan_sha256:saved.body.proposal.plan_sha256,decision:'endorse',
+    note:'This project-wide reviewer cannot inspect every scene'},partialKey);
+  assert.equal(attempt.isError,true);
+  const review=await rpc('review_rhythm_draft',{id,expected_revision:1,
+    plan_sha256:saved.body.proposal.plan_sha256,decision:'endorse',
+    note:'Structure matches proposal; verified audio alignments are not yet available'},reviewerKey);
+  assert.equal(review.isError,false,review.text);
+  assert.equal(review.data.status,'endorsed_nonpublishable');
+  assert.equal(review.data.publication_allowed,false);
+  assert.equal(review.data.revision,2);
+  assert.equal((await rpc('review_rhythm_draft',{id,expected_revision:1,
+    plan_sha256:saved.body.proposal.plan_sha256,decision:'endorse',
+    note:'Replay should fail'},reviewerKey)).isError,true);
+  assert.deepEqual((await http('/api/decks/'+id)).body,deckBefore);
+  assert.equal(fs.existsSync(path.join(root,'decks',id,'.rhythm','review.json')),true);
+  // No public release state or deck.json was ever touched.
   // Preview is not a write operation and does not create montage metadata.
   assert.equal(fs.existsSync(path.join(root,'decks',id,'montage')),false);
  }finally{
