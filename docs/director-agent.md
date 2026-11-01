@@ -79,7 +79,7 @@ Example HTTP replan after inspecting the current plan and task revisions:
 }
 ~~~
 
-Every scene has six uncompleted checkpoints: storyboard, assets, animation, render, technical QA, human review. A dependency may refer only to an earlier scene, so the dependency graph is acyclic. Other scenes are independently assignable. Progress is derived from actual tasks and is not an execution log.
+Every scene has six uncompleted checkpoints: storyboard, assets, animation, render, technical QA, human review. A dependency may refer only to an earlier scene, so the dependency graph is acyclic. Other scenes are independently assignable. Progress is derived from actual tasks and is not an execution log. `progress.ready_to_start` and each scene's `waiting_on`/`ready_to_start` make dependencies visible; **advisory only**, they do not spawn workers or replace P06 leases.
 
 ## Final delivery / human sign-off
 
