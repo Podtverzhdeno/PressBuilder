@@ -1902,6 +1902,7 @@ kbd {
 }
 .task-header div { display: flex; flex-direction: column; gap: 5px; }
 .task-header strong { font-size: 20px; }
+.task-head-actions {display:flex;gap:9px;align-items:center;flex-wrap:wrap;}
 .task-header span { font-size: 12px; color: var(--dim); }
 .task-layout { min-height: 0; flex: 1; display: grid; grid-template-columns: 280px minmax(0,1fr); }
 .task-list {
