@@ -83,11 +83,13 @@ console.log('PASS P03 ffprobe quality gates for scene and full video');
 
 /** P07: actual H.264 scene -> real decoded JPEG frame -> review -> resolution */
 const {spawnSync}=await import('node:child_process');
-const thumbnail=spawnSync('ffmpeg',['-hide_banner','-loglevel','error','-i','pipe:0',
+// ffmpeg is installed in the production Docker image, but not on every CI host.
+const thumbnail=spawnSync('docker',['exec','pb-cloud','ffmpeg','-hide_banner','-loglevel','error',
+  '-i','/data/out/'+id+'_'+firstSlide+'.mp4',
   '-vf','scale=480:270','-frames:v','1','-f','image2pipe','-vcodec','mjpeg','-q:v','9','pipe:1'],
-  {input:Buffer.from(clipBytes),maxBuffer:1024*1024,timeout:30000});
+  {maxBuffer:1024*1024,timeout:30000});
 if(thumbnail.status!==0||!thumbnail.stdout?.length)
-  throw new Error('Real MP4 JPEG evidence extraction failed: '+String(thumbnail.stderr));
+  throw new Error('Real MP4 JPEG evidence extraction failed: '+String(thumbnail.error?.message||thumbnail.stderr||thumbnail.status));
 const jpeg='data:image/jpeg;base64,'+thumbnail.stdout.toString('base64');
 const fps=Math.round(qa.report.metadata.fps);
 const t=0.2;
