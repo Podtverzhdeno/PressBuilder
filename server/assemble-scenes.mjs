@@ -39,10 +39,14 @@ export function assemblyService({out,getDeck,getRender,getTask,baseUrl}){
       try{
         const manifest=JSON.parse(fs.readFileSync(manifestFile,'utf8'));
         if(manifest.version===1&&manifest.project===id&&
-           manifest.output?.size===fs.statSync(video).size)
-          return {id,job_id:manifest.job_id,status:'completed',manifest,
+           manifest.output?.size===fs.statSync(video).size&&
+           digest(video)===manifest.output.sha256){
+          const recovered={id,job_id:manifest.job_id,status:'completed',manifest,
             result:{download_url:baseUrl()+'/out/'+id+'_final.mp4',size:manifest.output.size},
             recovered:true};
+          jobs.set(id,recovered); // Avoid re-hashing on subsequent status polls.
+          return recovered;
+        }
       }catch{/* A partial or corrupt published manifest must never look completed. */}
     }
     return {id,status:'not_started'};
