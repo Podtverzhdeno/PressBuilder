@@ -19,6 +19,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
 import { sceneTaskStore } from './scene-tasks.mjs';
+import { projectReadmeStore } from './project-readme.mjs';
 
 const ROOT = process.cwd();
 const DECKS_DIR = path.join(ROOT, 'src', 'decks');
@@ -63,6 +64,7 @@ function ffmpegOk(): boolean {
 
 const deckFile = (id: string) => path.join(DECKS_DIR, id, 'deck.json');
 const taskStore=sceneTaskStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
+const readmeStore=projectReadmeStore({root:DECKS_DIR,getDeck:(id:string)=>JSON.parse(fs.readFileSync(deckFile(id),'utf8'))});
 
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -140,11 +142,28 @@ export function presbuilder(): Plugin {
         const content = `${JSON.stringify(deck, null, 2)}\n`;
         written.set(id, content);
         writeAtomic(deckFile(id), content);
+        readmeStore.ensure(id);
         return json(res, { ok: true });
       }
       return fail(res, 405, 'method');
     }
 
+    const readme=/^([^/]+)\/readme$/.exec(rest);
+    if(readme) {
+      const id=readme[1];
+      if(!ID_RE.test(id)||!fs.existsSync(deckFile(id)))return fail(res,404,'Ролик не найден');
+      try {
+        if(req.method==='GET')return json(res,readmeStore.read(id));
+        if(req.method==='PUT') {
+          const body=JSON.parse((await readBody(req)).toString('utf8')) as {content:string;expected_revision:string};
+          return json(res,readmeStore.write(id,body?.content,body?.expected_revision));
+        }
+        return fail(res,405,'method');
+      }catch(e) {
+        const status=Number((e as {status?:number})?.status||500);
+        return fail(res,status,e instanceof Error?e.message:String(e));
+      }
+    }
     const task=/^([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(rest);
     if(task) {
       const id=task[1],scene=task[2],cp=task[3];
