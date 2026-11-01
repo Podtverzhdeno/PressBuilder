@@ -69,8 +69,8 @@
         "id": "M40-R01",
         "status": "IN_PROGRESS",
         "scope": "source-attested read-only brief from existing P10 + P06",
-        "ci": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41357246400",
-        "ci_status": "CLOUD_PASS_DOCKER_PENDING",
+        "ci": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41357538689",
+        "ci_status": "PRODUCTION_DOCKER_171_OF_171_PASS_NO_SKIPS",
         "feature_flag": "PB_TYPED_SCENE_BRIEFS",
         "default_enabled": false,
         "code": [
@@ -86,7 +86,9 @@
           "independent security review",
           "staging canary",
           "production enablement"
-        ]
+        ],
+        "tested_code_sha": "466fee7754f04d06e421c8df54caf9775568c94b",
+        "evidence_note": "Approved-plan six-scene brief HTTP/MCP integration and negative tests pass, plus generic real MP4 renderer smoke. This is NOT a six-scene brief-to-render performance benchmark or independent acceptance."
       }
     },
     {
