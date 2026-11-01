@@ -46,6 +46,16 @@ test('P03 detects off-screen captions and flags important overlaps for review',(
   assert.ok(v.issues.some(x=>x.id==='TEXT_OUTSIDE_FRAME'));
   assert.ok(v.issues.some(x=>x.id==='TEXT_POTENTIAL_OVERLAP'&&x.severity==='REVIEW'));
 });
+test('P03 audits editor overrides and ignores hidden source captions',()=>{
+  const d=project([txt('moved','HELLO',{x:220}),txt('hidden','W'.repeat(120),{w:65})]);
+  d.slides[0].objects={
+    moved:{x:1890,y:250,scale:1},
+    hidden:{hidden:true},
+  };
+  const report=auditDataText(d,canvasContext(),'s01');
+  assert.equal(report.tested_texts,1,'hidden text must not be audited');
+  assert.ok(report.issues.some(x=>x.id==='TEXT_OUTSIDE_FRAME'&&x.object_id==='moved'));
+});
 test('P03 frame detector finds all-black video, but not a single legitimate dark cut',()=>{
   const pixels=new Uint8ClampedArray(64*36*4);
   for(let i=3;i<pixels.length;i+=4)pixels[i]=255;
