@@ -46,3 +46,32 @@
 ## Проверка
 
 `npm run build && npm run test:cloud`. Новые тесты: `tests/cloud-reviews-versions.test.mjs` (оптимистичная ревизия, параллельные версии, сверка SHA, rollback после нового рендера, привязка к кадру, статусная машина, роли и протухшая аренда). `tests/render-smoke.mjs` на Docker проверяет настоящий MP4, MCP ревью, блокировку утверждения до `VERIFIED`, утверждение через MCP и чтение указателя через REST.
+
+## P03 — архивные контрольные кадры
+
+Начиная с новых рендеров Cloud, каждая версия MP4 получает **3 автоматически извлечённых реальных JPEG** в 10%, 50% и 90% доступной длины кадрированного ролика. Для каждого кадра фиксируются `t`, `frame`, SHA-256, размер и диагностические показатели `mean_luma`/`luma_stddev`. Дополнительные предупреждения: `DARK_FRAME`, `LOW_DETAIL`, `SIMILAR_TO_PREVIOUS_SAMPLE`.
+
+Файлы лежат в `/data/out/<project>_<scene>_v<version>_f0.jpg` (аналогично f1/f2), загружаются из защищённого `GET /out/...`, отображаются во вкладке «Ревью MP4». При утверждении версия проверяет неизменность **MP4 и всех имеющихся JPEG**. Существующие legacy-версии без превью продолжают читаться.
+
+**Это эвристики для ревьюера, не автоматическая оценка художественного качества.** Однотонный или чёрный кадр может быть намеренным. Контроль 25%/75%, появления cue, text bounding-box и golden-frame diff — ещё backlog.
+
+## P08 — immutable source snapshot и ограниченный откат исходных данных
+
+Для новых версий `server/source-provenance.mjs` учитывает:
+
+- полный JSON **одного слайда** (cues, visuals, object overrides), его 3D-overlay, стиль-контракт, проектные style/format/audio;
+- зависимость старта слайда от порядка сцен, предшествующих реплик/пауз и target;
+- SHA-256 файла озвучки (если привязан) и всех HTML/CSS/JS артефактов опубликованного `build`; внешние ассеты и исходные TS-файлы **не архивируются**.
+
+Снимок находится в `/data/decks/<project>/.scene-versions/<scene>/<version>.source.json`. Его хэш сверяется с `manifest.source.fingerprint`. В публичной информации о версии передаётся только сводка с хэшами и ревизиями.
+
+Новые инструменты MCP (только **director**):
+- `get_scene_source_state({id,slide_id})` → текущий `fingerprint` и `scene3d_revision`, без данных слайда;
+- `get_scene_source_snapshot({id,slide_id,version_id})` → архивная декларативная сцена, source hashes и зависимости;
+- `restore_scene_source({id,slide_id,version_id,expected_fingerprint,expected_scene3d_revision})` → восстанавливает только JSON слайда и декларативный overlay 3D, не трогая соседние сцены и принятый MP4. При изменении общих настроек/аудио/браузерного bundle или таймлайна операция отказывает 409.
+
+REST (Basic/director): `GET /api/decks/:id/versions/:scene/source-state`, `GET /api/decks/:id/versions/:scene/:version/source`, `POST` по последнему URL с `{expected_fingerprint, expected_scene3d_revision}`.
+
+**Важно:** `restore_scene_version` восстанавливает принятый MP4; `restore_scene_source` восстанавливает *только данные сцены*. Эти операции независимы. Нельзя говорить о полном source-code rollback: TypeScript, внешние файлы и сборка `build` не восстанавливаются. Две файловые записи `deck.json`/scene3d корректируются с компенсацией при обычном отказе, но на внезапном завершении процесса не являются одной ACID-транзакцией.
+
+Проверки: `tests/cloud-frame-qa.test.mjs`, `tests/cloud-source-provenance.test.mjs`, `tests/render-smoke.mjs`.

@@ -90,7 +90,7 @@ const versions=unwrap(await rpc('tools/call',{name:'list_scene_versions',argumen
 if(versions.versions.length!==1)throw new Error('P08 immutable render version not recorded');
 const version=versions.versions[0];
 if(version.qa.verdict!=='PASS'||!/^[0-9a-f]{16}$/.test(version.version_id))throw new Error('P08 immutable metadata is invalid');
-const archivedSource=unwrap(await rpc('tools/call',{name:'get_scene_version_source',arguments:{id,slide_id:firstSlide,version_id:version.version_id}}));
+const archivedSource=unwrap(await rpc('tools/call',{name:'get_scene_source_snapshot',arguments:{id,slide_id:firstSlide,version_id:version.version_id}}));
 if(archivedSource.fingerprint!==version.source.fingerprint||
    archivedSource.source?.sync_markers?.length!==2||
    archivedSource.source?.scene3d?.spec?.objects?.[0]?.start_marker!=='core-rise')

@@ -26,7 +26,7 @@
 | P06 | Scene ownership/leases/ACL | 9.3 | Средняя | MCP identity + хранилище | **IN PROGRESS — scoped leases MVP** |
 | P07 | Покадровые комментарии и ревью | 9.1 | Средняя | P02 + P03 | **IN PROGRESS — frame-review MVP** |
 | P08 | Версии сцен, артефактов, rollback | 9.0 | Средняя | P01 + P02 | **IN PROGRESS — immutable MP4 MVP** |
-| P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | **MVP IN PROGRESS — cue/3D markers** |
+| P09 | Синхронизация аудио и анимации | 8.9 | Средняя | P05 + текущий timeline | **MVP IN PROGRESS — anchored 3D cues** |
 | P10 | Director Agent/оркестрация | 8.8 | Высокая | P01–P09 | BACKLOG |
 
 Оценки — инженерные предположения, а не результаты объективного benchmark. Приоритет менять только по проверенным данным.
@@ -69,8 +69,8 @@
 
 **Проблема:** искажения шрифта, наложения объектов и пустые кадры обнаруживаются вручную после длительного рендера.
 
-- [ ] **P03.1** Извлекать репрезентативные кадры: начало, 25%, 50%, 75%, конец, а также моменты появления объектов/реплик.
-- [ ] **P03.2** Проверка формата (ffprobe), чёрных/битых кадров, резких скачков яркости, отсутствия звука при обязательной озвучке.
+- [ ] **P03.1 (частично: начало/середина/конец ×3, 25%/75% и cue-specific ещё открыты)** Извлекать репрезентативные кадры: начало, 25%, 50%, 75%, конец, а также моменты появления объектов/реплик.
+- [ ] **P03.2 (частично: ffprobe и 3 JPEG + эвристики DARK_FRAME/LOW_DETAIL/SIMILAR_TO_PREVIOUS_SAMPLE, без jump detector и обязательности всех аудиодорожек)** Проверка формата (ffprobe), чёрных/битых кадров, резких скачков яркости, отсутствия звука при обязательной озвучке.
 - [ ] **P03.3** Проверка геометрии: текст вне safe area, наложения крупных текстовых bbox, недопустимый horizontal compression, отсутствующие требуемые элементы.
 - [ ] **P03.4** Регрессионные снимки / golden images с порогами для предсказуемых сцен; отчёты без ложного «художественного балла».
 - [x] **P03.5** MCP `get_scene_qa_report`, вердикты PASS/REVIEW/FAIL и evidence (кадр+тайм-код+правило).
@@ -131,7 +131,7 @@
 
 ## P08 — версии сцен/артефактов и rollback
 
-- [ ] **P08.1 (частично: immutable MP4 + SHA-256 + fingerprint deck/3D/style, но полный provenance исходников/ассетов отсутствует)** Immutable `scene_revision` c SHA-256 исходников/ассетов/параметров, manifest с provenance.
+- [ ] **P08.1 (частично: snapshot scene JSON/3D/style, sha аудио и развёрнутого браузерного bundle; внешние ассеты и невключённые TS-исходники ещё не архивируются)** Immutable `scene_revision` c SHA-256 исходников/ассетов/параметров, manifest с provenance.
 - [x] **P08.2 (immutable MP4 и approved pointer; независимые PNG-превью ещё не выделены)** Хранить принятые версии MP4 и превью, не перезаписывать путь при новом рендере; отделить draft от approved.
 - [x] **P08.3 (single-node MVP)** MCP `list_scene_versions/restore_scene_version` с audit trail и правами.
 - [ ] **P08.4** Быстрое сравнение V1/V2 (таймкод, текст, 3 контрольных кадра); ретеншн и GC под лимиты storage.
@@ -142,8 +142,8 @@
 
 ## P09 — единый audio/motion timeline
 
-- [ ] **P09.1** Общий buildSchedule timebase и 3D события готовы; SFX/music mixer и camera cuts ещё не исполняются.
-- [x] **P09.2 (MVP)** Cue/event IDs, duration/emphasis/silence, anchors, optimistic revision, 3D marker integration.
+- [ ] **P09.1** Общий buildSchedule timebase управляет narration/3D и хранит маркеры SFX/camera/music; реальное audio mixing ещё не выполняется.
+- [x] **P09.2 (MVP)** Стабильные cue/event ID, anchors, duration, emphasis/silence и scene-scoped revision.
 - [ ] **P09.3** Автоматическая подстройка переходов по речевым паузам, но без подмены текста озвучки.
 - [ ] **P09.4** Инструменты beat markers и правила loudness/ducking; лицензирование/происхождение музыкальных файлов фиксировать.
 - [ ] **P09.5** Тест: изменение длительности сцены/ставки FPS не вызывает дрейфа аудио/видео >2 кадров.
@@ -201,8 +201,17 @@
 | P08 | Неизменяемые MP4 с SHA-256, отдельный approved pointer, утверждение только при task.done и отсутствии открытых замечаний, rollback только к ранее утверждённой версии; артефакты не перезаписываются повторной попыткой worker | `server/scene-versions.mjs`, `server/render.mjs`, `tests/cloud-reviews-versions.test.mjs` | IN PROGRESS — MVP |
 | P02/P05 | Исправлена утечка FFmpeg drain/error listeners, версия MP4 уникальна для перезапускающейся попытки, финальная сборка теперь закреплена за утверждёнными версиями и проверяет их неизменность | `server/render.mjs`, `server/cloud.mjs`, `server/assemble-scenes.mjs` | PATCHED / контрольный Docker smoke |
 
-Документация: [docs/scene-review-versions.md](docs/scene-review-versions.md). Полный P07/P08 DoD остаётся открытым: нет image snapshot/стрелок, профессионального визуального QA, полного исходного provenance, восстановления исходного JSON/TS кода, retention/GC, межпроцессной сериализации и E2E тестов нескольких реплик. Человеческая приёмка по-прежнему необходима.
+Документация: [docs/scene-review-versions.md](docs/scene-review-versions.md). Полный P07/P08 DoD остаётся открытым: нет стрелок и специализированного художественного visual QA; архивируются контрольные JPEG + декларативная сцена/3D, но **не** исходники TypeScript целиком и не внешние ассеты; нет retention/GC, межпроцессной сериализации и E2E нескольких реплик. Человеческая приёмка по-прежнему необходима.
 
 
-### P08/P09 — сохранение полной истории в едином архиве (2026-11-01)
-P08 provenance расширяется audio/motion markers и точными сценовыми таймингами; директорский restore_scene_source переносит marker sheet, slide и 3D после проверки. P09 MCP/REST защищён ролями и fencing. Docker smoke проверяет 3D start_marker и immutable source snapshot. Оставлены: реальное аудиосведение, ducking, межпроцессные блокировки и сравнение из трёх контрольных кадров.
+## 2026-11-01 — P03 кадры + P08 provenance/восстановление
+
+- **P03:** `server/frame-qa.mjs` извлекает FFmpeg три настоящих JPEG-кадра для каждой новой версии MP4, сохраняет SHA-256, время и индекс кадра. Простые метрики яркости/различий маркируют тёмные, плоские и почти одинаковые выборки как предупреждения, **не** выдают творческий PASS/FAIL. Версионный manifest и редактор показывают кадры. Тесты: `tests/cloud-frame-qa.test.mjs`, Docker smoke.
+- **P08:** `server/source-provenance.mjs` фиксирует источник и зависимости таймлайна, контрольные суммы аудио, JS/CSS/HTML из build, JSON слайдов, 3D и style contract. Независимый `<version>.source.json` защищён SHA-256 и не включается в публичный manifest. Добавлены директорские MCP `get_scene_source_state`, `get_scene_source_snapshot`, `restore_scene_source` и REST-эквиваленты.
+- **Восстановление:** только выбранный slide/cues/visuals + декларативный scene3d, с CAS-фингерпринтом и ревизией 3D. Изменённые глобальные настройки, аудио, развёрнутый bundle или зависимости таймлайна приводят к отказу, чтобы не затрагивать соседние сцены. Восстановление данных сцены и MP4 — **раздельные действия**.
+- **Ограничения:** файловые изменения сцены/3D не объединены транзакцией на уровне аварийного завершения процесса; отсутствует rollback TypeScript, автоматический архив внешних материалов, golden-image сравнение, pixel-perfect проверка текста, GC и distributed locking.
+- **Тесты:** `tests/cloud-source-provenance.test.mjs` (tampering/drift/isolated restoration), `tests/cloud-frame-qa.test.mjs` (real FFmpeg black/static/video), extended `tests/render-smoke.mjs` (real MP4 → 3 JPEG → SHA → source snapshot → modify scene → restore).
+
+
+### P08/P09 — интеграция с общим ревью и provenance (2026-11-01)
+Единый архив immutable MP4, 3 JPEG и SHA-256 browser/audio source дополнен маркерами P09 и точным timebase. 3D start_marker влияет на появление объекта, P09 MCP использует scoped leases. Директорский source rollback возвращает marker sheet после проверки. Не закрыты audio mixer/ducking, distributed locking и end-to-end AV drift.

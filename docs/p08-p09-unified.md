@@ -59,4 +59,4 @@
 
 Проверка `render-smoke` дополнена ожидаемым отрицательным сценарием: попытка принять сцену с OPEN review-item **должна** завершиться ошибкой `Unresolved review issues prevent approval`. После `FIXED` и `VERIFIED` директор повторно вызывает approve и проверяет, что архивный MP4 читается. Ошибка с ожидаемым статусом не должна аварийно обрывать скрипт smoke.
 
-P08 source snapshot хранится отдельно от MP4 и проверяется SHA-256. MCP get_scene_version_source открывает архивный JSON с P09 markers. Director-only restore_scene_source восстанавливает также сцепленные с cue IDs маркеры при совпадении ревизий. Все многофайловые операции остаются single-node MVP, не распределённой транзакцией.
+P08 source snapshot хранится отдельно от MP4 и проверяется SHA-256. MCP get_scene_source_snapshot открывает архивный JSON с P09 markers. Director-only restore_scene_source восстанавливает также сцепленные с cue IDs маркеры при совпадении ревизий. Все многофайловые операции остаются single-node MVP, не распределённой транзакцией.
