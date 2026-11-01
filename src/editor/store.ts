@@ -395,6 +395,17 @@ if (import.meta.hot) {
   });
 }
 
+// MCP/HTTP 3D scene data changed: keep the timeline, playback position and unsaved deck intact.
+if (import.meta.hot) {
+  import.meta.hot.on('pb:scenes3d', ({id}: {id:string})=>{
+    const current=deck.peek();
+    if(!current||current.id!==id||exporting.peek())return;
+    void loadScenes(id).then(sc=>{scenes.value=sc;}).catch(e=>{
+      say('Ошибка обновления 3D-сцены: '+String(e));
+    });
+  });
+}
+
 // код сцен обновился без перезагрузки страницы
 window.addEventListener('pb:scenes', (e) => {
   const d = deck.peek();
