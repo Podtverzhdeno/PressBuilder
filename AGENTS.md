@@ -76,6 +76,16 @@ API, лимиты и пример: [docs/scene3d-sdk.md](docs/scene3d-sdk.md). �
 
 Подробно: [docs/production-p04-p06.md](docs/production-p04-p06.md).
 
+## P07–P08 — ревью и версии MP4 (облачный workflow)
+
+После `render_scene` обязательно получи `list_scene_versions({id,slide_id})`. Сохраняй `version_id` и SHA-256; адрес `out/<project>_<scene>_v<version>.mp4` — отдельная неизменяемая версия. Не подменяй принятый файл на новый черновик.
+
+Ревьюер или директор вызывает `add_scene_review_item` с `version_id`, временем `t`, `severity`, текстом и при необходимости `rect` в относительных координатах 0..1. Worker исправляет **только свою** сцену, при необходимости делает новый рендер и отмечает замечание через `transition_scene_review_item({status:"FIXED", fence_token})` со ссылкой на доказательство. Ревьюер подтверждает `VERIFIED` или возвращает `REOPENED`. Переходы требуют актуальную `expected_revision`.
+
+Только директор может выполнить `approve_scene_version` (задача должна быть `done`, все замечания выбранной версии — `VERIFIED`). Сборка `assemble_video` теперь использует **именно утверждённые версии**, а не случайный последний черновик. `restore_scene_version` восстанавливает **видеоартефакт** из ранее утверждённых версий без перерендера; он **не** восстанавливает код сцены. Через веб-редактор это доступно в окне «Ревью MP4» (Cloud).
+
+Документация и ограничения: [docs/scene-review-versions.md](docs/scene-review-versions.md).
+
 ## Команды
 
 ```
