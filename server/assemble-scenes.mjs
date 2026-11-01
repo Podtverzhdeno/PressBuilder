@@ -7,6 +7,7 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
 import {inspectMp4} from './video-qa.mjs';
+import {encodeIncrementalHardCuts} from './incremental-hardcut.mjs';
 
 const ID=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const bad=(message,status=400)=>Object.assign(new Error(message),{status});
@@ -60,7 +61,8 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0}={}){
   });
 }
 export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,baseUrl,
-  getPlan,getStyle,reviewUnresolved=()=>false,acquireResource=async()=>()=>{}}){
+  getPlan,getStyle,reviewUnresolved=()=>false,acquireResource=async()=>()=>{},
+  incrementalHardCuts=false}){
   const jobs=new Map(),controllers=new Map();
   // The journal is durable on the same volume as release artifacts. It does not
   // provide distributed consensus: production must enforce a single writer.
@@ -271,6 +273,27 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
           sourcePaths.push(copy);
         }
         job.timings_ms.snapshot=Date.now()-snapshotStartedAt;
+        const mp4=path.join(work,'final.mp4');
+        let incremental=null;
+        if(incrementalHardCuts&&!force&&
+           boundaries.every(edge=>edge.type==='hard-cut'||edge.type==='match-cut')){
+          try{
+            incremental=await encodeIncrementalHardCuts({
+              out,id,work,sourcePaths,inputs,fps,height,target,encoderProfile:ENCODER_PROFILE,
+              signal:controller.signal,ffmpegRun
+            });
+            job.incremental=incremental;
+            job.encode_strategy='incremental-hardcut-v1';
+            job.timings_ms.encode=incremental.total_ms;
+          }catch(e){
+            if(controller.signal.aborted)throw e;
+            // Safe fallback: a failed compatibility probe or any FFmpeg error
+            // cannot publish a partially copied/decoded video.
+            job.incremental_fallback_reason=String(e).slice(0,240);
+            fs.rmSync(mp4,{force:true});
+          }
+        }
+        if(!incremental){
         const args=['-hide_banner','-loglevel','error','-nostats','-stats_period','0.2','-progress','pipe:2','-y'];
         sourcePaths.forEach(p=>args.push('-i',p));
         const silent=new Map();
@@ -311,7 +334,6 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
           filters.push(groups.map(g=>'['+g.v+']['+g.a+']').join('')+
             'concat=n='+groups.length+':v=1:a=1[v][a]');
         }
-        const mp4=path.join(work,'final.mp4');
         args.push('-filter_complex',filters.join(';'),'-map','[v]','-map','[a]',
           '-c:v','libx264','-preset','veryfast','-crf','20','-r',String(fps),'-pix_fmt','yuv420p',
           '-c:a','aac','-ar','48000','-ac','2','-b:a','192k','-movflags','+faststart',mp4);
@@ -319,6 +341,8 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
         try{
           await ffmpegRun(args,{signal:controller.signal,duration:target,onProgress:p=>{job.progress=Math.max(job.progress,p)}});
         }finally{job.timings_ms.encode=Date.now()-encodeStartedAt}
+        job.encode_strategy='full-filter';
+        }
         if(controller.signal.aborted)throw new Error('Assembly cancelled');
         const qaStartedAt=Date.now();
         const qa=inspectMp4(mp4,{fps,height,duration:target,audio_required:true});
@@ -326,6 +350,8 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
         if(qa.verdict!=='PASS')throw bad('Output QA failure: '+qa.issues.map(x=>x.id).join(','),422);
         const manifest={schemaVersion:1,project:id,release_id:releaseId,job_id:job.job_id,
           encoder_profile:ENCODER_PROFILE,target_fps:fps,target_height:height,
+          encode_strategy:job.encode_strategy,segment_reuse:job.incremental??
+            null,
           plan_revision:job.plan_revision,style_revision:job.style_revision,
           plan_sha256:planHash,style_sha256:styleHash,
           scenes:inputs.map((x,i)=>({id:x.scene,sha256:x.source_sha256,duration:x.duration,
