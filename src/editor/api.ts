@@ -7,6 +7,26 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface CreativeStoryContext {
+  project_id:string;plan_revision:number;source_sha256:string;
+  script_fingerprint:string;duration_us:number;fps:number|null;
+  scenes:Array<{scene_id:string;source_index:number;label:string;
+    source_start_us:number;duration_us:number;cue_anchors:Array<{
+      cue_id:string;text:string;source_sha256:string;start_us:number;end_us:number
+    }>}>
+}
+export interface CreativeStoryPreview {
+  status:'READY_FOR_REVIEW';project_id:string;source_sha256:string;
+  plan_revision:number;publication_allowed:false;approved:false;
+  coverage:{scenes:number;variants:number;claim_sources:number;source_facts_rewritten:number};
+  candidates:Array<{candidate_id:string;reason:string;order:string[];plan_sha256:string;
+    estimated_duration_us:number;downstream_eligible:false;
+    beats:Array<{beat_index:number;narrative_role:string;scene_id:string;
+      estimated_duration_us:number;editorial_note:string;cue_anchors:Array<{
+        cue_id:string;text:string;source_sha256:string
+      }>}>}>;
+  limitations:string[];
+}
 export interface RhythmContext {
   project_id:string;
   voice_source_sha256:string;
@@ -136,6 +156,12 @@ const body = (data: unknown): RequestInit => ({
 
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
+  getCreativeStoryContext: (id:string) =>
+    call<CreativeStoryContext>(`/api/decks/${encodeURIComponent(id)}/creative/context`),
+  previewCreativeStory: (id:string,manifest:{expected_plan_revision:number;expected_source_sha256:string}) =>
+    call<CreativeStoryPreview>(`/api/decks/${encodeURIComponent(id)}/creative/preview`,{
+      method:'POST',...body({manifest})
+    }),
   getRhythmDraft: (id:string) =>
     call<RhythmDraftRecord>(`/api/decks/${encodeURIComponent(id)}/rhythm/draft`),
   submitRhythmDraft: (id:string,manifest:Record<string,unknown>,
