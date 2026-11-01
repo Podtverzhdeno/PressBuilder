@@ -225,7 +225,10 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
           JSON.stringify(m.transition_after)===JSON.stringify(edge);
       });
     if(matches){
-      const job={id,job_id:randomUUID(),status:'completed',progress:100,
+      // Keep the originating job_id: P10 human signoff binds that exact ID
+      // to the immutable release manifest. A cached request is not a new render.
+      const job={id,job_id:manifest.job_id,request_id:randomUUID(),
+        status:'completed',progress:100,
         scene_ids:[...scene_ids],created_at:new Date().toISOString(),
         finished_at:new Date().toISOString(),plan_revision:planRecord.revision,
         style_revision:style.revision,cache_hit:true,manifest,
