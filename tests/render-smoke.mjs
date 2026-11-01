@@ -6,13 +6,13 @@ const PASSWORD=process.env.PB_SMOKE_PASSWORD||'smokePassword123456789';
 const basic='Basic '+Buffer.from(USER+':'+PASSWORD).toString('base64');
 const sleep=(ms)=>new Promise((r)=>setTimeout(r,ms));
 let sequence=0;
-async function rpc(method,params){
+async function rpc(method,params,{allowToolError=false}={}){
  const res=await fetch(BASE+'/mcp',{method:'POST',headers:{Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'},
    body:JSON.stringify({jsonrpc:'2.0',id:++sequence,method,params})});
  if(!res.ok)throw new Error('MCP HTTP error '+res.status+': '+await res.text());
  const json=await res.json();
  if(json.error)throw new Error(JSON.stringify(json.error));
- if(json.result?.isError)throw new Error(JSON.stringify(json.result));
+ if(json.result?.isError&&!allowToolError)throw new Error(JSON.stringify(json.result));
  return json.result;
 }
 const id='render-smoke';
@@ -95,7 +95,7 @@ const newReview=unwrap(await rpc('tools/call',{name:'add_scene_review_item',argu
 if(newReview.item.status!=='OPEN'||newReview.item.version_id!==version.version_id)throw new Error('P07 review not anchored');
 unwrap(await rpc('tools/call',{name:'set_scene_task',arguments:{id,slide_id:firstSlide,expected_revision:0,status:'done'}}));
 const blocked=await rpc('tools/call',{name:'approve_scene_version',arguments:{
-  id,slide_id:firstSlide,version_id:version.version_id,expected_revision:0}});
+  id,slide_id:firstSlide,version_id:version.version_id,expected_revision:0}},{allowToolError:true});
 if(!blocked.isError)throw new Error('P07 unresolved issue did not block approval');
 const fixed=unwrap(await rpc('tools/call',{name:'transition_scene_review_item',arguments:{
   id,slide_id:firstSlide,item_id:newReview.item.id,status:'FIXED',
