@@ -15,3 +15,7 @@ Source: server/typed-scene-brief.mjs. Schema: schemas/montage/typed-scene-brief-
 ## Remaining mandatory M40 checkpoints
 
 C01: independent contract and security acceptance. C02: additional property-based validation, permission/rights evidence. C03: typed write-workflow with P06 fencing, CAS, signed human override and undo; current implementation is READ ONLY. C04: adversarial malformed Unicode/size and multi-worker concurrency tests beyond initial negative cases. C05: six-scene real brief-to-render E2E, not generic renderer smoke. C06: independently measured editorial time benefit, RAM and CPU cost. C07: separate actor security + artistic review. C08: staging canary, rollback, measured latency and reviewed feature-flag enablement. No checkpoint should be marked complete solely because an initial build passed.
+
+## Observed test evidence
+
+GitHub Actions https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41357538689 on 466fee7754f04d06e421c8df54caf9775568c94b: cloud 151 PASS / 20 media tests skipped, 0 failures; production-equivalent Docker 171/171 PASS, 0 skipped; real MP4 smoke PASS. OpenSpec/SDD integrity on 41357538692 PASS. No independent security/creative signoff; new feature flag remains OFF. This is a partial M40 source-brief implementation, not evidence that a full typed brief-to-render production pipeline is accepted.
