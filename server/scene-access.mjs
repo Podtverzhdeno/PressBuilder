@@ -74,7 +74,7 @@ export function sceneAccessStore({root,getDeck,getTask,now=()=>Date.now()}){
     assigned(id,sid,actor);
     const x=read(id,sid);
     if(!isActive(x)||x.owner!==actor.id||!Number.isSafeInteger(fence)||x.fence!==fence
-        ||typeof token!=='string'||token.length<24||!eq(token,x.token_hash?token:'')&&hash(token)!==x.token_hash){
+        ||typeof token!=='string'||token.length<24||hash(token)!==x.token_hash){
       throw err('Scene lease expired, changed, or missing; claim or renew the scene',409);
     }
   };
