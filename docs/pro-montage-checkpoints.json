@@ -4,7 +4,7 @@
   "change": "professional-montage-p15-p24",
   "date": "2026-11-01",
   "state": "PLANNED",
-  "notice": "P15-C01/C02 TESTED pending independent review, P15-C03 IN_PROGRESS with read-only UI + API tested, remaining 57 TODO. No production rhythm cut publishing.",
+  "notice": "P15-C01/C02 TESTED, P15-C03 IN_PROGRESS (latest measured WAV silence + read-only Studio/API, with 135 test CI), other 57 TODO; no production P15 release.",
   "checkpoints": [
     {
       "id": "P15-C01",
@@ -149,12 +149,24 @@
           "tests_skipped": 14,
           "artifact_path": "server/rhythm-drafts.mjs",
           "note": "CAS sidecar, restart re-read, prior revision history, separate reviewer role, full-scene scope and no production publish; real HTTP/MCP and unit tests passed. This CI entry refers only to the cloud job, not Docker or artistic E2E."
+        },
+        {
+          "kind": "cloud_ci_real_pcm_samples",
+          "run_url": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41343828794",
+          "commit_sha": "db0a896c9458dcf1a8f8974df62adbfd1caaaa75",
+          "command": "npm run build && npm run test:cloud",
+          "exit_code": 0,
+          "tests_total": 135,
+          "tests_passed": 121,
+          "tests_skipped": 14,
+          "artifact_path": "server/rhythm-audio-silence.mjs",
+          "note": "P15 PCM16 WAV sample-level RMS measured-silence detector tested with real synthesized PCM samples; cloud REST/MCP read-only route and authorization tested. This does NOT confirm word alignment, music licensing, creative E2E, MP3 support or production deploy."
         }
       ],
       "reviewer": null,
       "started_at": null,
       "completed_at": null,
-      "blocked_reason": "P15-C03 now includes read-only preview, Studio CAS draft persistence and separate nonpublishable reviewer workflow; remains IN_PROGRESS because independent reviewer signoff, authenticated actual-audio alignment, trusted music rights, full six-scene media QA and rollback remain missing.",
+      "blocked_reason": "P15-C03 IN_PROGRESS: local SHA-pinned real PCM16 WAV silence analysis + Studio/MCP; not yet human-reviewed. Cannot claim word boundaries, music rights, all codecs, full six-scene live media QA, or approved release.",
       "accepted_release": null,
       "release_eligible": false,
       "source_commit_sha": "35fd4c0c84264167a5cc8322376f8db04e868bda"
