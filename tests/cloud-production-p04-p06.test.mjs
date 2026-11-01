@@ -163,6 +163,15 @@ test('P04/P06 MCP authenticates distinct workers, refuses wrong scope and stale 
     const task=await rpc(agent1,'set_scene_task',{id:'scene-demo',slide_id:'s01',
       fence_token:fence,expected_revision:0,status:'in_progress'});
     assert.equal(task.isError,false,JSON.stringify(task));
+    const assignedCheckpoint=await rpc(director,'set_scene_task',{id:'scene-demo',slide_id:'s01',
+      expected_revision:1,checkpoints:[{id:'qa',title:'Provide render evidence',done:false}]});
+    assert.equal(assignedCheckpoint.isError,false,JSON.stringify(assignedCheckpoint));
+    const noEvidence=await rpc(agent1,'set_scene_checkpoint',{id:'scene-demo',slide_id:'s01',
+      checkpoint_id:'qa',done:true,fence_token:fence});
+    assert.equal(noEvidence.isError,true,'Completion without evidence must be rejected');
+    const withEvidence=await rpc(agent1,'set_scene_checkpoint',{id:'scene-demo',slide_id:'s01',
+      checkpoint_id:'qa',done:true,note:'Reviewed rendered MP4 frame',fence_token:fence});
+    assert.equal(withEvidence.isError,false,JSON.stringify(withEvidence));
     const otherWrite=await rpc(agent2,'set_scene_task',{id:'scene-demo',slide_id:'s01',fence_token:fence,expected_revision:1,title:'Hijack'});
     assert.equal(otherWrite.isError,true);
     const released=await rpc(agent1,'release_scene',{id:'scene-demo',slide_id:'s01',fence_token:fence});
