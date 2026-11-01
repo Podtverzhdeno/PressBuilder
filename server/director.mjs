@@ -24,9 +24,15 @@ function save(file,record){
   try{fs.renameSync(tmp,file)}finally{fs.rmSync(tmp,{force:true})}
 }
 function fingerprint(deck){
-  // Include every deck field: lead/tail, cue holds, visual metadata and format
-  // can change the final timing even when the spoken script stays identical.
-  return digest(deck);
+  // Freeze narration, timing, scene topology and output format. Visual authoring
+  // edits (slide.visuals/objects) and separate 3D files must stay editable
+  // after approval; otherwise a valid rendered scene could never be released.
+  return digest({id:deck.id,title:deck.title,text:deck.text,
+    style:deck.style,format:deck.format,target:deck.target,
+    lead:deck.lead,tail:deck.tail,
+    slides:(deck.slides||[]).map(s=>({
+      id:s.id,label:s.label,lead:s.lead,tail:s.tail,cues:s.cues
+    }))});
 }
 const state=(status)=>['todo','in_progress','review','done','blocked'].includes(status);
 
