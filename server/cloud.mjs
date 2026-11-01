@@ -12,6 +12,8 @@ import { makeMcp } from './mcp.mjs';
 import { projectReadmeStore } from './project-readme.mjs';
 import { scene3dStore } from './scene-3d.mjs';
 import { sceneTaskStore } from './scene-tasks.mjs';
+import { sceneSyncStore } from './scene-sync.mjs';
+import { sceneVersionStore } from './scene-versions.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
 import { inspectMp4 } from './video-qa.mjs';
@@ -34,6 +36,8 @@ fs.mkdirSync(OUT, {recursive:true});
 const sceneTasks=sceneTaskStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const projectReadmes=projectReadmeStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
 const scene3d=scene3dStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
+const sceneSync=sceneSyncStore({root:DECKS,seedRoot:path.join(process.cwd(),'src','decks'),getDeck});
+const versions=sceneVersionStore({root:DECKS,outDir:OUT,getDeck,putDeck,scene3d,syncStore:sceneSync});
 const styles=styleContractStore({root:DECKS,getDeck});
 const leases=sceneLeaseStore({root:DECKS,getDeck});
 const agents=agentDirectory();
@@ -228,12 +232,53 @@ async function api(req,res,url) {
     if(method==='GET')return json(res,200,scene3d.read(id,slideId));
     if(method==='PUT'){
       const payload=await readJson(req);
-      enforceScene3D(styles.read(id).contract,payload?.spec);
+      if(payload?.spec!==null)enforceScene3D(styles.read(id).contract,payload?.spec);
       const saved=scene3d.put(id,slideId,payload?.spec,payload?.expected_revision);
       leases.logWrite(id,slideId,director,saved.revision,'write_3d');
       return json(res,200,saved);
     }
     throw new UserError('Method not allowed',405);
+  }
+  // P09: an independent cue/beat sheet per scene (no executable audio code).
+  const syncMatch=/^\/api\/decks\/([^/]+)\/sync\/([^/]+)$/.exec(p);
+  if(syncMatch){
+    const id=deckId(escaped(syncMatch[1])),scene=deckId(escaped(syncMatch[2]));
+    if(method==='GET')return json(res,200,sceneSync.read(id,scene));
+    if(method==='PUT'){
+      const body=await readJson(req);
+      return json(res,200,sceneSync.put(id,scene,body?.markers,body?.expected_revision));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  // P08: immutable snapshots, guarded restore, explicit human approval pointer.
+  const versionMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)(?:\/([^/]+)(?:\/(video|approve|restore))?)?$/.exec(p);
+  if(versionMatch){
+    const id=deckId(escaped(versionMatch[1])),scene=deckId(escaped(versionMatch[2]));
+    const vid=versionMatch[3],action=versionMatch[4];
+    if(!vid){
+      if(method==='GET')return json(res,200,versions.list(id,scene));
+      if(method==='POST'){
+        const job=getRender(id,scene);
+        const saved=versions.capture(id,scene,job);
+        return json(res,201,{version_id:saved.version_id,source_sha256:saved.source_sha256,artifact:saved.artifact});
+      }
+    }else if(method==='GET'&&action==='video'){
+      const {file}=versions.ensureArtifact(id,scene,vid);
+      return fileResponse(req,res,file);
+    }else if(method==='GET'&&!action)return json(res,200,versions.manifest(id,scene,vid));
+    else if(method==='POST'&&action==='approve'){
+      const body=await readJson(req);
+      return json(res,200,versions.approve(id,scene,vid,body?.expected_revision,'editor'));
+    }else if(method==='POST'&&action==='restore'){
+      const body=await readJson(req);
+      return json(res,200,versions.restore(id,scene,vid,body?.expected_fingerprint,'editor'));
+    }
+    throw new UserError('Method not allowed',405);
+  }
+  const compareMatch=/^\/api\/decks\/([^/]+)\/version-compare\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(p);
+  if(compareMatch){
+    if(method!=='GET')throw new UserError('Method not allowed',405);
+    return json(res,200,versions.compare(...compareMatch.slice(1).map(escaped)));
   }
   const taskMatch=/^\/api\/decks\/([^/]+)\/tasks(?:\/([^/]+)(?:\/checkpoints\/([^/]+))?)?$/.exec(p);
   if(taskMatch){
@@ -358,6 +403,8 @@ async function workQueue(){
       j.startedAt=new Date().toISOString();
       persistJob(j);
       try {
+        if(slideId&&versions.source(id,slideId).fingerprint!==j.render_fingerprint)
+          throw new UserError('Scene changed while queued; submit a new render',409);
         const rendered=await renderWithChrome({id,slideId,port:PORT,username:WEB_USER,password:WEB_PASS,
           timeoutMs:900000,onProgress:p=>{
             const percent=Math.round(p*100);
@@ -372,6 +419,8 @@ async function workQueue(){
         if(j.qa_report.verdict==='FAIL'){
           throw new Error('Technical video QA failed: '+j.qa_report.issues.map(x=>x.id).join(', '));
         }
+        if(slideId&&versions.source(id,slideId).fingerprint!==j.render_fingerprint)
+          throw new UserError('Scene changed during render; discarded stale result',409);
         j.status='completed';
         j.result={file:'out/'+name+'.mp4',size:fs.statSync(file).size,
           download_url:baseUrl()+'/out/'+encodeURIComponent(name)+'.mp4'};
@@ -393,7 +442,8 @@ function startRender(id,slideId=null){
   if(previous&&['queued','running'].includes(previous.status))return {...previous};
   if(renderQueue.length>=50)throw new UserError('Render queue full (50 pending jobs)',429);
   const j={id,...(slideId?{slide_id:slideId}:{}),job_id:key+'-'+Date.now(),
-    status:'queued',queuedAt:new Date().toISOString(),progress:0};
+    status:'queued',queuedAt:new Date().toISOString(),progress:0,
+    ...(slideId?{render_fingerprint:versions.source(id,slideId).fingerprint}:{})};
   jobs.set(key,j);
   persistJob(j);
   renderQueue.push(j);
@@ -424,7 +474,7 @@ for(const file of fs.readdirSync(JOBS_DIR).filter(n=>/^[0-9a-f]{64}\.json$/.test
   }catch(e){console.warn('Invalid persisted render job:',file,String(e))}
 }
 const assembly=assemblyService({out:OUT,getDeck,getRender,getTask:(id,scene)=>sceneTasks.read(id,scene),baseUrl});
-const mcp=makeMcp({startRender,getRender,baseUrl,assembly});
+const mcp=makeMcp({startRender,getRender,baseUrl,assembly,sceneSync,versions});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
