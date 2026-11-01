@@ -156,7 +156,28 @@ function review(p, code, endFrame) {
 
 /** Propose (never apply) exact-frame rhythm cuts with strictly pinned inputs. */
 export function proposeRhythmCuts(input) {
-  const state=validate(input), {p, fps, endFrame, words, pauses, beats, manual, policy} = state;
+  let state;
+  try {
+    state = validate(input);
+  } catch (err) {
+    // Absent, overlapping or inconsistent alignment is missing *evidence*,
+    // not permission to guess a cut. Preserve a REVIEW-only result while
+    // malformed top-level/header or resource-policy input still throws.
+    if (err instanceof RhythmInputError &&
+        ['INVALID_WORDS','OVERLAPPING_WORDS','PAUSE_OVERLAPS_WORD','ORPHAN_PAUSE_CUE'].includes(err.code) &&
+        input && typeof input === 'object' && !Array.isArray(input) &&
+        PROJECT.test(input.project_id) && HASH.test(input.voice_source_sha256) &&
+        input.frame_rate && FPS.has(input.frame_rate.num + '/' + input.frame_rate.den) &&
+        Number.isSafeInteger(input.duration_us) &&
+        input.duration_us >= 1_000 && input.duration_us <= 3_600_000_000 &&
+        typeof input.alignment_revision === 'string' &&
+        typeof input.timebase_revision === 'string') {
+      return review(input, 'INVALID_ALIGNMENT_' + err.code,
+        frameAt(input.duration_us, input.frame_rate.num, input.frame_rate.den));
+    }
+    throw err;
+  }
+  const {p, fps, endFrame, words, pauses, beats, manual, policy} = state;
   if (p.expected_alignment_revision !== p.alignment_revision ||
       p.expected_timebase_revision !== p.timebase_revision) return review(p, 'STALE_REVISION', endFrame);
   if (!words.length) return review(p, 'MISSING_ALIGNMENT', endFrame);
