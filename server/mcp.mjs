@@ -44,9 +44,9 @@ export const TOOLS = [
  { name:'assemble_video', description:'Director only: assemble 2-12 approved, QA-passing scenes by hard cut.', inputSchema:obj({id:str('Project slug'),scene_ids:{type:'array',minItems:2,maxItems:12,items:{type:'string'}}},['id','scene_ids']) },
  { name:'get_assembly_status', description:'Check status, output URL and integrity manifest of final video.', inputSchema:obj({id:str('Project slug')},['id']) },
  { name:'render_video', description:'Start a server-side Chromium + WebCodecs + FFmpeg render job for a video. Poll get_render_status. Server rendering uses deterministic Chromium Canvas frames encoded with FFmpeg.', inputSchema:obj({id:str('Project slug')},['id']) },
- { name:'render_scene', description:'Queue an independent MP4 render of one existing scene (not the entire video). Uses the timeline exact start and duration; safe to request while other scene renders are queued. Returns queued/running job details and job_id.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID')},['id','slide_id']) },
- { name:'cancel_scene_render', description:'Cancel a queued or running scene render using the exact job_id. Last approved MP4 is preserved. Worker or director only.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Exact active job ID')},['id','slide_id','job_id']) },
- { name:'retry_scene_render', description:'Create a new isolated attempt for one scene after the previous has finished. Rejects stale job IDs. Worker or director only.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Expected previous job ID')},['id','slide_id','job_id']) },
+ { name:'render_scene', description:'Queue a scene MP4. Workers must hold a valid scene lease and supply fence_token; director may render without a lease.', inputSchema:obj({id:str('Project slug'),slide_id:str('Existing scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id']) },
+ { name:'cancel_scene_render', description:'Cancel a queued/running scene MP4 by job_id; worker requires an active fenced lease.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Exact active job ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','job_id']) },
+ { name:'retry_scene_render', description:'Retry a scene render after a terminal job, reject stale IDs; worker requires an active fenced lease.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),job_id:str('Expected previous job ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','job_id']) },
  { name:'cancel_video_render', description:'Director only. Cancel the queued or active complete-video render while keeping the last approved MP4.', inputSchema:obj({id:str('Project slug'),job_id:str('Exact active job ID')},['id','job_id']) },
  { name:'get_scene_qa_report', description:'Read technical MP4 QA after a scene render: codec, resolution, FPS, duration, audio presence, and detected issues. This is not artistic quality scoring.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID')},['id','slide_id']) },
  { name:'get_video_qa_report', description:'Read technical MP4 QA after a full video render. Validates stream metadata, not artistic composition.', inputSchema:obj({id:str('Project slug')},['id']) },
@@ -103,13 +103,11 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'assemble_video': directorOnly(actor);return assembly.start(args.id,args.scene_ids);
       case 'get_assembly_status': return assembly.get(args.id);
       case 'render_video': directorOnly(actor);return startRender(args.id);
-      case 'render_scene': scoped(args.id,args.slide_id,actor);return startRender(args.id,args.slide_id);
+      case 'render_scene': leases.assertWrite(args.id,args.slide_id,actor,args.fence_token);return startRender(args.id,args.slide_id);
       case 'get_scene_render_status': scoped(args.id,args.slide_id,actor);return getRender(args.id,args.slide_id);
-      case 'cancel_scene_render': scoped(args.id,args.slide_id,actor);
-        if(!['director','worker'].includes(actor.role))throw new UserError('Worker or director role required',403);
+      case 'cancel_scene_render': leases.assertWrite(args.id,args.slide_id,actor,args.fence_token);
         return cancelRender(args.id,args.slide_id,args.job_id);
-      case 'retry_scene_render': scoped(args.id,args.slide_id,actor);
-        if(!['director','worker'].includes(actor.role))throw new UserError('Worker or director role required',403);
+      case 'retry_scene_render': leases.assertWrite(args.id,args.slide_id,actor,args.fence_token);
         return retryRender(args.id,args.slide_id,args.job_id);
       case 'cancel_video_render': directorOnly(actor);return cancelRender(args.id,null,args.job_id);
       case 'get_scene_qa_report': {scoped(args.id,args.slide_id,actor);const r=getRender(args.id,args.slide_id);return {id:args.id,slide_id:args.slide_id,status:r.status,report:r.qa_report||null};}
