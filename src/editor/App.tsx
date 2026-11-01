@@ -16,6 +16,7 @@ import { RhythmPreviewPanel } from './RhythmPreviewPanel.tsx';
 import { CreativeStoryPanel } from './CreativeStoryPanel.tsx';
 import { ContinuityBoundaryPanel } from './ContinuityBoundaryPanel.tsx';
 import { TypedSceneBriefPanel } from './TypedSceneBriefPanel.tsx';
+import { EditGraphPanel } from './EditGraphPanel.tsx';
 import { StyleDialog } from './StyleDialog.tsx';
 import { StyleContractPanel } from './StyleContractPanel.tsx';
 import { Stage } from './Stage.tsx';
@@ -51,7 +52,7 @@ import { TimelinePanel } from './TimelinePanel.tsx';
 import { Icon, IconBtn, MenuBtn } from './ui.tsx';
 import { clock, isTyping, nSlides } from './util.ts';
 
-type Modal = null | 'new' | 'resplit' | 'style' | 'tasks' | 'readme' | 'scene3d' | 'style-contract' | 'export' | 'export-auto' | 'review' | 'rhythm' | 'creative' | 'continuity' | 'typed-brief';
+type Modal = null | 'new' | 'resplit' | 'style' | 'tasks' | 'readme' | 'scene3d' | 'style-contract' | 'export' | 'export-auto' | 'review' | 'rhythm' | 'creative' | 'continuity' | 'typed-brief' | 'edit-graph';
 
 const SAVE_TEXT = { saved: 'сохранено', dirty: 'изменено', saving: 'сохраняю…', error: 'не сохранилось' };
 
@@ -180,6 +181,9 @@ export function App() {
             <button type="button" class="btn" title="P16: два варианта истории только по утверждённому сценарию" onClick={() => setModal('creative')}>
               <Icon name="film" size={15} /> Режиссёрские истории
             </button>
+            <button type="button" class="btn" title="M01: монтажная шкала с рациональными отсчётами, без публикации" onClick={() => setModal('edit-graph')}>
+              <Icon name="film" size={15} /> Монтажная шкала
+            </button>
             <button type="button" class="btn" title="M40: машинно-проверяемое назначение агента на основе утверждённого режиссёрского плана" onClick={() => setModal('typed-brief')}>
               <Icon name="text" size={15} /> Контракт агента
             </button>
@@ -218,6 +222,7 @@ export function App() {
       {modal === 'creative' && d && <CreativeStoryPanel projectId={d.id} onClose={() => setModal(null)} />}
       {modal === 'continuity' && d && <ContinuityBoundaryPanel projectId={d.id} onClose={() => setModal(null)} />}
       {modal === 'typed-brief' && d && <TypedSceneBriefPanel projectId={d.id} initialScene={curSlide.value?.slide.id} onClose={() => setModal(null)} />}
+      {modal === 'edit-graph' && d && <EditGraphPanel projectId={d.id} onClose={() => setModal(null)} />}
       {(modal === 'export' || modal === 'export-auto') && (
         <ExportDialog autoStart={modal === 'export-auto'} slides={modal === 'export-auto' ? exportSlides : undefined} onClose={() => setModal(null)} />
       )}

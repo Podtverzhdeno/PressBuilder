@@ -7,6 +7,19 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface EditGraphView {
+ schema_version:1;project_id:string;timebase:{ticks_per_second:240000;fps:{num:number;den:number;frame_ticks:number}};
+ source_sha256:string;duration_tick:number;
+ scenes:Array<{scene_id:string;index:number;start_tick:number;end_tick:number;duration_tick:number;
+  cues:Array<{cue_id:string;source_text_sha256:string;start_tick:number;end_tick:number}>;
+  transition_after:{type:string;requested_duration_tick:number;overlap_applied:false};
+  source_media:null|{version_id:string;approval_revision:number;sha256:string;source_duration_s:number;fps:number;qa_verdict:'PASS'};}>;
+ markers:Array<{marker_id:string;kind:string;scene_id:string;pts_tick:number}>;
+ audio:null|{kind:'voice';offset_sample_tick:number};
+ candidate_revision:number;candidate_state:'NONE'|'PROPOSED'|'STALE_SOURCE';
+ candidate_may_render:false;publication_allowed:false;
+}
+
 export interface TypedSceneBrief {
  schema_version:2;kind:'P10_SCENE_EXECUTION_BRIEF';status:'READ_ONLY';
  project_id:string;scene_id:string;approved_plan_id:string;approved_plan_revision:number;
@@ -192,6 +205,8 @@ const body = (data: unknown): RequestInit => ({
 
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
+  getEditGraph: (id:string) =>
+    call<EditGraphView>('/api/decks/'+encodeURIComponent(id)+'/edit-graph'),
   getTypedSceneBrief: (id:string,slideId:string) =>
     call<TypedSceneBrief>('/api/decks/'+encodeURIComponent(id)+'/director/brief/'+encodeURIComponent(slideId)),
   getContinuityBoundaryContext: (id:string,left:string,right:string) =>

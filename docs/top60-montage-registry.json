@@ -676,7 +676,35 @@
       "recommended_predecessors": [
         "P05",
         "P08"
-      ]
+      ],
+      "implementation_slice": {
+        "id": "M01-R01",
+        "status": "IN_PROGRESS",
+        "scope": "deterministic read-only P01/P05/P08/P09 EditGraph, 240000 rational ticks/s and director-only source-pinned preview trims",
+        "feature_flag": "PB_EDITGRAPH_PREVIEW",
+        "default_enabled": false,
+        "ci_status": "DOCKER_181_OF_181_PASS_NO_SKIPS",
+        "code": [
+          "server/edit-graph.mjs",
+          "schemas/montage/edit-graph-v1.schema.json",
+          "tests/cloud-edit-graph.test.mjs",
+          "tests/cloud-edit-graph-wire.test.mjs",
+          "src/editor/EditGraphPanel.tsx"
+        ],
+        "not_yet_proven": [
+          "audio PCM alignment",
+          "mixed-FPS six real MP4 E2E",
+          "source media import and true montage render",
+          "ripple edits and undo/redo 1000 ops",
+          "P05 transition handles",
+          "editor time savings benchmark",
+          "independent QA",
+          "production canary"
+        ],
+        "ci": "https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41361188906",
+        "tested_head_sha": "9b177777c7e4fa8e4e61376cb65e3321ade97a61",
+        "evidence_note": "This verifies source-pinned timeline and trim proposal tests plus existing generic real MP4 smoke, not graph-to-montage or mixed FPS production output."
+      }
     },
     {
       "id": "M17",
