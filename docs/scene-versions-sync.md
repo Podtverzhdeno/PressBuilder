@@ -7,10 +7,10 @@
 **Последовательность MCP:**
 
 1. render_scene → get_scene_render_status: получить конкретную сцену с QA PASS.
-2. save_scene_version: архивировать только готовый результат, если source fingerprint при постановке рендера совпадает с текущими входными данными.
+2. save_scene_version: архивировать только готовый результат, если source fingerprint при постановке рендера совпадает с текущими входными данными. Для worker требуется действующая scene lease и fence_token; директор может выполнять этот вызов без аренды.
 3. list_scene_versions: получить version_id, SHA-256 файла, список версий, approval revision и current_fingerprint.
 4. Подтвердить выбранную версию отдельным операторским HTTP-запросом POST /api/decks/:id/versions/:scene/:version/approve с expected_revision. Общий MCP-токен агентов НЕ даёт им право утверждать релиз.
-5. restore_scene_version: восстановить slide, scene3d и cue markers с обязательным expected_fingerprint; без перерендера остаётся доступен архивный MP4.
+5. restore_scene_version: доступно только роли director; восстановить slide, scene3d и cue markers с обязательным expected_fingerprint; без перерендера остаётся доступен архивный MP4.
 6. compare_scene_versions: получить изменения cue IDs, 3D, markers, FPS, длительности и SHA файлов.
 
 **REST:** GET/POST /api/decks/:id/versions/:scene; GET /api/decks/:id/versions/:scene/:version; POST /api/decks/:id/versions/:scene/:version/approve и /restore; GET /api/decks/:id/versions/:scene/:version/video; GET /api/decks/:id/version-compare/:scene/:old/:new.
@@ -21,7 +21,7 @@
 
 ## P09: единая шкала времени
 
-Единственный источник расписания — buildSchedule(deck) из src/engine/schedule.ts. У каждой сцены отдельный файл .scene-sync/<scene>.json. Метки не влияют на соседние сцены и обновляются с optimistic revision.
+Единственный источник расписания — buildSchedule(deck) из src/engine/schedule.ts. У каждой сцены отдельный файл .scene-sync/<scene>.json. Метки не влияют на соседние сцены и обновляются с optimistic revision. set_scene_sync для worker требует действующую lease с fence_token, а read ограничен его project/scene scope.
 
 get_scene_sync возвращает каждому агенту narration cues со start, duration, global_start, start_frame, duration_frames, а также events с локальным и глобальным временем, номером кадра и признаком out_of_range.
 
@@ -43,3 +43,7 @@ get_scene_sync возвращает каждому агенту narration cues �
 npm run build; npm run test:cloud. В tests/cloud-scene-versions-sync.test.mjs проверяются: stale render, потеря старого MP4 при повторном рендере, независимые сцены, восстановление cues и 3D, конфликт revisions, изменение длительности реплики и FPS, недопустимые маркеры, целостность SHA-256.
 
 Для production ещё требуются: cross-process locks, quotas/GC, зафиксированный source bundle, PNG visual diff, reviewer identity, реальное сведение аудио и интеграционный Docker MP4 smoke с шести сценами. Стадии P08/P09 остаются IN PROGRESS до этих проверок.
+
+## Совместимость с P04–P06
+
+Реализация интегрирована поверх текущей общей ветки с style contract, scene ownership и assembly API. Все MCP чтения для worker/reviewer проходят проверку project/scene scope, а запись marker sheet и архивирование версии — проверку владения сценой (fence_token). Общий MCP_API_KEY и OAuth могут выдавать директорские полномочия, их следует выдавать только доверенному координатору. REST веб-редактор остаётся операторским интерфейсом. Эта совместимость не заменяет distributed transactions и мультиинстансное fencing.
