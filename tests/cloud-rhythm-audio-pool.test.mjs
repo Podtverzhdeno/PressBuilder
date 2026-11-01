@@ -75,7 +75,7 @@ function fixture(pool){
  const dir=path.join(root,id);fs.mkdirSync(dir,{recursive:true});
  fs.writeFileSync(path.join(dir,'voice.wav'),makeWav());
  const deck={id,format:{fps:24,height:1080},audio:{file:'voice.wav'},target:4,
-  slides:Array.from({length:4},(_,i)=>({id:'s0'+(i+1),
+  slides:Array.from({length:4},(_,i)=>({id:'s0'+(i+1),lead:0,tail:0,
     cues:[{id:'c01',say:'synthetic audio '+i,dur:1}]}))};
  const service=rhythmPreviewService({root,getDeck:()=>deck,enabled:true,
   audioEvidenceEnabled:true,asyncAudioPool:pool});
