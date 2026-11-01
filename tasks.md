@@ -191,6 +191,8 @@
 - **P06:** отдельные scoped bearer keys для workers/reviewers/viewers, fenced TTL lease и аудит. Общий MCP_API_KEY/OAuth/Basic — **директор**, а не отдельный агент. Вся модель рассчитана на один процесс и не защищает от злоупотребления директором. См. [docs/production-p04-p06.md](docs/production-p04-p06.md).
 
 
+**CI-подтверждение P07/P08 MVP (2026-11-01):** GitHub Actions `render-smoke` workflow [41266084437](https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41266084437) — **SUCCESS** на коммите `a2b50ee003`. В Docker: `npm run build` PASS, `npm run test:cloud` **22 passed / 0 failed** (включая действительный FFmpeg монтаж только из approved-сцен), Chromium+FFmpeg MP4 PASS, покадровое замечание → заблокированная приёмка → FIXED → VERIFIED → approval + скачивание immutable MP4 PASS. Это подтверждение **MVP**, а не P07/P08 production DoD. Финальные защитные поправки quota/metadata и документация находятся в последующих коммитах и проверяются отдельно.
+
 ## 2026-11-01 — следующий этап: P07, P08 и надёжность P02/P05
 
 | Направление | Реализация | Подтверждение | Состояние |
