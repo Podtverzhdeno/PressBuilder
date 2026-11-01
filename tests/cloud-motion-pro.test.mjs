@@ -24,6 +24,10 @@ test('P18 rejects invalid FPS, NaN, velocity, flash, duplicate tracks and excess
  bad('MOTION_REQUEST_INVALID',()=>proposeMotionFrames({...fixture(),frame_rate:{num:24,den:2}}));
  bad('MOTION_REQUEST_INVALID',()=>proposeMotionFrames({...fixture(),duration_frames:1801}));
  bad('MOTION_REQUEST_INVALID',()=>proposeMotionFrames({...fixture(),source_url:'https://bad.example'}));
+ const noProject=fixture();delete noProject.project_id;
+ bad('MOTION_REQUEST_INVALID',()=>proposeMotionFrames(noProject));
+ const noTarget=fixture();delete noTarget.tracks[0].target_id;
+ bad('MOTION_TRACK_INVALID',()=>proposeMotionFrames(noTarget));
  const nil=fixture();nil.tracks[0].keyframes[1].value=NaN;
  bad('MOTION_KEYFRAME_INVALID',()=>proposeMotionFrames(nil));
  const o=fixture();o.tracks[0].keyframes=[{frame:0,value:0},{frame:2,value:1},{frame:120,value:1}];
