@@ -5,14 +5,34 @@
  */
 
 import type { SceneDef } from '../engine/types.ts';
+import { scene3dDefinition, type Scene3DRecord } from '../engine/scene3d.ts';
 
 const loaders = import.meta.glob<{ SCENES: SceneDef[] }>('./*/index.ts');
 
 export async function loadScenes(deckId: string): Promise<Map<string, SceneDef>> {
   const load = loaders[`./${deckId}/index.ts`];
-  if (!load) return new Map();
-  const mod = await load();
-  return new Map((mod.SCENES ?? []).map((s) => [s.id, s]));
+  const scenes = new Map<string, SceneDef>();
+  if (load) {
+    const mod = await load();
+    for (const scene of mod.SCENES ?? []) scenes.set(scene.id, scene);
+  }
+  // Data-only 3D compositions can be published via MCP without deploying JS.
+  // They explicitly override repository scene code for the matching slide only.
+  try {
+    const response = await fetch(`/api/decks/${encodeURIComponent(deckId)}/scene3d`);
+    if (response.ok) {
+      const authored = await response.json() as Scene3DRecord[];
+      for (const record of authored) if (record.spec) {
+        scenes.set(record.scene_id, scene3dDefinition(record.scene_id, record.spec));
+      }
+    } else if (response.status !== 404) {
+      throw new Error('Unable to load 3D scene compositions: HTTP ' + response.status);
+    }
+  } catch (error) {
+    // Keep built-in TypeScript scenes functional during temporary API failures.
+    console.warn('[PressBuilder] 3D scene loader:', error);
+  }
+  return scenes;
 }
 
 // Сцену поправили (или Claude дописал новую) — редактор подхватывает код без
