@@ -101,21 +101,31 @@ test('fractional NTSC conversion uses integer rational arithmetic',()=>{
  assert.equal(a.cuts[0].frame,60);
  assert.equal(a.duration_frames,270);
 });
-test('overlap or inconsistent timing never proposes edits',()=>{
- failure('OVERLAPPING_WORDS',()=>proposeRhythmCuts(example({
-   words:[{id:'w1',cue_id:'c1',start_us:0,end_us:1_200_000},
-          {id:'w2',cue_id:'c2',start_us:1_000_000,end_us:1_400_000}]})));
- failure('PAUSE_OVERLAPS_WORD',()=>proposeRhythmCuts(example({
-   pauses:[{start_us:500_000,end_us:1_500_000,cue_id:'c1'}]})));
- failure('INVALID_WORDS',()=>proposeRhythmCuts(example({
-   words:[{id:'w1',cue_id:'c1',start_us:2_000_000}]})));
+test('overlap and missing timestamp produce REVIEW with zero cuts',()=>{
+ const cases=[
+   [ 'INVALID_ALIGNMENT_OVERLAPPING_WORDS',
+     {words:[{id:'w1',cue_id:'c1',start_us:0,end_us:1_200_000},
+             {id:'w2',cue_id:'c2',start_us:1_000_000,end_us:1_400_000}]} ],
+   [ 'INVALID_ALIGNMENT_PAUSE_OVERLAPS_WORD',
+     {pauses:[{start_us:500_000,end_us:1_500_000,cue_id:'c1'}]} ],
+   [ 'INVALID_ALIGNMENT_INVALID_WORDS',
+     {words:[{id:'w1',cue_id:'c1',start_us:2_000_000}]} ],
+   [ 'INVALID_ALIGNMENT_ORPHAN_PAUSE_CUE',
+     {pauses:[{start_us:1_500_000,end_us:2_500_000,cue_id:'fake'}]} ],
+ ];
+ for(const [expected, change] of cases){
+  const outcome=proposeRhythmCuts(example(change));
+  assert.equal(outcome.status,'REVIEW');
+  assert.deepEqual(outcome.cuts,[]);
+  assert.deepEqual(outcome.issues,[expected]);
+  assert.equal(outcome.approved,false);
+ }
 });
 test('duplicate IDs and orphan pauses rejected',()=>{
  failure('DUPLICATE_WORD_ID',()=>proposeRhythmCuts(example({
    words:[{id:'duplicate',cue_id:'c1',start_us:0,end_us:1_000_000},
           {id:'duplicate',cue_id:'c2',start_us:3_000_000,end_us:4_000_000}]})));
- failure('ORPHAN_PAUSE_CUE',()=>proposeRhythmCuts(example({
-   pauses:[{start_us:1_500_000,end_us:2_500_000,cue_id:'fake'}]})));
+
 });
 test('minimum shot and maximum cut count are enforced',()=>{
  const short=proposeRhythmCuts(example({policy:{min_shot_frames:70,max_cuts_per_10s:6,max_cuts:5}}));
