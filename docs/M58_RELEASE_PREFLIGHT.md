@@ -563,6 +563,47 @@ corrupted releases separately. In particular, this does not give
 permission to publish user recordings, videos or proprietary media.
 `may_publish:false` and `may_deploy:false` remain unchanged.
 
+## Source-pinned spoken cue temporal alignment (M58-R17)
+
+The existing P05 offline-spoken-word fixture can now be invoked as a
+three-release **temporal regression**. The first six-scene H.264/AAC P05
+master contains the locally synthesized English voice at 200 ms inside
+scenes s02 and s05. The second changes only s05 by deleting its speech.
+The third changes only s05 again by placing the *same original speech*
+at 450 ms, a deliberate **250-ms late cue**.
+
+```powershell
+npm run check:p05:speech-timing
+node --test tests/cloud-release-speech-cue-timing.test.mjs
+```
+
+The read-only checker uses the **actual 48 kHz stereo source speech PCM**
+saved by the fixture, rejects unknown/oversized source or output tracks,
+and computes a 450-Hz high-pass RMS envelope in 20-ms windows. A bounded
+normalized cross-correlation of the source template against **decoded
+finished P05 master audio** estimates lag within ±400 ms around the known
+scene starts. Correlation below 0.55 means the cue cannot be verified,
+and absolute measured lag above 90 ms requires manual timing review.
+Neither lack of correlation nor a detected shift can be treated as an
+approved published master. This analysis runs after real P05 assembly,
+outside its encode wall-time metrics, and never alters release files.
+
+The first Windows SAPI validation found 0 ms offset in s02, 20 ms in
+normal s05, no identifiable voice in deleted s05 and **260 ms** in
+deliberately 250-ms-delayed s05 (20-ms measurement resolution).
+Both corrupt masters can pass technical FFprobe/media QA; **source-
+referenced content and timing checks** correctly distinguish them.
+The output records the SHA-256 of the original decoded offline speech
+source and all six MP4 scene-input hashes, with three unique immutable
+release IDs.
+
+This is **not ASR/transcription, phoneme-level word alignment, automatic
+lip sync, speech intelligibility or timing of arbitrary source media**.
+The threshold is validated only on the tightly controlled, authorized
+fixture with known cue position and background. Real projects need
+proper source/word alignment and independent listening/lip-sync review.
+All results keep `may_publish:false`, `may_deploy:false`.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
