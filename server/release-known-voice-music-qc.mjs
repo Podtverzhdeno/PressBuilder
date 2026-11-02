@@ -10,20 +10,26 @@ const VALID_DURATIONS=new Set([3,4,5,6,7]);
  * Fourier sin/cos projection is phase independent and has integer cycles
  * for the two known reference tones, minimizing spectral leakage.
  */
-function amplitude(pcm,centerSeconds,freq){
+export function measureToneReference(pcm,centerSeconds,freq){
   const start=Math.round(centerSeconds*RATE)-FRAMES_PER_WINDOW/2;
   const end=start+FRAMES_PER_WINDOW;
   if(start<0||end>pcm.length/4)fail('M58_STEM_WINDOW_INVALID');
-  let cosine=0,sine=0;
+  let cosine=0,sine=0,square=0;
   for(let n=0;n<FRAMES_PER_WINDOW;n++){
     const mono=(pcm.readInt16LE((start+n)*4)+
       pcm.readInt16LE((start+n)*4+2))/(2*32768);
     const angle=2*Math.PI*freq*n/RATE;
+    square+=mono*mono;
     cosine+=mono*Math.cos(angle);
     sine+=mono*Math.sin(angle);
   }
-  return round(2*Math.hypot(cosine,sine)/FRAMES_PER_WINDOW,6);
+  const amp=2*Math.hypot(cosine,sine)/FRAMES_PER_WINDOW;
+  const totalRmsSq=square/FRAMES_PER_WINDOW;
+  return {amplitude:round(amp,6),
+    residual_rms:round(Math.sqrt(Math.max(0,totalRmsSq-amp*amp/2)),6)};
 }
+const amplitude=(pcm,centerSeconds,freq)=>
+  measureToneReference(pcm,centerSeconds,freq).amplitude;
 export function analyzeKnownVoiceMusicPcm(pcm,{
   sceneDurationSec=3,expectedVoiceScenes=[1,4],
   minMusicAmplitude=0.012,minVoiceAmplitude=0.038,
