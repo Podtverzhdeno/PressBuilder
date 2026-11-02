@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {inspectP05ActiveRelease} from './release-media-integrity.mjs';
+import {analyzePcm16leStereo} from './release-pcm-qc.mjs';
 
 const bad=(code,status=422)=>{throw Object.assign(new Error(code),{code,status})};
 function tool(binary,args,code,timeout){
@@ -117,6 +118,22 @@ export function inspectP05DecodedMedia({
     '-f','null','-',
   ],'M58_DECODE_FRAME_OR_PCM_FAILED',120000);
   const longBlackIntervals=parseLongBlackIntervals(decode.stderr);
+  // Decode bounded, signed 16-bit stereo PCM to memory only (<=121 seconds).
+  // No temporary audio file, user-provided binary, command shell or arguments.
+  const pcmRun=spawnSync('ffmpeg',[
+    '-hide_banner','-nostats','-nostdin','-loglevel','error',
+    '-xerror','-err_detect','explode','-i',master,
+    '-map','0:a:0','-vn','-ac','2','-ar','48000',
+    '-c:a','pcm_s16le','-f','s16le','-',
+  ],{encoding:null,timeout:120000,maxBuffer:26*1024*1024,
+     windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});
+  if(pcmRun.error||pcmRun.status!==0||pcmRun.signal)
+    bad('M58_PCM_DECODE_FAILED');
+  const pcmQuality=analyzePcm16leStereo(pcmRun.stdout);
+  // PCM length is checked against the *video* timeline, not just container
+  // audio metadata; padding near AAC packet boundaries is tolerated.
+  if(Math.abs(pcmQuality.pcm_duration_sec-expectedDuration)>0.25)
+    bad('M58_PCM_TIMELINE_DRIFT');
   const after=inspectP05ActiveRelease({
     rootOut,projectId,expectedMasterSha256:attestation.master_sha256,
   });
@@ -140,9 +157,12 @@ export function inspectP05DecodedMedia({
     av_container_timestamps_verified:true,
     long_black_intervals:longBlackIntervals,
     manual_visual_review_required:longBlackIntervals.length>0,
-    media_quality_verdict:longBlackIntervals.length>0?'REVIEW':'TECHNICAL_PASS',
+    pcm_quality:pcmQuality,
+    manual_audio_review_required:pcmQuality.manual_audio_review_required,
+    media_quality_verdict:longBlackIntervals.length>0||
+      pcmQuality.manual_audio_review_required?'REVIEW':'TECHNICAL_PASS',
     scene_content_reviewed:false,voice_alignment_verified:false,
     licensing_verified:false,independent_review_verified:false,
-    caveat:'Container A/V start/end offsets and full video/audio decoding measured. Long black spans require review; no lip-sync, perceptual audio quality, font/flash/readability, licensing or production authorization.',
+    caveat:'Container timing, full A/V decode and 48kHz stereo PCM sample peak/RMS/silence measured. Black, clipping or long silence requires review. No LUFS, true peak, lip-sync, font/flash, licensing or release authorization.',
   };
 }
