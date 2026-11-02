@@ -87,6 +87,48 @@ client-supplied receipt trustworthy. Remaining requirements include
 source/rights approvals, actual MP4/PCM decode, render worker identity,
 CI/build provenance, reviewer signoff and rollback.
 
+## Real FFmpeg/FFprobe six-scene decode (M58-R03)
+
+The **opt-in local** read-only `server/release-media-decode.mjs` verifies an
+existing P05 active release by calling the byte-integrity check **both before
+and after** independently probing and decoding all H.264 video frames and
+AAC/PCM audio. It requires exactly six source scenes, verifies 720p/1080p-class
+layout, output FPS, frame counts, stereo 48-kHz AAC and scene-timeline
+duration against the immutable P05 manifest; no arbitrary shell commands
+or media writes. It is deliberately **not** a signature authority or a
+production release gate. The FFmpeg full decode catches syntactically invalid
+video even when an attacker rewrites the SHA and stored QA verdict together.
+
+```powershell
+node tools/inspect-p05-media.mjs out <project-id>
+node tools/inspect-p05-media.mjs out <project-id> <known-master-sha256>
+```
+
+Exit 0 means only media technical decoding succeeded, exit 2 means inspection
+failed and exit 1 is a usage error. All returned reports have
+`may_publish:false` and `may_deploy:false`.
+
+**Reproducible local six-scene synthetic E2E:**
+
+```bash
+node --test tests/cloud-release-six-scene-decode.test.mjs
+```
+
+The test uses only generated color scenes and sine tones (no externally licensed
+assets), creates **actual** H.264 and AAC clips via FFmpeg, assembles six scenes
+through the existing P05 service, checks the immutable manifest/MP4 SHA,
+counts frames with FFprobe, decodes video/audio with FFmpeg and tests the
+operator CLI. The adversarial case rewrites both the master bytes **and** the
+manifest SHA; byte-level checks pass but the independent media decode fails.
+Temporary files are removed at the end of the test; it does not create a
+user-facing approved video or assert real artistic quality. CI requires FFmpeg
+and FFprobe to exist so that a skipped test cannot masquerade as media evidence.
+
+This verifies the **synthetic six-scene technical slice only**. It does not
+satisfy M58-C05's requirement for approved real project footage, licensed
+sources, detailed PCM drift/loudness checks, blind human A/B, repeatable cold/warm
+resource baselines, independent reviewer or staging rollback.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
