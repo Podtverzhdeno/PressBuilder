@@ -35,6 +35,7 @@ Every actual start-of-day snapshot records authoritative source SHA, live pendin
 - [Execution, prioritization and 30-day checkpoints](./delivery-plan.md) — dependency-ready scheduling, WIP, kill criteria and fallback plans.
 - [Verification / acceptance matrix](./verification.md) — concrete test fixtures, CI, real-media and evidence, explicit reviewer/owner gates.
 - [Risk register and architectural decisions](./risk-register.md) — attack surface, data loss, throughput, quality and irreversibility.
+- [Professional montage quality gates](./montage-quality-gates.md) — creative dynamics, voice/music, readability, access, licensed media and human A/B.
 - [Traceability overlay](./traceability.json) — exact 60 capability IDs + ranks/waves and stage IDs; **no fabricated implementation status**.
 
 ## Entry and exit rules
