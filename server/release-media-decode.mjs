@@ -48,7 +48,8 @@ export function parseLongBlackIntervals(stderr,minDurationSec=0.75){
 export function inspectP05DecodedMedia({
   rootOut,projectId,expectedMasterSha256=null,
 }={}){
-  // These are fixed program names. No shell, user-defined binary, or filter graph.\n  const attestation=inspectP05ActiveRelease({rootOut,projectId,expectedMasterSha256});
+  // Fixed program names only. No shell or user-defined binary or filter graph.
+  const attestation=inspectP05ActiveRelease({rootOut,projectId,expectedMasterSha256});
   if(attestation.scenes!==6)bad('M58_DECODE_SIX_SCENES_REQUIRED');
   const release=path.join(path.resolve(rootOut),'releases',projectId,attestation.release_id);
   const manifest=JSON.parse(fs.readFileSync(path.join(release,'manifest.json'),'utf8'));
@@ -63,7 +64,7 @@ export function inspectP05DecodedMedia({
     expectedDuration>120)bad('M58_DECODE_DURATION_BUDGET');
   const raw=tool('ffprobe',[
     '-v','error','-count_frames',
-    '-show_entries','stream=codec_type,codec_name,width,height,avg_frame_rate,nb_read_frames,sample_rate,channels:format=duration',
+    '-show_entries','stream=codec_type,codec_name,width,height,avg_frame_rate,nb_read_frames,sample_rate,channels,start_time,duration:format=duration',
     '-of','json',master,
   ],'M58_DECODE_PROBE_FAILED',30000).stdout;
   let probe;
