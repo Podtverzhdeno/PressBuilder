@@ -92,3 +92,20 @@ Compare matched six-scene baselines (synthetic fixtures plus licensed footage) u
 
 ## Rollback and independence
 Rollback = disable feature flag + discard proposal, leave P08/P05 pointer unchanged. For published changes ensure previous approved release is retained and immutable. Independent reviewers sign exact commit, input/output SHA, test CI URL, actual rendered video version and clip rights. Nothing in this change grants release approval.
+
+
+## Engineering-delivery cross-cutting overlay (ED-RFC-1; proposed)
+
+See [Engineering 30-day RFC](../../../docs/engineering-30d/README.md), [ED-01..ED-48 requirements](../../../docs/engineering-30d/requirements.md), [architecture](../../../docs/engineering-30d/architecture.md), [day-by-day delivery plan](../../../docs/engineering-30d/delivery-plan.md), [test and acceptance matrix](../../../docs/engineering-30d/verification.md), [risk register](../../../docs/engineering-30d/risk-register.md), [professional montage quality gates](../../../docs/engineering-30d/montage-quality-gates.md) and [60-capability machine traceability](../../../docs/engineering-30d/traceability.json).
+
+This is a **spec-only coordination overlay**, not a replacement for the 60 independent requirements or the existing C01–C08 source checklist. Existing ranks/scores/waves, dependencies and ALL TODO/PROPOSED statuses remain authoritative and unchanged. The overlay:
+1. Distinguishes five **engineering** agents from existing P10 **video scene** agents and M50 **media** QA jobs.
+2. Defines exact-source SHA claims, actor authentication, independent review, bounded WIP and file ownership before concurrent code changes.
+3. Separates *technical peer review*, *authenticated owner acceptance* and *media rights/artistic publishing authority*; green CI or synthetic media never substitutes for the latter.
+4. Treats \`depends_on\` Pxx points as **integration hints**, not a false global causal DAG; only verified stage prerequisites block code scheduling. This preserves progress when an isolated M01 engine does not yet integrate with future P24.
+5. Uses the 30-day goal as a **measurable hypothesis** with daily baselines, blocked-time, reviewer WIP, protected rollback and owner-governed re-scoping. It does not promise all M01–M60 C01–C08 accepted within 30 days.
+6. Requires owned/licensed six-scene real media and human A/B when claiming professional audiovisual quality. No speed or decorative effect can waive rights, accessibility, source SHA or P05/P08 immutability.
+
+**Pilot boundary:** PR #48 provides a local SQLite engineering queue, not authenticated multi-host scheduling. Existing unrelated scheduled automations are not reassigned. Production rollout requires host-enforced actor authentication, a shared transactional store, independently retrieved PR/CI evidence, staging chaos tests and explicit owner authorization.
+
+**Validation of this spec overlay** may check exact ED-01..ED-48 crosswalk, the original 60/480 identities and Git blob pins; it **must not** mark any implementation checkpoint completed.
