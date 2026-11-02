@@ -74,9 +74,9 @@ function verified(service,job,expected,profile,durationSec){
 /** Independent decoded-video similarity. SSIM is not artistic approval. */
 export function parseFfmpegSsim(stderr){
   if(typeof stderr!=='string'||stderr.length>262144)return null;
-  const matches=[...stderr.matchAll(/SSIM Y:([0-9.]+) \(([0-9.]+)dB\) U:([0-9.]+) \(([0-9.]+)dB\) V:([0-9.]+) \(([0-9.]+)dB\) All:([0-9.]+)/g)];
+  const matches=[...stderr.matchAll(/SSIM Y:[^\\r\\n]* U:[^\\r\\n]* V:[^\\r\\n]* All:([0-9]+(?:\\.[0-9]+)?)/g)];
   if(matches.length!==1)return null;
-  const score=Number(matches[0][7]);
+  const score=Number(matches[0][1]);
   return Number.isFinite(score)&&score>=0&&score<=1?
     Number(score.toFixed(6)):null;
 }
