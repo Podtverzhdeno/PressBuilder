@@ -155,6 +155,31 @@ satisfy M58-C05's requirement for approved real project footage, licensed
 sources, detailed PCM drift/loudness checks, blind human A/B, repeatable cold/warm
 resource baselines, independent reviewer or staging rollback.
 
+## Container timing and black-run diagnostic (M58-R05)
+
+A new technical quality slice extends the *independent* FFprobe/FFmpeg decode:
+
+- Compares muxed video and AAC stream start/end timestamps. A difference
+  greater than **250 ms** blocks the diagnostic (`M58_DECODE_AV_CONTAINER_DRIFT`).
+  Missing container timestamps are **not** interpreted as zero. This detects
+  gross stream delay, **not spoken-word lip-sync** or perceptual voice alignment.
+- Scans every decoded video frame with FFmpeg `blackdetect` and records bounded
+  intervals of **at least 0.75 seconds** that are nearly black. Detected
+  intervals set `manual_visual_review_required:true` and
+  `media_quality_verdict:'REVIEW'`. The CLI exits **2** for these findings:
+  dark creative scenes require a human's decision; the diagnostic does not
+  delete, edit or automatically reject the source media.
+- A clean decode reports `media_quality_verdict:'TECHNICAL_PASS'`, but
+  **always** `may_publish:false` and `may_deploy:false`.
+- Adversarial tests replace a valid master with a fully black but still
+  decodable H.264/AAC file, update the manifest checksum, and verify that
+  ordinary SHA checks can pass while the new detector requires review.
+
+This does not infer sound quality, words-to-mouth synchronization,
+accessibility, font readability, flashing, color grading, source licenses,
+independent signoff or an accepted production SLO. These remain separately
+required evidence categories.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
