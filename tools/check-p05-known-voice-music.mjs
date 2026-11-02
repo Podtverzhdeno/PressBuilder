@@ -214,13 +214,17 @@ export async function checkP05KnownVoiceMusic({voiceSource='tone',
       scope:voiceSource==='offline-speech'?
         'CONTROLLED_REAL_P05_AAC_OFFLINE_SPOKEN_WORDS_E2E':
         'CONTROLLED_REAL_P05_AAC_MUSIC_VOICE_SURROGATE_E2E',
-      status:'TWO_REAL_P05_SYNTHETIC_RELEASES_VERIFIED',
+      status:checkSpeechTiming?'THREE_REAL_P05_SYNTHETIC_RELEASES_VERIFIED':
+        'TWO_REAL_P05_SYNTHETIC_RELEASES_VERIFIED',
       six_source_mp4s:true,unique_release_count:cases.length,
       source_changed_only_scene:'s05',
       voice_source:voiceSource,
       original_spoken_words_engine:speechEngine,
+      original_spoken_pcm_sha256:spokenPcm?createHash('sha256').update(spokenPcm).digest('hex'):null,
       normal_review:false,missing_voice_review:true,
       speech_timing_evidence:checkSpeechTiming,
+      manual_timing_review_trial_count:checkSpeechTiming?
+        cases.filter(x=>x.audio_qc.spoken_cue_timing.manual_speech_timing_review_required).length:null,
       cases,may_publish:false,may_deploy:false,
       caveat:voiceSource==='offline-speech'?
         'Generated music with locally synthesized original spoken words. Energy-presence checks cannot verify transcript, intelligibility, voice timbre, actual music stem or human editorial quality. No real licensed user recordings or production approvals.':
