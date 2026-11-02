@@ -8,6 +8,7 @@ import {typedSceneBriefService} from './typed-scene-brief.mjs';
 import {mediaCatalogStore} from './media-catalog.mjs';
 import {editGraphService} from './edit-graph.mjs';
 import {editOperationService} from './edit-operations.mjs';
+import {fencedJobLedger} from './fenced-job-ledger.mjs';
 import {directorDispatchStore} from './director-dispatch.mjs';
 import {styleContractStore,enforceScene3D,enforceVisuals,effectiveStyle} from './style-contract.mjs';
 import {styleById} from '../src/engine/styles.ts';
@@ -59,6 +60,12 @@ export const TOOLS = [
  { name:'renew_scene_lease', description:'Extend live lease with matching fencing token.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1},ttl:{type:'integer',minimum:30,maximum:3600}},['id','slide_id','fence_token']) },
  { name:'release_scene', description:'Release the lease and invalidate old fencing tokens.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','fence_token']) },
  { name:'list_scene_versions', description:'List immutable QA-passing rendered versions of a scene, plus the explicitly approved pointer.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
+ { name:'get_fenced_job',description:'M50 source-verified, nonpublishing job lease journal; P06 scene scope.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),job_id:str('Job ID')},['id','slide_id','job_id']) },
+ { name:'begin_fenced_job',description:'M50 director-only idempotent P08 QA work item, not P05 release.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),job_id:str('Job ID'),request_id:str('Idempotency request'),source_sha256:str('Verified MP4 SHA'),version_id:str('P08 version')},['id','slide_id','job_id','request_id','source_sha256','version_id']) },
+ { name:'claim_fenced_job',description:'M50 P06-scoped fenced lease claim with expected revision.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),job_id:str('Job ID'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','job_id','expected_revision']) },
+ { name:'heartbeat_fenced_job',description:'M50 renew P06-scoped job lease; invalid token denied.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),job_id:str('Job ID'),expected_revision:{type:'integer',minimum:0},fence:{type:'integer',minimum:1},lease_token:str('Lease token')},['id','slide_id','job_id','expected_revision','fence','lease_token']) },
+ { name:'verify_fenced_job',description:'M50 P06-scoped idempotent verification of SHA checked P08 artifact; never publishes.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),job_id:str('Job ID'),expected_revision:{type:'integer',minimum:0},fence:{type:'integer',minimum:1},lease_token:str('Lease token'),operation_id:str('Idempotency key'),evidence_sha256:str('P08 SHA')},['id','slide_id','job_id','expected_revision','fence','lease_token','operation_id','evidence_sha256']) },
+ { name:'cancel_fenced_job',description:'M50 director-only pre-QA job cancellation with CAS.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),job_id:str('Job ID'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','job_id','expected_revision']) },
  { name:'get_edit_operations', description:'M01-R02 director-only source-pinned editable timeline preview and revisioned undo/redo status, NOT P05 release.',inputSchema:obj({id:str('Project ID')},['id']) },
  { name:'update_edit_operations', description:'M01-R02 director-only CAS preview edit APPLY/UNDO/REDO. Approved MP4 SHA pinned. Does not change P05/P08 or render.',inputSchema:obj({id:str('Project ID'),action:{type:'string',enum:['APPLY','UNDO','REDO']},expected_revision:{type:'integer',minimum:0},expected_source_sha256:str('SHA from get_edit_graph'),operation:obj({type:{type:'string',enum:['TRIM','SPLIT','MOVE']},clip_id:str('Clip ID'),source_in_frame:{type:'integer',minimum:0},source_out_frame:{type:'integer',minimum:1},at_source_frame:{type:'integer',minimum:1},before_clip_id:{type:['string','null']}},['type','clip_id'])},['id','action','expected_revision','expected_source_sha256']) },
  { name:'get_edit_graph', description:'M01 deterministic read-only P01/P05/P08/P09 rational edit timeline; director can read all scenes, workers only their own scene. No media mutation or release. Off unless PB_EDITGRAPH_PREVIEW=1.', inputSchema:obj({id:str('Project slug'),slide_id:str('Worker scope: required for non-directors')},['id']) },
@@ -109,7 +116,7 @@ export const TOOLS = [
 export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly,
   assemblyPlans,versions,reviews,sceneSync,comparisons=null,previews=null,
   directorPlan:providedDirectorPlan=null,
-  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null,continuity=null,typedBriefs:providedTypedBriefs=null,mediaCatalog:providedMediaCatalog=null,editGraph:providedEditGraph=null,editOps:providedEditOps=null }) {
+  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null,continuity=null,typedBriefs:providedTypedBriefs=null,mediaCatalog:providedMediaCatalog=null,editGraph:providedEditGraph=null,editOps:providedEditOps=null,jobLedger:providedJobLedger=null }) {
   const directorPlan=providedDirectorPlan||directorStore({root:DECKS,getDeck,
     sceneTasks:taskStore,projectReadmes:readmeStore,styles,getAssembly:()=>assembly,
     getApproved:(id,scene)=>versions?.approved(id,scene),out:OUT});
@@ -119,6 +126,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
   const mediaCatalog=providedMediaCatalog||mediaCatalogStore({root:DECKS,getDeck,versions,enabled:process.env.PB_MEDIA_CATALOG==='1'});
   const editGraph=providedEditGraph||editGraphService({root:DECKS,getDeck,sceneSync,assemblyPlans,versions,enabled:process.env.PB_EDITGRAPH_PREVIEW==='1'});
   const editOps=providedEditOps||editOperationService({root:DECKS,editGraph,enabled:process.env.PB_EDITGRAPH_PREVIEW==='1'});
+  const jobLedger=providedJobLedger||fencedJobLedger({root:DECKS,getDeck,versions,enabled:process.env.PB_FENCED_JOB_LEDGER==='1'});
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
   const visibleTasks=(id,actor)=>taskStore.list(id)
@@ -207,6 +215,27 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'list_scene_versions': scoped(args.id,args.slide_id,actor);return {
         versions:versions.list(args.id,args.slide_id).map(v=>({...v,download_url:baseUrl()+'/'+v.file})),
         approved:versions.pointer(args.id,args.slide_id)};
+      case 'get_fenced_job': scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
+        return jobLedger.read(args.id,args.slide_id,args.job_id);
+      case 'begin_fenced_job': {
+        directorOnly(actor);
+        const {id,slide_id,job_id,...input}=args;
+        return jobLedger.begin(id,slide_id,actor,{...input,job_id});
+      }
+      case 'claim_fenced_job': scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
+        return jobLedger.claim(args.id,args.slide_id,args.job_id,actor,args.expected_revision);
+      case 'heartbeat_fenced_job': {
+        scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
+        const {id,slide_id,job_id,...input}=args;
+        return jobLedger.heartbeat(id,slide_id,job_id,actor,input);
+      }
+      case 'verify_fenced_job': {
+        scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
+        const {id,slide_id,job_id,...input}=args;
+        return jobLedger.verify(id,slide_id,job_id,actor,input);
+      }
+      case 'cancel_fenced_job': directorOnly(actor);
+        return jobLedger.cancel(args.id,args.slide_id,args.job_id,actor,args.expected_revision);
       case 'get_edit_operations': directorOnly(actor);return editOps.read(args.id);
       case 'update_edit_operations': {
         directorOnly(actor);const {id,...edit}=args;
