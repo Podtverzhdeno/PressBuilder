@@ -71,6 +71,29 @@ function verified(service,job,expected,profile,durationSec){
   return {sha:job.manifest.output.sha256,bytes:job.manifest.output.bytes,
     release_id:job.result.release_id};
 }
+/** Independent decoded-video similarity. SSIM is not artistic approval. */
+export function parseFfmpegSsim(stderr){
+  if(typeof stderr!=='string'||stderr.length>262144)return null;
+  const matches=[...stderr.matchAll(/SSIM Y:([0-9.]+) \(([0-9.]+)dB\) U:([0-9.]+) \(([0-9.]+)dB\) V:([0-9.]+) \(([0-9.]+)dB\) All:([0-9.]+)/g)];
+  if(matches.length!==1)return null;
+  const score=Number(matches[0][7]);
+  return Number.isFinite(score)&&score>=0&&score<=1?
+    Number(score.toFixed(6)):null;
+}
+function compareVideoSimilarity(left,right){
+  const process=spawnSync('ffmpeg',[
+    '-hide_banner','-nostats','-nostdin','-loglevel','info',
+    '-i',left,'-i',right,
+    '-filter_complex','[0:v:0][1:v:0]ssim',
+    '-an','-f','null','-',
+  ],{encoding:'utf8',timeout:90000,maxBuffer:262144,
+    windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});
+  if(process.error||process.status!==0||process.signal)
+    throw error('SSIM_COMPARE_FAILED');
+  const score=parseFfmpegSsim(process.stderr);
+  if(score===null)throw error('SSIM_RESULT_MISSING');
+  return score;
+}
 const sample=(job,wallMs,strategy)=>({
   wall_ms:round(wallMs),
   child_maxrss_kib:strategy==='incremental-hardcut-v1'?
@@ -138,9 +161,15 @@ export async function compareP13SingleSceneUpdate({
         'full-filter',durationSec);
       assert(!seen.has(fullRelease.release_id),'RELEASE_ID_REUSED');
       seen.add(fullRelease.release_id);
+      // Compare decoded video after both timed jobs; similarity overhead
+      // is deliberately excluded from P05 assembly latency samples.
+      const videoSsim=compareVideoSimilarity(
+        service.download(ID,incRelease.release_id),
+        service.download(ID,fullRelease.release_id));
       fresh.push(sample(delta,deltaMs,'incremental-hardcut-v1'));
       full.push(sample(rebuilt,fullMs,'full-filter'));
       trials.push({trial:cycle,updated_scene:'s03',
+        video_ssim_all:videoSsim,
         unchanged_source_count:5,segments_reused:5,segments_encoded:1,
         incremental_wall_ms:round(deltaMs),full_wall_ms:round(fullMs),
         incremental_output_sha256:incRelease.sha,
@@ -155,6 +184,11 @@ export async function compareP13SingleSceneUpdate({
     }
     const incremental=summarizeFfmpegTrialSamples(fresh);
     const baseline=summarizeFfmpegTrialSamples(full);
+    incremental.scope='SIX_SCENE_P13_INCREMENTAL_P05_WALL_TIME';
+    baseline.scope='SIX_SCENE_P05_FORCED_FULL_WALL_TIME';
+    incremental.caveat='5 actual P05/P13 six-scene incremental wall-time samples; not production workload.';
+    baseline.caveat='5 actual P05 forced full-filter six-scene wall-time samples; not production workload.';
+    const minVideoSsim=Math.min(...trials.map(t=>t.video_ssim_all));
     return {
       schema_version:1,
       scope:'SIX_SCENE_SYNTHETIC_P13_SINGLE_SCENE_EDIT_BENCHMARK',
@@ -170,10 +204,13 @@ export async function compareP13SingleSceneUpdate({
         update(JSON.stringify(initialUnchangedHashes)).digest('hex'),
       p95_incremental_to_full_ratio:round(
         incremental.p95_wall_ms/baseline.p95_wall_ms),
+      min_video_ssim_all:minVideoSsim,
+      video_ssim_measurement:'DECODED_FRAME_SSIM_NOT_HUMAN_PERCEPTUAL_EQUIVALENCE',
+      manual_visual_comparison_required:minVideoSsim<0.95,
       trials,
       production_p95_ms:null,cloud_cost_usd:null,
       baseline_slo_accepted:false,may_publish:false,may_deploy:false,
-      caveat:'Sequential local synthetic 720p P05 comparison. Incremental runs precede forced full runs; scheduling, thermal and storage caches can confound ratios. QA checks format and SHA provenance, not perceptual equivalence. No source rights, real agent render, production representative SLO, or deployment.',
+      caveat:'Sequential local synthetic 720p P05 comparison. Incremental runs precede forced full runs; scheduling, thermal and storage caches can confound ratios. QA checks format and SHA provenance; decoded-video SSIM is technical similarity, not perceptual equivalence or rights approval. No source rights, real agent render, production representative SLO, or deployment.',
     };
   }finally{fs.rmSync(root,{recursive:true,force:true,maxRetries:3,retryDelay:100})}
 }
