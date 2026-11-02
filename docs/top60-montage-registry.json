@@ -132,7 +132,23 @@
         "P02",
         "P05",
         "P08"
-      ]
+      ],
+      "implementation_slice": {
+        "id": "M50-R01",
+        "status": "IN_PROGRESS",
+        "scope": "source SHA verified P08 QA job, durable single-process journal, P06-scoped lease/fencing, idempotent receipt, cancellation and 100 simulated crash recoveries",
+        "feature_flag": "PB_FENCED_JOB_LEDGER",
+        "default_enabled": false,
+        "pr": "https://github.com/Podtverzhdeno/PressBuilder/pull/45",
+        "ci_status": "PENDING",
+        "not_yet_proven": [
+          "real FFmpeg SIGKILL between mux and P05 commit 100x",
+          "atomic P05 release CAS",
+          "distributed multi-replica lock",
+          "production canary/signoff",
+          "independent visual QA"
+        ]
+      }
     },
     {
       "id": "M51",

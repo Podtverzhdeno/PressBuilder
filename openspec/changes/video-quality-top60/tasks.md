@@ -43,6 +43,10 @@
 
 ---
 
+### M50-R01 progress note
+
+**NOT ACCEPTED:** Single-process, feature-flagged P08 SHA-pinned QA job ledger with monotonic fencing, lease heartbeat/recovery, CAS/idempotent verification, actor-scoped REST/MCP, 100 simulated recovery cycles. It does not control P02 render or commit P05. Real SIGKILL/transactional-release/independent review are not done. See docs/M50_FENCED_JOB_LEDGER.md; PR #45.
+
 ### M50 — Журнал задач с восстановлением, отменой и транзакционным release (rank #2, 9.70/10, W0)
 
 **Тип:** Системная. **Зависимости:** P02, P05, P08, P13. **Базовая оценка усилий:** small, ~2–5 dev-days. **Спецификация:** [Рендер и эксплуатация](./specs/pipeline/spec.md).

@@ -94,6 +94,9 @@
 
 ### Requirement M50 — Журнал задач с восстановлением, отменой и транзакционным release
 
+> **M50-R01 preliminary only:** Durable pre-release single-instance journal, monotonic lease fence, CAS and P08 integrity verified QA receipt through P06-scoped API/MCP. This does NOT implement atomic P05 release, distributed lease, actual FFmpeg resume or human approval; all M50-C01–C08 stay open. Feature PB_FENCED_JOB_LEDGER OFF.
+
+
 - **Тип:** Системная; **оценки Q/E/F/C/S/L:** 10/10/9/9/10/10; **зависимости:** P02,P05,P08,P13; **статус:** PROPOSED.
 - **Проблема / ценность:** Краш при сохранении/мультиплексировании или повторный запуск агента оставляет полузаписанный MP4 либо два выпуска одновременно.
 - **Инженерная реализация:** Делать resumable state machine с durable journal, temporary object, per-job lease heartbeat, idempotent finalization и checksum; старый approval/release pointer меняется только atomic CAS после QA и независимого решения.
