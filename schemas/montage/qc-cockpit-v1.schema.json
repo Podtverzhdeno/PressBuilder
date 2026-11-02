@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pressbuilder.local/schemas/montage/qc-cockpit-v1.schema.json",
+  "title": "M51 source-pinned read-only timecoded QC event projection",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project_id",
+    "release_id",
+    "release_sha256",
+    "timebase",
+    "scenes",
+    "events",
+    "stale_version_events_ignored",
+    "duration_estimated_tick",
+    "actual_duration_s",
+    "release_qa_verdict",
+    "unlocated_qa_alerts",
+    "unresolved_review_events",
+    "warnings",
+    "render_allowed",
+    "publication_allowed",
+    "snapshot_sha256"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "release_id": {
+      "type": "string"
+    },
+    "release_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "timebase": {
+      "type": "object",
+      "properties": {
+        "ticks_per_second": {
+          "const": 240000
+        },
+        "fps": {
+          "type": "object",
+          "properties": {
+            "num": {
+              "type": "integer"
+            },
+            "den": {
+              "type": "integer"
+            },
+            "frame_ticks": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "required": [
+        "ticks_per_second",
+        "fps"
+      ]
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": [
+          "scene_id",
+          "source_sha256",
+          "source_version_id",
+          "source_approved_revision",
+          "start_frame",
+          "end_frame",
+          "start_tick",
+          "end_tick",
+          "duration_declared_s",
+          "transition_after",
+          "review_revision",
+          "located_events"
+        ],
+        "properties": {
+          "scene_id": {
+            "type": "string"
+          },
+          "source_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "start_tick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end_tick": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 2300,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "release_sha256",
+          "scene_id",
+          "issue_code",
+          "severity",
+          "disposition",
+          "message",
+          "global_seconds",
+          "global_frame",
+          "global_pts_tick",
+          "evidence_available",
+          "location",
+          "requires_human_review"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "P07_REVIEW",
+              "P05_OUTPUT_QA_UNTIMED"
+            ]
+          },
+          "release_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "scene_id": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issue_code": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "disposition": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "global_seconds": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "global_frame": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "global_pts_tick": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence_available": {
+            "type": "boolean"
+          },
+          "location": {
+            "enum": [
+              "EXACT_REVIEW_TIMECODE",
+              "UNLOCATED_TECHNICAL_ISSUE"
+            ]
+          },
+          "requires_human_review": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "stale_version_events_ignored": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "duration_estimated_tick": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "actual_duration_s": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "release_qa_verdict": {
+      "const": "PASS"
+    },
+    "unlocated_qa_alerts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unresolved_review_events": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "render_allowed": {
+      "const": false
+    },
+    "publication_allowed": {
+      "const": false
+    },
+    "snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

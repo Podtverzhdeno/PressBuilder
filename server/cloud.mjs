@@ -24,6 +24,7 @@ import {mediaCatalogStore} from './media-catalog.mjs';
 import {editGraphService} from './edit-graph.mjs';
 import {editOperationService} from './edit-operations.mjs';
 import {fencedJobLedger} from './fenced-job-ledger.mjs';
+import {qcCockpitService} from './qc-cockpit.mjs';
 import { sceneSyncStore } from './scene-sync.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
@@ -441,6 +442,12 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const qcCockpitMatch=/^\/api\/decks\/([^/]+)\/qc-cockpit$/.exec(p);
+  if(qcCockpitMatch){
+    const id=deckId(escaped(qcCockpitMatch[1]));
+    if(method==='GET')return json(res,200,qcCockpit.read(id));
+    throw new UserError('Method not allowed',405);
+  }
   const ledgerMatch=/^\/api\/decks\/([^/]+)\/job-ledger\/([^/]+)\/([^/]+)$/.exec(p);
   if(ledgerMatch){
     const id=deckId(escaped(ledgerMatch[1])),scene=deckId(escaped(ledgerMatch[2])),job=deckId(escaped(ledgerMatch[3]));
@@ -705,8 +712,9 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   // Fail closed by default; enable after validating real deployment clips.
   incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
   benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
+const qcCockpit=qcCockpitService({assembly,reviews,enabled:process.env.PB_QC_COCKPIT==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
-  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps,jobLedger});
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps,jobLedger,qcCockpit});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');

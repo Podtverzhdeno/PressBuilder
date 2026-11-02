@@ -9,6 +9,7 @@ import {mediaCatalogStore} from './media-catalog.mjs';
 import {editGraphService} from './edit-graph.mjs';
 import {editOperationService} from './edit-operations.mjs';
 import {fencedJobLedger} from './fenced-job-ledger.mjs';
+import {qcCockpitService} from './qc-cockpit.mjs';
 import {directorDispatchStore} from './director-dispatch.mjs';
 import {styleContractStore,enforceScene3D,enforceVisuals,effectiveStyle} from './style-contract.mjs';
 import {styleById} from '../src/engine/styles.ts';
@@ -60,6 +61,7 @@ export const TOOLS = [
  { name:'renew_scene_lease', description:'Extend live lease with matching fencing token.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1},ttl:{type:'integer',minimum:30,maximum:3600}},['id','slide_id','fence_token']) },
  { name:'release_scene', description:'Release the lease and invalidate old fencing tokens.', inputSchema:obj({id:str('Project slug'),slide_id:str('Scene ID'),fence_token:{type:'integer',minimum:1}},['id','slide_id','fence_token']) },
  { name:'list_scene_versions', description:'List immutable QA-passing rendered versions of a scene, plus the explicitly approved pointer.', inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID')},['id','slide_id']) },
+ { name:'get_qc_cockpit',description:'M51 read-only P05 verified release timeline, P07 version-pinned timecoded notes and unlocated P03 QA; worker sees only assigned P06 scene.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID required for non-director')},['id']) },
  { name:'get_fenced_job',description:'M50 source-verified, nonpublishing job lease journal; P06 scene scope.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),job_id:str('Job ID')},['id','slide_id','job_id']) },
  { name:'begin_fenced_job',description:'M50 director-only idempotent P08 QA work item, not P05 release.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),job_id:str('Job ID'),request_id:str('Idempotency request'),source_sha256:str('Verified MP4 SHA'),version_id:str('P08 version')},['id','slide_id','job_id','request_id','source_sha256','version_id']) },
  { name:'claim_fenced_job',description:'M50 P06-scoped fenced lease claim with expected revision.',inputSchema:obj({id:str('Project ID'),slide_id:str('Scene ID'),job_id:str('Job ID'),expected_revision:{type:'integer',minimum:0}},['id','slide_id','job_id','expected_revision']) },
@@ -116,7 +118,7 @@ export const TOOLS = [
 export function makeMcp({ startRender, getRender, cancelRender, retryRender, baseUrl, assembly,
   assemblyPlans,versions,reviews,sceneSync,comparisons=null,previews=null,
   directorPlan:providedDirectorPlan=null,
-  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null,continuity=null,typedBriefs:providedTypedBriefs=null,mediaCatalog:providedMediaCatalog=null,editGraph:providedEditGraph=null,editOps:providedEditOps=null,jobLedger:providedJobLedger=null }) {
+  dispatch:providedDispatch=null,rhythmPreview=null,rhythmDrafts=null,creativeStory=null,continuity=null,typedBriefs:providedTypedBriefs=null,mediaCatalog:providedMediaCatalog=null,editGraph:providedEditGraph=null,editOps:providedEditOps=null,jobLedger:providedJobLedger=null,qcCockpit:providedQcCockpit=null }) {
   const directorPlan=providedDirectorPlan||directorStore({root:DECKS,getDeck,
     sceneTasks:taskStore,projectReadmes:readmeStore,styles,getAssembly:()=>assembly,
     getApproved:(id,scene)=>versions?.approved(id,scene),out:OUT});
@@ -127,6 +129,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
   const editGraph=providedEditGraph||editGraphService({root:DECKS,getDeck,sceneSync,assemblyPlans,versions,enabled:process.env.PB_EDITGRAPH_PREVIEW==='1'});
   const editOps=providedEditOps||editOperationService({root:DECKS,editGraph,enabled:process.env.PB_EDITGRAPH_PREVIEW==='1'});
   const jobLedger=providedJobLedger||fencedJobLedger({root:DECKS,getDeck,versions,enabled:process.env.PB_FENCED_JOB_LEDGER==='1'});
+  const qcCockpit=providedQcCockpit||qcCockpitService({assembly,reviews,enabled:process.env.PB_QC_COCKPIT==='1'});
   const directorOnly=actor=>leases.role(actor,['director']);
   const scoped=(id,slide,actor)=>leases.scoped(actor,id,slide);
   const visibleTasks=(id,actor)=>taskStore.list(id)
@@ -215,6 +218,13 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'list_scene_versions': scoped(args.id,args.slide_id,actor);return {
         versions:versions.list(args.id,args.slide_id).map(v=>({...v,download_url:baseUrl()+'/'+v.file})),
         approved:versions.pointer(args.id,args.slide_id)};
+      case 'get_qc_cockpit': {
+        if(actor.role!=='director'){
+          if(!args.slide_id)throw new UserError('Scene ID required for scoped QC cockpit',403);
+          scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
+        }
+        return qcCockpit.read(args.id,{sceneId:actor.role==='director'?null:args.slide_id});
+      }
       case 'get_fenced_job': scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
         return jobLedger.read(args.id,args.slide_id,args.job_id);
       case 'begin_fenced_job': {

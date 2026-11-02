@@ -189,7 +189,23 @@
       ],
       "recommended_predecessors": [
         "P03"
-      ]
+      ],
+      "implementation_slice": {
+        "id": "M51-R01",
+        "status": "IN_PROGRESS",
+        "scope": "P05 SHA-verified current release read-only QC event map, P07 version-pinned review PTS, P05 untimed QA warnings, P06 actor-scope, Studio seek",
+        "feature_flag": "PB_QC_COCKPIT",
+        "default_enabled": false,
+        "pr": "https://github.com/Podtverzhdeno/PressBuilder/pull/46",
+        "ci_status": "PENDING",
+        "not_yet_proven": [
+          "20 actual decoder-verified annotated media defects",
+          "master PTS frame-accurate validation vs crossfades",
+          "human adjudication journal and rollback",
+          "blind QA recall/fp benchmark",
+          "production canary"
+        ]
+      }
     },
     {
       "id": "M58",

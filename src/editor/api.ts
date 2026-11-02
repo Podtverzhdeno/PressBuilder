@@ -7,6 +7,18 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface QcCockpitView {
+ schema_version:1;project_id:string;release_id:string;release_sha256:string;
+ timebase:{ticks_per_second:240000;fps:{num:number;den:number;frame_ticks:number}};
+ scenes:Array<{scene_id:string;source_sha256:string;start_tick:number;end_tick:number}>;
+ events:Array<{id:string;source:string;scene_id:string|null;issue_code:string;
+  message:string;severity:string;disposition:string;global_seconds:number|null;
+  global_pts_tick:number|null;evidence_available:boolean}>;
+ stale_version_events_ignored:number;duration_estimated_tick:number;
+ unlocated_qa_alerts:number;unresolved_review_events:number;
+ render_allowed:false;publication_allowed:false;snapshot_sha256:string;
+}
+
 export interface EditOperationsView {
  revision:number;cursor:number;operation_count:number;source_sha256:string;
  history_source_sha256:string|null;state:'EMPTY'|'REVIEW_ONLY'|'STALE_SOURCE';
@@ -216,6 +228,8 @@ const body = (data: unknown): RequestInit => ({
 
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
+  getQcCockpit: (id:string) =>
+    call<QcCockpitView>('/api/decks/'+encodeURIComponent(id)+'/qc-cockpit'),
   getEditOperations: (id:string) =>
     call<EditOperationsView>('/api/decks/'+encodeURIComponent(id)+'/edit-graph/operations'),
   updateEditOperations: (id:string, request:{action:'UNDO'|'REDO';
