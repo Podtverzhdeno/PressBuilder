@@ -1,0 +1,31 @@
+name: MP4 technical QA
+
+on:
+  push:
+    paths:
+      - "tools/mp4-quality.mjs"
+      - "tools/verify-mp4.mjs"
+      - "tests/upstream-mp4-quality.test.mjs"
+      - "package.json"
+      - ".github/workflows/mp4-quality.yml"
+  pull_request:
+    paths:
+      - "tools/mp4-quality.mjs"
+      - "tools/verify-mp4.mjs"
+      - "tests/upstream-mp4-quality.test.mjs"
+      - "package.json"
+      - ".github/workflows/mp4-quality.yml"
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:qa
+      - run: npm run build
