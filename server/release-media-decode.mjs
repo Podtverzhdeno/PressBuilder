@@ -15,21 +15,40 @@ function tool(binary,args,code,timeout){
   });
   if(result.error||result.status!==0||result.signal)
     bad(code,422);
-  return result.stdout;
+  return result;
 }
 function rational(value){
   if(typeof value!=='string'||!/^\d{1,8}\/\d{1,8}$/.test(value))return null;
   const [n,d]=value.split('/').map(Number);
   return d>0&&n>0?n/d:null;
 }
+const finiteSeconds=x=>{
+  if(x===null||x===undefined||x==='N/A'||x==='')return null;
+  const n=Number(x);
+  return Number.isFinite(n)&&n>=-1&&n<200?n:null;
+};
+export function parseLongBlackIntervals(stderr,minDurationSec=0.75){
+  // FFmpeg's blackdetect writes a bounded info log; never trust raw log as
+  // approval. Collect only numeric, monotonic intervals above threshold.
+  if(typeof stderr!=='string'||stderr.length>262144)return [];
+  const out=[];
+  const pattern=/black_start:([0-9]+(?:\.[0-9]+)?)\s+black_end:([0-9]+(?:\.[0-9]+)?)\s+black_duration:([0-9]+(?:\.[0-9]+)?)/g;
+  for(const match of stderr.matchAll(pattern)){
+    const start=Number(match[1]),end=Number(match[2]),dur=Number(match[3]);
+    if(Number.isFinite(start)&&Number.isFinite(end)&&Number.isFinite(dur)&&
+       start>=0&&end>=start&&end<=122&&
+       Math.abs(end-start-dur)<0.06&&dur>=minDurationSec){
+      out.push({start_sec:start,end_sec:end,duration_sec:dur});
+      if(out.length>=16)break;
+    }
+  }
+  return out;
+}
 /** A six-scene real-media preflight, not a production release authorization. */
 export function inspectP05DecodedMedia({
   rootOut,projectId,expectedMasterSha256=null,
-  ffprobe='ffprobe',ffmpeg='ffmpeg',
 }={}){
-  // No arbitrary external executables from client payloads. Paths to binaries
-  // may only be configured by trusted server-side code.
-  const attestation=inspectP05ActiveRelease({rootOut,projectId,expectedMasterSha256});
+  // These are fixed program names. No shell, user-defined binary, or filter graph.\n  const attestation=inspectP05ActiveRelease({rootOut,projectId,expectedMasterSha256});
   if(attestation.scenes!==6)bad('M58_DECODE_SIX_SCENES_REQUIRED');
   const release=path.join(path.resolve(rootOut),'releases',projectId,attestation.release_id);
   const manifest=JSON.parse(fs.readFileSync(path.join(release,'manifest.json'),'utf8'));
@@ -42,11 +61,11 @@ export function inspectP05DecodedMedia({
       (s.transition_after?.type==='crossfade'?Number(s.transition_after.duration):0),0);
   if(!Number.isFinite(expectedDuration)||expectedDuration<1||
     expectedDuration>120)bad('M58_DECODE_DURATION_BUDGET');
-  const raw=tool(ffprobe,[
+  const raw=tool('ffprobe',[
     '-v','error','-count_frames',
     '-show_entries','stream=codec_type,codec_name,width,height,avg_frame_rate,nb_read_frames,sample_rate,channels:format=duration',
     '-of','json',master,
-  ],'M58_DECODE_PROBE_FAILED',30000);
+  ],'M58_DECODE_PROBE_FAILED',30000).stdout;
   let probe;
   try{probe=JSON.parse(raw)}catch{bad('M58_DECODE_PROBE_INVALID')}
   const streams=probe.streams;
@@ -67,14 +86,28 @@ export function inspectP05DecodedMedia({
   if(Math.abs(duration-expectedDuration)>0.25||
     Math.abs(frameCount/realFps-expectedDuration)>0.25)
     bad('M58_DECODE_TIMELINE_DRIFT');
+  const vStart=finiteSeconds(v.start_time),aStart=finiteSeconds(a.start_time);
+  const vDuration=finiteSeconds(v.duration),aDuration=finiteSeconds(a.duration);
+  // This checks muxed stream timestamps only; it is NOT spoken-word sync.
+  // Missing timestamps must never be silently interpreted as zero.
+  if(vStart===null||aStart===null||vDuration===null||aDuration===null)
+    bad('M58_DECODE_STREAM_TIMESTAMP_MISSING');
+  const avStartOffsetMs=Math.round((aStart-vStart)*1000);
+  const avEndOffsetMs=Math.round(((aStart+aDuration)-(vStart+vDuration))*1000);
+  if(Math.abs(avStartOffsetMs)>250||Math.abs(avEndOffsetMs)>250)
+    bad('M58_DECODE_AV_CONTAINER_DRIFT');
 
-  // Decode every video frame and audio packet with FFmpeg. The null muxer
-  // deliberately does not generate or modify any media.
-  tool(ffmpeg,[
-    '-hide_banner','-nostdin','-loglevel','error',
+  // Decode ALL video frames and audio samples; concurrently flag long fully
+  // black runs. Short transitions and deliberate dark scenes need a reviewer,
+  // not automatic claims about their artistic correctness.
+  const decode=tool('ffmpeg',[
+    '-hide_banner','-nostats','-nostdin','-loglevel','info',
     '-xerror','-err_detect','explode','-i',master,
-    '-map','0:v:0','-map','0:a:0','-f','null','-',
+    '-map','0:v:0','-map','0:a:0',
+    '-vf','blackdetect=d=0.75:pix_th=0.04:pic_th=0.995',
+    '-f','null','-',
   ],'M58_DECODE_FRAME_OR_PCM_FAILED',120000);
+  const longBlackIntervals=parseLongBlackIntervals(decode.stderr);
   const after=inspectP05ActiveRelease({
     rootOut,projectId,expectedMasterSha256:attestation.master_sha256,
   });
@@ -93,8 +126,13 @@ export function inspectP05DecodedMedia({
     audio_channels:a.channels,
     expected_duration_sec:expectedDuration,decoded_duration_sec:duration,
     video_decoded:true,audio_decoded:true,
+    av_container_start_offset_ms:avStartOffsetMs,
+    av_container_end_offset_ms:avEndOffsetMs,
+    av_container_timestamps_verified:true,
+    long_black_intervals:longBlackIntervals,
+    manual_visual_review_required:longBlackIntervals.length>0,
     scene_content_reviewed:false,voice_alignment_verified:false,
     licensing_verified:false,independent_review_verified:false,
-    caveat:'FFprobe counted real frames; FFmpeg decoded video/audio to a null muxer. No source licensing, audio loudness/sync, content readability, flash threshold, human review or production authorization.',
+    caveat:'Container A/V start/end offsets and full video/audio decoding measured. Long black spans require review; no lip-sync, perceptual audio quality, font/flash/readability, licensing or production authorization.',
   };
 }
