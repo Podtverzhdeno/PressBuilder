@@ -44,7 +44,7 @@ test('M51-R01 six-scene 20 synthetic P07 issues receive exact relative PTS and s
   assert.ok(e.scene_source_sha256);
  }
  assert.equal(r.unresolved_review_events,15);
- assert.equal(r.technical_failures,0);
+ assert.equal(r.unlocated_qa_alerts,0);
  assert.equal(r.publication_allowed,false);
  assert.equal(r.snapshot_sha256,buildQcCockpit({projectId:'demo',release,reviewsByScene:reviews}).snapshot_sha256);
 });
@@ -52,12 +52,12 @@ test('M51-R01 never invents timecode for untimed technical P05 QA issues',()=>{
  const {release,reviews}=fixture();
  release.manifest.output.qa.issues=[{id:'VIDEO_CODEC',message:'Video codec warning'}];
  const r=buildQcCockpit({projectId:'demo',release,reviewsByScene:reviews});
- const last=r.events.find(x=>x.source==='P03_RELEASE_TECHNICAL');
+ const last=r.events.find(x=>x.source==='P05_OUTPUT_QA_UNTIMED');
  assert.equal(last.global_pts_tick,null);
  assert.equal(last.global_frame,null);
  assert.equal(last.global_seconds,null);
  assert.equal(last.location,'UNLOCATED_TECHNICAL_ISSUE');
- assert.equal(r.technical_failures,1);
+ assert.equal(r.unlocated_qa_alerts,1);
  assert.equal(r.publication_allowed,false);
 });
 test('M51-R01 suppress stale reviews for older P08 source version and expose review-only scope',()=>{
