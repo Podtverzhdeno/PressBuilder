@@ -12,3 +12,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+.agent-control/
+__pycache__/
+*.pyc
