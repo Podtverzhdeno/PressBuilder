@@ -9,7 +9,7 @@ import {assemblyService} from '../server/assemble-scenes.mjs';
 import {assemblyPlanStore} from '../server/assembly-plan.mjs';
 import {styleContractStore} from '../server/style-contract.mjs';
 import {inspectP05ActiveRelease} from '../server/release-media-integrity.mjs';
-import {inspectP05DecodedMedia} from '../server/release-media-decode.mjs';
+import {inspectP05DecodedMedia,parseLongBlackIntervals} from '../server/release-media-decode.mjs';
 
 const available=['ffmpeg','ffprobe'].every(bin=>
   spawnSync(bin,['-version'],{timeout:4000,stdio:'ignore'}).status===0);
@@ -125,4 +125,45 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
   assert.equal(inspectP05DecodedMedia({
     rootOut:out,projectId:deck.id,expectedMasterSha256:expectedSha,
   }).status,'MEDIA_DECODED_FOR_REVIEW');
+
+  // A decodable, technically conformant master can still be all-black.
+  // It must be flagged for HUMAN visual review without claiming auto-fail
+  // or bypassing the immutable master re-hash.
+  const blackFile=path.join(root,'black.mp4');
+  run(['-i',file,'-vf','drawbox=x=0:y=0:w=iw:h=ih:color=black:t=fill',
+    '-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p',
+    '-c:a','copy',blackFile]);
+  try{
+    const blackBytes=fs.readFileSync(blackFile);
+    fs.writeFileSync(file,blackBytes);
+    const fake=JSON.parse(originalManifest.toString('utf8'));
+    fake.output.sha256=hash(blackBytes);
+    fake.output.bytes=blackBytes.length;
+    fs.writeFileSync(manifestPath,JSON.stringify(fake));
+    const report=inspectP05DecodedMedia({
+      rootOut:out,projectId:deck.id,expectedMasterSha256:fake.output.sha256,
+    });
+    assert.equal(report.video_decoded,true);
+    assert.equal(report.audio_decoded,true);
+    assert.equal(report.manual_visual_review_required,true);
+    assert.ok(report.long_black_intervals.some(x=>x.duration_sec>=0.75),
+      'Detect long all-black P05 master while FFmpeg can still decode it');
+    assert.equal(report.may_publish,false);
+  }finally{
+    fs.writeFileSync(file,original);
+    fs.writeFileSync(manifestPath,originalManifest);
+  }
+});
+
+test('M58 blackdetect log parser ignores noise, short transitions and malformed ranges',()=>{
+  const log=[
+    '[blackdetect] black_start:0.1 black_end:0.2 black_duration:0.1',
+    '[blackdetect] black_start:1.2 black_end:2.4 black_duration:1.2',
+    '[blackdetect] black_start:20 black_end:12 black_duration:99',
+    'arbitrary injected text cannot be promoted to a release receipt',
+  ].join('\n');
+  assert.deepEqual(parseLongBlackIntervals(log),[
+    {start_sec:1.2,end_sec:2.4,duration_sec:1.2},
+  ]);
+  assert.deepEqual(parseLongBlackIntervals('x'.repeat(262145)),[]);
 });
