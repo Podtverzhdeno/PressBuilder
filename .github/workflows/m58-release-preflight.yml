@@ -31,6 +31,9 @@ on:
       - 'server/release-known-voice-music-qc.mjs'
       - 'tools/check-p05-known-voice-music.mjs'
       - 'tests/cloud-release-known-voice-music.test.mjs'
+      - 'tools/probe-offline-speech.mjs'
+      - 'server/release-offline-speech-qc.mjs'
+      - 'tests/cloud-release-offline-speech.test.mjs'
       - 'tests/cloud-release-p05-benchmark.test.mjs'
       - 'tools/measure-m58-performance.mjs'
       - 'tests/cloud-release-performance-samples.test.mjs'
@@ -62,7 +65,7 @@ jobs:
       - name: Install and verify FFmpeg and FFprobe
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          sudo apt-get install -y -qq ffmpeg espeak-ng
           ffmpeg -version
           ffprobe -version
       - name: Evidence, byte-integrity and six-scene media decode
@@ -73,6 +76,8 @@ jobs:
         run: node --test tests/cloud-release-seam-ssim.test.mjs
       - name: M58-R14 crossfade audio mixing, clipping and real AAC dropout
         run: node --test tests/cloud-release-crossfade-audio-qc.test.mjs
+      - name: Genuine offline original spoken-word AAC audio preservation and missing speech
+        run: node --test tests/cloud-release-offline-speech.test.mjs
       - name: Six-scene AAC controlled music bed and synthetic voice ducking QA
         run: node --test tests/cloud-release-known-voice-music.test.mjs
       - name: P05 animated 3-second hard-cut versus crossfade profiles
