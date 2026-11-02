@@ -8,6 +8,44 @@ const check=(bin,args)=>{const r=spawnSync(bin,args,{timeout:12000,
   encoding:'utf8',windowsHide:true,maxBuffer:8192,stdio:['ignore','pipe','pipe']});
   return {available:r.status===0,status:r.status,error:r.error?.code??null,
     stdout:r.stdout?.slice(0,200)??'',stderr:r.stderr?.slice(-240)??''};};
+/** Generate original spoken words locally, without downloads or web TTS.
+ * Output is a WAV resource usable by FFmpeg. No text supplied by users.
+ */
+export function createOfflineSpokenWav(wav){
+  if(typeof wav!=='string'||!wav.endsWith('.wav'))
+    throw new Error('M58_OFFLINE_TTS_PATH_INVALID');
+  const words='The voice stays clear.';
+  const d=path.dirname(wav);
+  fs.mkdirSync(d,{recursive:true});
+  const candidates=process.platform==='win32'?
+    ['sapi','espeak-ng','espeak']:['espeak-ng','espeak'];
+  for(const engine of candidates){
+    let result;
+    if(engine==='sapi'){
+      const script=path.join(d,'tts-'+process.pid+'.ps1');
+      try{
+        const escaped=wav.replace(/'/g,"''");
+        fs.writeFileSync(script,[
+          '$ErrorActionPreference = "Stop"',
+          'Add-Type -AssemblyName System.Speech',
+          '$s = New-Object System.Speech.Synthesis.SpeechSynthesizer',
+          '$s.SetOutputToWaveFile('+"'"+escaped+"'"+')',
+          '$s.Speak("The voice stays clear.")',
+          '$s.Dispose()',
+        ].join('\n'));
+        result=check('powershell.exe',['-NoProfile','-NonInteractive',
+          '-ExecutionPolicy','Bypass','-File',script]);
+      }finally{fs.rmSync(script,{force:true});}
+    }else{
+      result=check(engine,['-v','en','-s','145','-w',wav,words]);
+    }
+    if(result.available&&fs.existsSync(wav)&&fs.statSync(wav).size>4000)
+      return {engine,bytes:fs.statSync(wav).size,original_text:words,
+        source:'LOCAL_OFFLINE_GENERATED_SPEECH'};
+    fs.rmSync(wav,{force:true});
+  }
+  throw new Error('M58_OFFLINE_TTS_NOT_AVAILABLE');
+}
 export function probeOfflineSpeech(){
   const engines={
     espeak_ng:check('espeak-ng',['--version']),
