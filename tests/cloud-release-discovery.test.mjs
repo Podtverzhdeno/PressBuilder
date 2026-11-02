@@ -39,7 +39,7 @@ test('M58 discovery: bounded list, no SHA verification claims or mutations',t=>{
   const before=fs.readdirSync(path.join(base,'alpha'));
   const result=discoverP05ActiveReleases({rootOut:f.out});
   assert.equal(result.status,'FOUND_CANDIDATES');
-  assert.deepEqual(result.projects.map(x=>x.project_id),['alpha','beta']);
+  assert.deepEqual(result.projects.map(x=>x.project_id).sort(),['alpha','beta']);
   for(const project of result.projects){
     assert.equal(project.status,'CANDIDATE_UNVERIFIED');
     assert.equal(project.release_id,releaseId);
@@ -47,7 +47,7 @@ test('M58 discovery: bounded list, no SHA verification claims or mutations',t=>{
   assert.deepEqual(fs.readdirSync(path.join(base,'alpha')),before);
   const listing=run('--list',f.out);
   assert.equal(listing.status,0,listing.stderr);
-  assert.deepEqual(JSON.parse(listing.stdout).projects.map(p=>p.project_id),['alpha','beta']);
+  assert.deepEqual(JSON.parse(listing.stdout).projects.map(p=>p.project_id).sort(),['alpha','beta']);
 });
 
 test('M58 discovery reports broken pointer without pretending release exists',t=>{
