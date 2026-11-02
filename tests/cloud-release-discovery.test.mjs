@@ -7,6 +7,8 @@ import {spawnSync} from 'node:child_process';
 import {discoverP05ActiveReleases} from '../server/release-discovery.mjs';
 
 const releaseId='00000000-1111-2222-3333-444444444444';
+const ffmpegReady=['ffmpeg','ffprobe'].every(bin=>
+  spawnSync(bin,['-version'],{timeout:4000,stdio:'ignore'}).status===0);
 function fixture(t){
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-m58-discover-'));
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
@@ -78,7 +80,7 @@ test('M58 discovery rejects traversal and unexpected release directory content',
 });
 
 test('M58 --self-test executes real synthetic P05 six-scene pipeline without shipping a release',{
-  timeout:180000,
+  skip:!ffmpegReady,timeout:180000,
 },()=>{
   const r=run('--self-test');
   assert.equal(r.status,0,r.stderr);
