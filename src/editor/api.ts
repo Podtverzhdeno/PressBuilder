@@ -15,7 +15,7 @@ export interface QcCockpitView {
   message:string;severity:string;disposition:string;global_seconds:number|null;
   global_pts_tick:number|null;evidence_available:boolean}>;
  stale_version_events_ignored:number;duration_estimated_tick:number;
- technical_failures:number;unresolved_review_events:number;
+ unlocated_qa_alerts:number;unresolved_review_events:number;
  render_allowed:false;publication_allowed:false;snapshot_sha256:string;
 }
 
