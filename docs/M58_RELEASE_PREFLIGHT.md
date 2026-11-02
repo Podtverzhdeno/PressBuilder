@@ -377,6 +377,37 @@ P02 rendering, signed provenance, cloud cost, production load, or a
 qualified release SLO. All reports keep `may_publish:false` and
 `may_deploy:false`; P13's existing opt-in feature flag stays unchanged.
 
+## Hard-cut boundary frame QA (M58-R12)
+
+The existing P13-versus-full P05 comparison now inspects **every decoded
+video frame** with FFmpeg `ssim=stats_file=-`, and computes an independent
+minimum score for the **five hard-cut windows** (two frames on either
+side of each nominal cut). This prevents high average/global SSIM from
+hiding an isolated transition defect. The analyzer requires the exact
+expected number of frames, complete ordered one-indexed FFmpeg records
+and bounded numeric scores: truncation, duplicates, NaN, wrong order
+and untrusted output fail closed instead of being treated as clean video.
+
+One suspicious cut score below **0.90** triggers
+`cut_seam_review_required:true` and
+`manual_visual_comparison_required:true`, independently from the global
+SSIM review threshold of 0.95. This is a **diagnostic review flag**;
+`may_publish:false` and `may_deploy:false` remain unchanged.
+The test injects **one real black frame** at the first transition into an
+otherwise correct 18-second MP4. Mean SSIM stays high but the relevant cut
+window flags the frame. Technical SSIM is not motion continuity, a perceptual
+quality guarantee, editorial signoff or audio/lip-sync review.
+
+```powershell
+node --test tests/cloud-release-seam-ssim.test.mjs
+npm run measure:p13
+```
+
+The full six-scene P13 comparison performs frame-localized SSIM after each
+pair of P05 renders; this diagnostic processing time is excluded from the
+original encode-and-QA timing measurements. The dedicated M58 CI workflow
+requires both the one-frame corruption attack and all P13 edit trials.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
