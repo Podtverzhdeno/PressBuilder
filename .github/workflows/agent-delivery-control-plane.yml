@@ -1,0 +1,41 @@
+name: Agent delivery control plane (local coordinator)
+on:
+  push:
+    branches: [feat/agent-delivery-control-plane-20261102]
+    paths:
+      - 'tools/agent_work_queue.py'
+      - 'tests/test_agent_work_queue.py'
+      - 'docs/AGENT_DELIVERY_30D.md'
+      - '.github/workflows/agent-delivery-control-plane.yml'
+      - 'tasks.md'
+      - 'openspec/changes/video-quality-top60/tasks.md'
+      - 'docs/top60-montage-registry.json'
+  pull_request:
+    paths:
+      - 'tools/agent_work_queue.py'
+      - 'tests/test_agent_work_queue.py'
+      - 'docs/AGENT_DELIVERY_30D.md'
+      - '.github/workflows/agent-delivery-control-plane.yml'
+      - 'tasks.md'
+      - 'openspec/changes/video-quality-top60/tasks.md'
+      - 'docs/top60-montage-registry.json'
+permissions:
+  contents: read
+jobs:
+  sqlite-agent-coordinator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise actor, crash, expiry, review and concurrent SQLite CAS
+        run: python3 -m unittest discover -s tests -p test_agent_work_queue.py -v
+      - name: Validate actual PressBuilder plan and report backlog without accepting anything
+        run: |
+          python3 tools/agent_work_queue.py --db "${RUNNER_TEMP}/pb-agents.sqlite3" init --repo-root .
+          python3 tools/agent_work_queue.py --db "${RUNNER_TEMP}/pb-agents.sqlite3" status
+      - name: Smoke four independent real-plan claims (no source writes)
+        run: |
+          for actor in dev-1 dev-2 dev-3 dev-4; do
+            python3 tools/agent_work_queue.py --db "${RUNNER_TEMP}/pb-agents.sqlite3" acquire --actor "$actor"
+          done
+          python3 tools/agent_work_queue.py --db "${RUNNER_TEMP}/pb-agents.sqlite3" status
