@@ -46,7 +46,7 @@ function parse(args){
 }
 export async function measureSixSceneP05({count=5,durationSec=0.75,
   transition='hard-cut',height=720}={}){
-  if(!Number.isSafeInteger(count)||count<1||count>10)
+  if(!Number.isSafeInteger(count)||count<5||count>10)
     throw new Error('M58_P05_BENCH_SAMPLE_LIMIT');
   if(![0.75,3,4,5,6,7].includes(durationSec)||
      !['hard-cut','crossfade'].includes(transition)||
