@@ -231,6 +231,31 @@ evidence is **diagnostic** with `may_publish:false` and
 `may_deploy:false`, not a mastering guarantee, signed measurement,
 commercial licensing proof, subjective listening review, or final signoff.
 
+## Five-run measured FFmpeg microbenchmark (M58-R08)
+
+A standalone optional `npm run measure:media` (or
+`node tools/measure-m58-performance.mjs --samples=5`) measures at least
+five independent, **real** FFmpeg processes performing a bounded synthetic
+320×180 H.264 encode of 48 frames to the null muxer. The report includes
+each observed process wall-time and computes p50, p95 (nearest-rank),
+mean and min/max from actual observations, with a SHA-256 of sample values.
+
+The source is **FFmpeg lavfi synthetic** and no video file is written. It is
+**not** a complete P05/Chrome/worker benchmark or an accepted production
+render SLO. If FFmpeg reports a trustworthy child max RSS, the sample is
+recorded; if any trial has missing RSS, `max_child_rss_mib:null`.
+`cloud_cost_usd`, `production_p95_ms` and `baseline_ratio` are always
+`null` because this experiment has no cloud invoice, baseline or production
+measurement. Never substitute a fabricated zero or extrapolate synthetic
+p95 into a canary threshold. All reports remain review-only.
+
+```powershell
+npm run measure:media
+node --test tests/cloud-release-performance-samples.test.mjs
+```
+
+This is the start of instrumentation toward M58-C05, not its acceptance.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
