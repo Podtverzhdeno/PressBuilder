@@ -32,7 +32,7 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
     {data&&<>
      <p>Выпуск: <code>{data.release_id}</code> · SHA MP4: <code>{data.release_sha256.slice(0,20)}</code></p>
      <p>Замечаний: {data.events.length} · требующих ревью: {data.unresolved_review_events} ·
-       технических без локализации: {data.technical_failures} ·
+       технических без локализации: {data.unlocated_qa_alerts} ·
        отброшено от старых версий P08: {data.stale_version_events_ignored}</p>
      <p><strong>Временные точки рассчитаны по монтажному манифесту.</strong>
        При кроссфейде кадр может содержать две сцены. Точный PTS декодированного master ещё не подтверждён.</p>
