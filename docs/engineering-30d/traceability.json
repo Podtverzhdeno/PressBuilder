@@ -1,0 +1,1895 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "ENGINEERING_30D_SPEC_TRACEABILITY_OVERLAY",
+  "authority": "PLANNING_ONLY_NO_AUTOMATIC_IMPLEMENTATION_OR_APPROVAL",
+  "source_pins": {
+    "top60_registry": {
+      "path": "docs/top60-montage-registry.json",
+      "git_blob_sha": "b0adc1fa1c2ad0eeb9fc868ccbea9c3485f402b3"
+    },
+    "top60_tasks": {
+      "path": "openspec/changes/video-quality-top60/tasks.md",
+      "git_blob_sha": "f68ad471e464964319d07fbd967c3f49e9efc3e3"
+    },
+    "initial_p_tasks": {
+      "path": "tasks.md",
+      "git_blob_sha": "80d2ba86e95fff09e38e844b0df2c3ad23bb27d5"
+    }
+  },
+  "baseline": {
+    "m_capability_count": 60,
+    "m_checkpoint_count": 480,
+    "p_card_count": 55,
+    "p_documented_done_count": 22,
+    "p_unchecked_count": 33,
+    "combined_unchecked_cards": 513,
+    "caveat": "Counts are task/checkpoint records, not independent missing features or verified production acceptance."
+  },
+  "policy": {
+    "priority_source": "source ranking from docs/top60-montage-registry.json",
+    "hard_stage_edges": "Mxx-C01->C02->...->C08 with independent peer review, separate owner gate",
+    "integration_edges": "advisory until explicitly verified in C01",
+    "lanes_are_preferences": true,
+    "unreviewed_capability_implementation": false,
+    "real_media_and_owner_gates_cannot_be_waived": true
+  },
+  "requirement_ids": [
+    "ED-01",
+    "ED-02",
+    "ED-03",
+    "ED-04",
+    "ED-05",
+    "ED-06",
+    "ED-07",
+    "ED-08",
+    "ED-09",
+    "ED-10",
+    "ED-11",
+    "ED-12",
+    "ED-13",
+    "ED-14",
+    "ED-15",
+    "ED-16",
+    "ED-17",
+    "ED-18",
+    "ED-19",
+    "ED-20",
+    "ED-21",
+    "ED-22",
+    "ED-23",
+    "ED-24",
+    "ED-25",
+    "ED-26",
+    "ED-27",
+    "ED-28",
+    "ED-29",
+    "ED-30",
+    "ED-31",
+    "ED-32",
+    "ED-33",
+    "ED-34",
+    "ED-35",
+    "ED-36",
+    "ED-37",
+    "ED-38",
+    "ED-39",
+    "ED-40",
+    "ED-41",
+    "ED-42",
+    "ED-43",
+    "ED-44",
+    "ED-45",
+    "ED-46",
+    "ED-47",
+    "ED-48"
+  ],
+  "stage_proof_names": {
+    "C01": "contract-threat-review",
+    "C02": "bounded-pure-engine",
+    "C03": "auth-api-studio",
+    "C04": "adversarial-negative",
+    "C05": "licensed-six-scene-e2e",
+    "C06": "measured-performance-recovery",
+    "C07": "independent-review",
+    "C08": "owner-candidate-release"
+  },
+  "source_p_register": [
+    {
+      "id": "P01",
+      "documented_done": 5,
+      "unchecked": 2
+    },
+    {
+      "id": "P02",
+      "documented_done": 2,
+      "unchecked": 4
+    },
+    {
+      "id": "P03",
+      "documented_done": 1,
+      "unchecked": 5
+    },
+    {
+      "id": "P04",
+      "documented_done": 2,
+      "unchecked": 3
+    },
+    {
+      "id": "P05",
+      "documented_done": 3,
+      "unchecked": 2
+    },
+    {
+      "id": "P06",
+      "documented_done": 3,
+      "unchecked": 2
+    },
+    {
+      "id": "P07",
+      "documented_done": 3,
+      "unchecked": 2
+    },
+    {
+      "id": "P08",
+      "documented_done": 2,
+      "unchecked": 3
+    },
+    {
+      "id": "P09",
+      "documented_done": 1,
+      "unchecked": 4
+    },
+    {
+      "id": "P10",
+      "documented_done": 0,
+      "unchecked": 6
+    }
+  ],
+  "m_capabilities": [
+    {
+      "id": "M40",
+      "source_rank": 1,
+      "source_tier": "S",
+      "source_wave": "W0",
+      "source_category": "content",
+      "source_score_hypothesis": 9.7,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D01-D10 discovery/critical contracts; integration may continue later",
+      "integration_points_nonblocking": [
+        "P06",
+        "P10",
+        "P16",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [
+        "P06",
+        "P10"
+      ],
+      "checkpoint_ids": [
+        "M40-C01",
+        "M40-C02",
+        "M40-C03",
+        "M40-C04",
+        "M40-C05",
+        "M40-C06",
+        "M40-C07",
+        "M40-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M50",
+      "source_rank": 2,
+      "source_tier": "S",
+      "source_wave": "W0",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 9.7,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D01-D10 discovery/critical contracts; integration may continue later",
+      "integration_points_nonblocking": [
+        "P02",
+        "P05",
+        "P08",
+        "P13"
+      ],
+      "recommended_predecessors_advisory": [
+        "P02",
+        "P05",
+        "P08"
+      ],
+      "checkpoint_ids": [
+        "M50-C01",
+        "M50-C02",
+        "M50-C03",
+        "M50-C04",
+        "M50-C05",
+        "M50-C06",
+        "M50-C07",
+        "M50-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M51",
+      "source_rank": 3,
+      "source_tier": "S",
+      "source_wave": "W1",
+      "source_category": "quality",
+      "source_score_hypothesis": 9.7,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P03",
+        "P07",
+        "P11",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [
+        "P03"
+      ],
+      "checkpoint_ids": [
+        "M51-C01",
+        "M51-C02",
+        "M51-C03",
+        "M51-C04",
+        "M51-C05",
+        "M51-C06",
+        "M51-C07",
+        "M51-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M58",
+      "source_rank": 4,
+      "source_tier": "S",
+      "source_wave": "W0",
+      "source_category": "quality",
+      "source_score_hypothesis": 9.7,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D01-D10 discovery/critical contracts; integration may continue later",
+      "integration_points_nonblocking": [
+        "P02",
+        "P03",
+        "P05",
+        "P13",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [
+        "P03",
+        "P05",
+        "P08"
+      ],
+      "checkpoint_ids": [
+        "M58-C01",
+        "M58-C02",
+        "M58-C03",
+        "M58-C04",
+        "M58-C05",
+        "M58-C06",
+        "M58-C07",
+        "M58-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M26",
+      "source_rank": 5,
+      "source_tier": "S",
+      "source_wave": "W1",
+      "source_category": "visual",
+      "source_score_hypothesis": 9.65,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P03",
+        "P04",
+        "P20"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M26-C01",
+        "M26-C02",
+        "M26-C03",
+        "M26-C04",
+        "M26-C05",
+        "M26-C06",
+        "M26-C07",
+        "M26-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M42",
+      "source_rank": 6,
+      "source_tier": "S",
+      "source_wave": "W1",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 9.6,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P02",
+        "P11",
+        "P12"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M42-C01",
+        "M42-C02",
+        "M42-C03",
+        "M42-C04",
+        "M42-C05",
+        "M42-C06",
+        "M42-C07",
+        "M42-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M41",
+      "source_rank": 7,
+      "source_tier": "S",
+      "source_wave": "W2",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 9.5,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P02",
+        "P05",
+        "P08",
+        "P13"
+      ],
+      "recommended_predecessors_advisory": [
+        "M01",
+        "M47",
+        "M50"
+      ],
+      "checkpoint_ids": [
+        "M41-C01",
+        "M41-C02",
+        "M41-C03",
+        "M41-C04",
+        "M41-C05",
+        "M41-C06",
+        "M41-C07",
+        "M41-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M13",
+      "source_rank": 8,
+      "source_tier": "S",
+      "source_wave": "W1",
+      "source_category": "audio",
+      "source_score_hypothesis": 9.45,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P09",
+        "P19",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M13-C01",
+        "M13-C02",
+        "M13-C03",
+        "M13-C04",
+        "M13-C05",
+        "M13-C06",
+        "M13-C07",
+        "M13-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M32",
+      "source_rank": 9,
+      "source_tier": "S",
+      "source_wave": "W0",
+      "source_category": "content",
+      "source_score_hypothesis": 9.45,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D01-D10 discovery/critical contracts; integration may continue later",
+      "integration_points_nonblocking": [
+        "P01",
+        "P08",
+        "P22",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [
+        "P08"
+      ],
+      "checkpoint_ids": [
+        "M32-C01",
+        "M32-C02",
+        "M32-C03",
+        "M32-C04",
+        "M32-C05",
+        "M32-C06",
+        "M32-C07",
+        "M32-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M54",
+      "source_rank": 10,
+      "source_tier": "S",
+      "source_wave": "W1",
+      "source_category": "quality",
+      "source_score_hypothesis": 9.45,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P18",
+        "P20",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M54-C01",
+        "M54-C02",
+        "M54-C03",
+        "M54-C04",
+        "M54-C05",
+        "M54-C06",
+        "M54-C07",
+        "M54-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M05",
+      "source_rank": 11,
+      "source_tier": "S",
+      "source_wave": "W1",
+      "source_category": "editorial",
+      "source_score_hypothesis": 9.4,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P06",
+        "P08",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [
+        "M01",
+        "M50"
+      ],
+      "checkpoint_ids": [
+        "M05-C01",
+        "M05-C02",
+        "M05-C03",
+        "M05-C04",
+        "M05-C05",
+        "M05-C06",
+        "M05-C07",
+        "M05-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M56",
+      "source_rank": 12,
+      "source_tier": "S",
+      "source_wave": "W1",
+      "source_category": "quality",
+      "source_score_hypothesis": 9.4,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P03",
+        "P08",
+        "P11",
+        "P13"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M56-C01",
+        "M56-C02",
+        "M56-C03",
+        "M56-C04",
+        "M56-C05",
+        "M56-C06",
+        "M56-C07",
+        "M56-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M11",
+      "source_rank": 13,
+      "source_tier": "A",
+      "source_wave": "W1",
+      "source_category": "audio",
+      "source_score_hypothesis": 9.3,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P09",
+        "P15",
+        "P19"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M11-C01",
+        "M11-C02",
+        "M11-C03",
+        "M11-C04",
+        "M11-C05",
+        "M11-C06",
+        "M11-C07",
+        "M11-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M52",
+      "source_rank": 14,
+      "source_tier": "A",
+      "source_wave": "W1",
+      "source_category": "quality",
+      "source_score_hypothesis": 9.3,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P03",
+        "P19",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M52-C01",
+        "M52-C02",
+        "M52-C03",
+        "M52-C04",
+        "M52-C05",
+        "M52-C06",
+        "M52-C07",
+        "M52-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M01",
+      "source_rank": 15,
+      "source_tier": "A",
+      "source_wave": "W0",
+      "source_category": "editorial",
+      "source_score_hypothesis": 9.2,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D01-D10 discovery/critical contracts; integration may continue later",
+      "integration_points_nonblocking": [
+        "P05",
+        "P08",
+        "P09",
+        "P17",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [
+        "P05",
+        "P08"
+      ],
+      "checkpoint_ids": [
+        "M01-C01",
+        "M01-C02",
+        "M01-C03",
+        "M01-C04",
+        "M01-C05",
+        "M01-C06",
+        "M01-C07",
+        "M01-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M17",
+      "source_rank": 16,
+      "source_tier": "A",
+      "source_wave": "W1",
+      "source_category": "audio",
+      "source_score_hypothesis": 9.2,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P09",
+        "P15",
+        "P19"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M17-C01",
+        "M17-C02",
+        "M17-C03",
+        "M17-C04",
+        "M17-C05",
+        "M17-C06",
+        "M17-C07",
+        "M17-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M24",
+      "source_rank": 17,
+      "source_tier": "A",
+      "source_wave": "W2",
+      "source_category": "visual",
+      "source_score_hypothesis": 9.15,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P03",
+        "P20",
+        "P22",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [
+        "M21",
+        "M26"
+      ],
+      "checkpoint_ids": [
+        "M24-C01",
+        "M24-C02",
+        "M24-C03",
+        "M24-C04",
+        "M24-C05",
+        "M24-C06",
+        "M24-C07",
+        "M24-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M18",
+      "source_rank": 18,
+      "source_tier": "A",
+      "source_wave": "W1",
+      "source_category": "audio",
+      "source_score_hypothesis": 9.15,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P05",
+        "P09",
+        "P17",
+        "P19"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M18-C01",
+        "M18-C02",
+        "M18-C03",
+        "M18-C04",
+        "M18-C05",
+        "M18-C06",
+        "M18-C07",
+        "M18-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M44",
+      "source_rank": 19,
+      "source_tier": "A",
+      "source_wave": "W2",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 9.1,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P02",
+        "P06",
+        "P08",
+        "P10"
+      ],
+      "recommended_predecessors_advisory": [
+        "M50"
+      ],
+      "checkpoint_ids": [
+        "M44-C01",
+        "M44-C02",
+        "M44-C03",
+        "M44-C04",
+        "M44-C05",
+        "M44-C06",
+        "M44-C07",
+        "M44-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M59",
+      "source_rank": 20,
+      "source_tier": "A",
+      "source_wave": "W1",
+      "source_category": "quality",
+      "source_score_hypothesis": 9.1,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P09",
+        "P20",
+        "P23",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M59-C01",
+        "M59-C02",
+        "M59-C03",
+        "M59-C04",
+        "M59-C05",
+        "M59-C06",
+        "M59-C07",
+        "M59-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M39",
+      "source_rank": 21,
+      "source_tier": "A",
+      "source_wave": "W2",
+      "source_category": "content",
+      "source_score_hypothesis": 9.05,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P15",
+        "P16",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M39-C01",
+        "M39-C02",
+        "M39-C03",
+        "M39-C04",
+        "M39-C05",
+        "M39-C06",
+        "M39-C07",
+        "M39-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M03",
+      "source_rank": 22,
+      "source_tier": "A",
+      "source_wave": "W2",
+      "source_category": "editorial",
+      "source_score_hypothesis": 9,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P09",
+        "P10",
+        "P15",
+        "P16",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [
+        "M01",
+        "M11",
+        "M31"
+      ],
+      "checkpoint_ids": [
+        "M03-C01",
+        "M03-C02",
+        "M03-C03",
+        "M03-C04",
+        "M03-C05",
+        "M03-C06",
+        "M03-C07",
+        "M03-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M21",
+      "source_rank": 23,
+      "source_tier": "A",
+      "source_wave": "W2",
+      "source_category": "visual",
+      "source_score_hypothesis": 9,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P09",
+        "P20",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [
+        "M11",
+        "M26"
+      ],
+      "checkpoint_ids": [
+        "M21-C01",
+        "M21-C02",
+        "M21-C03",
+        "M21-C04",
+        "M21-C05",
+        "M21-C06",
+        "M21-C07",
+        "M21-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M55",
+      "source_rank": 24,
+      "source_tier": "A",
+      "source_wave": "W2",
+      "source_category": "quality",
+      "source_score_hypothesis": 9,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P03",
+        "P20",
+        "P21",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M55-C01",
+        "M55-C02",
+        "M55-C03",
+        "M55-C04",
+        "M55-C05",
+        "M55-C06",
+        "M55-C07",
+        "M55-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M15",
+      "source_rank": 25,
+      "source_tier": "A",
+      "source_wave": "W2",
+      "source_category": "audio",
+      "source_score_hypothesis": 8.95,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P08",
+        "P17",
+        "P19"
+      ],
+      "recommended_predecessors_advisory": [
+        "M11"
+      ],
+      "checkpoint_ids": [
+        "M15-C01",
+        "M15-C02",
+        "M15-C03",
+        "M15-C04",
+        "M15-C05",
+        "M15-C06",
+        "M15-C07",
+        "M15-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M08",
+      "source_rank": 26,
+      "source_tier": "A",
+      "source_wave": "W2",
+      "source_category": "editorial",
+      "source_score_hypothesis": 8.9,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P07",
+        "P08",
+        "P16",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M08-C01",
+        "M08-C02",
+        "M08-C03",
+        "M08-C04",
+        "M08-C05",
+        "M08-C06",
+        "M08-C07",
+        "M08-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M45",
+      "source_rank": 27,
+      "source_tier": "A",
+      "source_wave": "W2",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 8.9,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D15-D24 dependency-ready integrations",
+      "integration_points_nonblocking": [
+        "P05",
+        "P19",
+        "P21"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M45-C01",
+        "M45-C02",
+        "M45-C03",
+        "M45-C04",
+        "M45-C05",
+        "M45-C06",
+        "M45-C07",
+        "M45-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M47",
+      "source_rank": 28,
+      "source_tier": "A",
+      "source_wave": "W0",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 8.85,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D01-D10 discovery/critical contracts; integration may continue later",
+      "integration_points_nonblocking": [
+        "P02",
+        "P03",
+        "P08",
+        "P13"
+      ],
+      "recommended_predecessors_advisory": [
+        "P02",
+        "P08"
+      ],
+      "checkpoint_ids": [
+        "M47-C01",
+        "M47-C02",
+        "M47-C03",
+        "M47-C04",
+        "M47-C05",
+        "M47-C06",
+        "M47-C07",
+        "M47-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M07",
+      "source_rank": 29,
+      "source_tier": "A",
+      "source_wave": "W3",
+      "source_category": "editorial",
+      "source_score_hypothesis": 8.8,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P08",
+        "P09",
+        "P17",
+        "P19"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M07-C01",
+        "M07-C02",
+        "M07-C03",
+        "M07-C04",
+        "M07-C05",
+        "M07-C06",
+        "M07-C07",
+        "M07-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M48",
+      "source_rank": 30,
+      "source_tier": "A",
+      "source_wave": "W3",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 8.8,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P06",
+        "P08",
+        "P10",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M48-C01",
+        "M48-C02",
+        "M48-C03",
+        "M48-C04",
+        "M48-C05",
+        "M48-C06",
+        "M48-C07",
+        "M48-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M22",
+      "source_rank": 31,
+      "source_tier": "A",
+      "source_wave": "W3",
+      "source_category": "visual",
+      "source_score_hypothesis": 8.8,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P18",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M22-C01",
+        "M22-C02",
+        "M22-C03",
+        "M22-C04",
+        "M22-C05",
+        "M22-C06",
+        "M22-C07",
+        "M22-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M27",
+      "source_rank": 32,
+      "source_tier": "A",
+      "source_wave": "W3",
+      "source_category": "visual",
+      "source_score_hypothesis": 8.8,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P04",
+        "P20",
+        "P21"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M27-C01",
+        "M27-C02",
+        "M27-C03",
+        "M27-C04",
+        "M27-C05",
+        "M27-C06",
+        "M27-C07",
+        "M27-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M12",
+      "source_rank": 33,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "audio",
+      "source_score_hypothesis": 8.75,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P09",
+        "P19",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M12-C01",
+        "M12-C02",
+        "M12-C03",
+        "M12-C04",
+        "M12-C05",
+        "M12-C06",
+        "M12-C07",
+        "M12-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M29",
+      "source_rank": 34,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "visual",
+      "source_score_hypothesis": 8.75,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P05",
+        "P17",
+        "P21"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M29-C01",
+        "M29-C02",
+        "M29-C03",
+        "M29-C04",
+        "M29-C05",
+        "M29-C06",
+        "M29-C07",
+        "M29-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M46",
+      "source_rank": 35,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 8.75,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P02",
+        "P12",
+        "P18"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M46-C01",
+        "M46-C02",
+        "M46-C03",
+        "M46-C04",
+        "M46-C05",
+        "M46-C06",
+        "M46-C07",
+        "M46-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M31",
+      "source_rank": 36,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "content",
+      "source_score_hypothesis": 8.7,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P07",
+        "P10",
+        "P16",
+        "P22",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M31-C01",
+        "M31-C02",
+        "M31-C03",
+        "M31-C04",
+        "M31-C05",
+        "M31-C06",
+        "M31-C07",
+        "M31-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M04",
+      "source_rank": 37,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "editorial",
+      "source_score_hypothesis": 8.7,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P15",
+        "P16",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M04-C01",
+        "M04-C02",
+        "M04-C03",
+        "M04-C04",
+        "M04-C05",
+        "M04-C06",
+        "M04-C07",
+        "M04-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M09",
+      "source_rank": 38,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "editorial",
+      "source_score_hypothesis": 8.65,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P04",
+        "P10",
+        "P16"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M09-C01",
+        "M09-C02",
+        "M09-C03",
+        "M09-C04",
+        "M09-C05",
+        "M09-C06",
+        "M09-C07",
+        "M09-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M43",
+      "source_rank": 39,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 8.65,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P02",
+        "P12",
+        "P13"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M43-C01",
+        "M43-C02",
+        "M43-C03",
+        "M43-C04",
+        "M43-C05",
+        "M43-C06",
+        "M43-C07",
+        "M43-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M49",
+      "source_rank": 40,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "pipeline",
+      "source_score_hypothesis": 8.5,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P05",
+        "P08",
+        "P13"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M49-C01",
+        "M49-C02",
+        "M49-C03",
+        "M49-C04",
+        "M49-C05",
+        "M49-C06",
+        "M49-C07",
+        "M49-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M14",
+      "source_rank": 41,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "audio",
+      "source_score_hypothesis": 8.45,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P09",
+        "P15"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M14-C01",
+        "M14-C02",
+        "M14-C03",
+        "M14-C04",
+        "M14-C05",
+        "M14-C06",
+        "M14-C07",
+        "M14-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M34",
+      "source_rank": 42,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "content",
+      "source_score_hypothesis": 8.4,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P16",
+        "P22",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [
+        "M32"
+      ],
+      "checkpoint_ids": [
+        "M34-C01",
+        "M34-C02",
+        "M34-C03",
+        "M34-C04",
+        "M34-C05",
+        "M34-C06",
+        "M34-C07",
+        "M34-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M20",
+      "source_rank": 43,
+      "source_tier": "B",
+      "source_wave": "W1",
+      "source_category": "audio",
+      "source_score_hypothesis": 8.35,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "D08-D18 selective vertical slices",
+      "integration_points_nonblocking": [
+        "P09",
+        "P10",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M20-C01",
+        "M20-C02",
+        "M20-C03",
+        "M20-C04",
+        "M20-C05",
+        "M20-C06",
+        "M20-C07",
+        "M20-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M02",
+      "source_rank": 44,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "editorial",
+      "source_score_hypothesis": 8.3,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P07",
+        "P10",
+        "P16",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M02-C01",
+        "M02-C02",
+        "M02-C03",
+        "M02-C04",
+        "M02-C05",
+        "M02-C06",
+        "M02-C07",
+        "M02-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M33",
+      "source_rank": 45,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "content",
+      "source_score_hypothesis": 8.3,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P22",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M33-C01",
+        "M33-C02",
+        "M33-C03",
+        "M33-C04",
+        "M33-C05",
+        "M33-C06",
+        "M33-C07",
+        "M33-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M38",
+      "source_rank": 46,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "content",
+      "source_score_hypothesis": 8.25,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P03",
+        "P07",
+        "P22"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M38-C01",
+        "M38-C02",
+        "M38-C03",
+        "M38-C04",
+        "M38-C05",
+        "M38-C06",
+        "M38-C07",
+        "M38-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M06",
+      "source_rank": 47,
+      "source_tier": "B",
+      "source_wave": "W3",
+      "source_category": "editorial",
+      "source_score_hypothesis": 8.2,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "D21-D30 opportunistic; defer if G0/G1 blocked",
+      "integration_points_nonblocking": [
+        "P04",
+        "P10",
+        "P17",
+        "P21"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M06-C01",
+        "M06-C02",
+        "M06-C03",
+        "M06-C04",
+        "M06-C05",
+        "M06-C06",
+        "M06-C07",
+        "M06-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M23",
+      "source_rank": 48,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "visual",
+      "source_score_hypothesis": 8.15,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P03",
+        "P17",
+        "P21"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M23-C01",
+        "M23-C02",
+        "M23-C03",
+        "M23-C04",
+        "M23-C05",
+        "M23-C06",
+        "M23-C07",
+        "M23-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M53",
+      "source_rank": 49,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "quality",
+      "source_score_hypothesis": 8.15,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P03",
+        "P11",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M53-C01",
+        "M53-C02",
+        "M53-C03",
+        "M53-C04",
+        "M53-C05",
+        "M53-C06",
+        "M53-C07",
+        "M53-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M57",
+      "source_rank": 50,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "quality",
+      "source_score_hypothesis": 8.15,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P07",
+        "P11",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M57-C01",
+        "M57-C02",
+        "M57-C03",
+        "M57-C04",
+        "M57-C05",
+        "M57-C06",
+        "M57-C07",
+        "M57-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M60",
+      "source_rank": 51,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "quality",
+      "source_score_hypothesis": 8.1,
+      "primary_developer_lane": "dev-4",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P05",
+        "P08",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [
+        "M01"
+      ],
+      "checkpoint_ids": [
+        "M60-C01",
+        "M60-C02",
+        "M60-C03",
+        "M60-C04",
+        "M60-C05",
+        "M60-C06",
+        "M60-C07",
+        "M60-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M16",
+      "source_rank": 52,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "audio",
+      "source_score_hypothesis": 8.05,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P19",
+        "P22"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M16-C01",
+        "M16-C02",
+        "M16-C03",
+        "M16-C04",
+        "M16-C05",
+        "M16-C06",
+        "M16-C07",
+        "M16-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M19",
+      "source_rank": 53,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "audio",
+      "source_score_hypothesis": 8,
+      "primary_developer_lane": "dev-2",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P19",
+        "P24"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M19-C01",
+        "M19-C02",
+        "M19-C03",
+        "M19-C04",
+        "M19-C05",
+        "M19-C06",
+        "M19-C07",
+        "M19-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M35",
+      "source_rank": 54,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "content",
+      "source_score_hypothesis": 8,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P03",
+        "P16",
+        "P22"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M35-C01",
+        "M35-C02",
+        "M35-C03",
+        "M35-C04",
+        "M35-C05",
+        "M35-C06",
+        "M35-C07",
+        "M35-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M37",
+      "source_rank": 55,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "content",
+      "source_score_hypothesis": 8,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P03",
+        "P22",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M37-C01",
+        "M37-C02",
+        "M37-C03",
+        "M37-C04",
+        "M37-C05",
+        "M37-C06",
+        "M37-C07",
+        "M37-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M10",
+      "source_rank": 56,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "editorial",
+      "source_score_hypothesis": 7.9,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P03",
+        "P17",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M10-C01",
+        "M10-C02",
+        "M10-C03",
+        "M10-C04",
+        "M10-C05",
+        "M10-C06",
+        "M10-C07",
+        "M10-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M30",
+      "source_rank": 57,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "visual",
+      "source_score_hypothesis": 7.9,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P18",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M30-C01",
+        "M30-C02",
+        "M30-C03",
+        "M30-C04",
+        "M30-C05",
+        "M30-C06",
+        "M30-C07",
+        "M30-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M25",
+      "source_rank": 58,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "visual",
+      "source_score_hypothesis": 7.8,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P01",
+        "P04",
+        "P18"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M25-C01",
+        "M25-C02",
+        "M25-C03",
+        "M25-C04",
+        "M25-C05",
+        "M25-C06",
+        "M25-C07",
+        "M25-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M28",
+      "source_rank": 59,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "visual",
+      "source_score_hypothesis": 7.25,
+      "primary_developer_lane": "dev-3",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P01",
+        "P18",
+        "P22"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M28-C01",
+        "M28-C02",
+        "M28-C03",
+        "M28-C04",
+        "M28-C05",
+        "M28-C06",
+        "M28-C07",
+        "M28-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    },
+    {
+      "id": "M36",
+      "source_rank": 60,
+      "source_tier": "C",
+      "source_wave": "W4",
+      "source_category": "content",
+      "source_score_hypothesis": 6.65,
+      "primary_developer_lane": "dev-1",
+      "recommended_delivery_window": "POST-D30 research unless independent owner reprioritization",
+      "integration_points_nonblocking": [
+        "P08",
+        "P22",
+        "P23"
+      ],
+      "recommended_predecessors_advisory": [],
+      "checkpoint_ids": [
+        "M36-C01",
+        "M36-C02",
+        "M36-C03",
+        "M36-C04",
+        "M36-C05",
+        "M36-C06",
+        "M36-C07",
+        "M36-C08"
+      ],
+      "acceptance_authority": "CHECK_ORIGINAL_OPEN_SPEC_AND_EXACT_EVIDENCE",
+      "planned_status": "NOT_ATTESTED_BY_THIS_OVERLAY"
+    }
+  ]
+}
