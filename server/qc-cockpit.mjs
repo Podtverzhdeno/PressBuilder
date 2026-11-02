@@ -77,7 +77,7 @@ export function buildQcCockpit({projectId,release,reviewsByScene={}}){
   if(!q||typeof q.id!=='string'||q.id.length>80||typeof q.message!=='string'||q.message.length>1600)
    bad('M51_INVALID_TECHNICAL_QA');
   // Existing P03 technical QA has no frame PTS: never invent a 0s coordinate.
-  events.push({id:'p03:'+i+':'+q.id,source:'P03_RELEASE_TECHNICAL',
+  events.push({id:'p03:'+i+':'+q.id,source:'P05_OUTPUT_QA_UNTIMED',
    release_sha256:manifest.output.sha256,scene_id:null,scene_source_sha256:null,
    source_version_id:null,review_revision:null,issue_code:q.id,severity:'technical',
    disposition:'UNLOCATED',reviewed_by:null,message:q.message,local_seconds:null,
@@ -85,15 +85,19 @@ export function buildQcCockpit({projectId,release,reviewsByScene={}}){
    evidence_available:false,location:'UNLOCATED_TECHNICAL_ISSUE',
    requires_human_review:true});
  }
- events.sort((a,b)=>a.global_pts_tick===null?1:b.global_pts_tick===null?-1:
-  a.global_pts_tick-b.global_pts_tick||a.id.localeCompare(b.id));
+ events.sort((a,b)=>{
+  if(a.global_pts_tick===null&&b.global_pts_tick===null)return a.id.localeCompare(b.id);
+  if(a.global_pts_tick===null)return 1;
+  if(b.global_pts_tick===null)return -1;
+  return a.global_pts_tick-b.global_pts_tick||a.id.localeCompare(b.id);
+ });
  const original={schema_version:1,project_id:projectId,
   release_id:release.release_id,release_sha256:manifest.output.sha256,
   timebase,scenes,events,stale_version_events_ignored:issueCount,
   duration_estimated_tick:snapFrame(time,clock)*clock.frame_ticks,
   actual_duration_s:manifest.output.qa?.metadata?.duration??null,
   release_qa_verdict:manifest.output.qa.verdict,
-  technical_failures:events.filter(e=>e.source==='P03_RELEASE_TECHNICAL').length,
+  unlocated_qa_alerts:events.filter(e=>e.source==='P05_OUTPUT_QA_UNTIMED').length,
   unresolved_review_events:events.filter(e=>e.source==='P07_REVIEW'&&e.requires_human_review).length,
   warnings:['MONTAGE_PTS_DERIVED_FROM_DECLARED_P05_DURATIONS_NOT_DECODED_MASTER',
    'TRANSITION_OVERLAP_HAS_AMBIGUOUS_SHOT_OWNERSHIP',
@@ -118,7 +122,7 @@ export function qcCockpitService({assembly,reviews,enabled=false}){
   const scoped={...full,scenes:full.scenes.filter(x=>x.scene_id===sceneId),
     events:full.events.filter(e=>e.scene_id===sceneId)};
   delete scoped.stale_version_events_ignored;
-  delete scoped.technical_failures;
+  delete scoped.unlocated_qa_alerts;
   delete scoped.unresolved_review_events;
   delete scoped.snapshot_sha256;
   return scoped;
