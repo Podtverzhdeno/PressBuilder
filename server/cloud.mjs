@@ -23,6 +23,7 @@ import {typedSceneBriefService} from './typed-scene-brief.mjs';
 import {mediaCatalogStore} from './media-catalog.mjs';
 import {editGraphService} from './edit-graph.mjs';
 import {editOperationService} from './edit-operations.mjs';
+import {fencedJobLedger} from './fenced-job-ledger.mjs';
 import { sceneSyncStore } from './scene-sync.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
@@ -94,6 +95,7 @@ const versions=sceneVersionStore({root:DECKS,out:OUT,getDeck,getScene3D:(id,scen
 const mediaCatalog=mediaCatalogStore({root:DECKS,getDeck,versions,enabled:process.env.PB_MEDIA_CATALOG==='1'});
 const editGraph=editGraphService({root:DECKS,getDeck,sceneSync,assemblyPlans,versions,enabled:process.env.PB_EDITGRAPH_PREVIEW==='1'});
 const editOps=editOperationService({root:DECKS,editGraph,enabled:process.env.PB_EDITGRAPH_PREVIEW==='1'});
+const jobLedger=fencedJobLedger({root:DECKS,getDeck,versions,enabled:process.env.PB_FENCED_JOB_LEDGER==='1'});
 const continuity=continuityBoundaryService({versions,enabled:process.env.PB_CONTINUITY_REVIEW==='1'});
 const reviews=sceneReviewStore({root:DECKS,getDeck,getVersion:(id,scene,version)=>versions.read(id,scene,version)});
 const dispatch=directorDispatchStore({root:DECKS,director:directorPlan,sceneTasks,leases,
@@ -439,6 +441,27 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  const ledgerMatch=/^\/api\/decks\/([^/]+)\/job-ledger\/([^/]+)\/([^/]+)$/.exec(p);
+  if(ledgerMatch){
+    const id=deckId(escaped(ledgerMatch[1])),scene=deckId(escaped(ledgerMatch[2])),job=deckId(escaped(ledgerMatch[3]));
+    if(method==='GET')return json(res,200,jobLedger.read(id,scene,job));
+    if(method==='POST'){
+      const body=await readJson(req);
+      if(!body||typeof body!=='object'||Array.isArray(body))throw new UserError('Invalid job action',400);
+      const {action,...args}=body;
+      let result;
+      switch(action){
+        case 'BEGIN': result=jobLedger.begin(id,scene,director,{...args,job_id:job});break;
+        case 'CLAIM': result=jobLedger.claim(id,scene,job,director,args.expected_revision);break;
+        case 'HEARTBEAT': result=jobLedger.heartbeat(id,scene,job,director,args);break;
+        case 'VERIFY': result=jobLedger.verify(id,scene,job,director,args);break;
+        case 'CANCEL': result=jobLedger.cancel(id,scene,job,director,args.expected_revision);break;
+        default:throw new UserError('Unsupported M50 job-ledger action',400);
+      }
+      return json(res,200,result);
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const editOpsMatch=/^\/api\/decks\/([^/]+)\/edit-graph\/operations$/.exec(p);
   if(editOpsMatch){
     const id=deckId(escaped(editOpsMatch[1]));
@@ -683,7 +706,7 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
   benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
-  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps});
+  assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps,jobLedger});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/', 'http://localhost');
