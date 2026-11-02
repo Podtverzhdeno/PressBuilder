@@ -28,6 +28,19 @@ test('M58-R10: 3-second animated scene profiles, real P05 hard cuts and crossfad
   assert.equal(r.crossfade.unique_release_count,5);
   assert.equal(r.hard_cut.all_output_qa_passed,true);
   assert.equal(r.crossfade.all_output_qa_passed,true);
+  assert.equal(r.hard_cut.crossfade_audio_review_required,null);
+  assert.equal(r.crossfade.crossfade_audio_review_required,
+    r.crossfade.crossfade_audio_review_trial_count>0);
+  assert.ok(r.crossfade.crossfade_audio_review_trial_count>=0&&
+    r.crossfade.crossfade_audio_review_trial_count<=5);
+  for(const t of r.crossfade.trials){
+    assert.equal(t.crossfade_audio?.scope,
+      'P05_SYNTHETIC_CROSSFADE_PCM_ENVELOPE_48KHZ_STEREO');
+    assert.equal(t.crossfade_audio.boundaries.length,3);
+    assert.equal(t.crossfade_audio.expected_duration_sec,17.1);
+    assert.equal(t.crossfade_audio.may_publish,false);
+    assert.equal(t.crossfade_audio.may_deploy,false);
+  }
   assert.ok(r.hard_cut.p95_wall_ms>=r.hard_cut.p50_wall_ms);
   assert.ok(r.crossfade.p95_wall_ms>=r.crossfade.p50_wall_ms);
   assert.ok(r.p95_crossfade_to_hardcut_ratio>0);
