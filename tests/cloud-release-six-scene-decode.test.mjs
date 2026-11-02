@@ -9,7 +9,7 @@ import {assemblyService} from '../server/assemble-scenes.mjs';
 import {assemblyPlanStore} from '../server/assembly-plan.mjs';
 import {styleContractStore} from '../server/style-contract.mjs';
 import {inspectP05ActiveRelease} from '../server/release-media-integrity.mjs';
-import {inspectP05DecodedMedia,parseLongBlackIntervals} from '../server/release-media-decode.mjs';
+import {inspectP05DecodedMedia,parseLongBlackIntervals,assessContainerAvTiming} from '../server/release-media-decode.mjs';
 
 const available=['ffmpeg','ffprobe'].every(bin=>
   spawnSync(bin,['-version'],{timeout:4000,stdio:'ignore'}).status===0);
@@ -174,4 +174,20 @@ test('M58 blackdetect log parser ignores noise, short transitions and malformed 
     {start_sec:1.2,end_sec:2.4,duration_sec:1.2},
   ]);
   assert.deepEqual(parseLongBlackIntervals('x'.repeat(262145)),[]);
+});
+
+test('M58 A/V container timing refuses missing and 251ms displaced streams',()=>{
+  const video={start_time:'0.0',duration:'7.5'};
+  const good={start_time:'0.021',duration:'7.479'};
+  assert.deepEqual(assessContainerAvTiming(video,good),{
+    start_offset_ms:21,end_offset_ms:0,
+  });
+  assert.throws(()=>assessContainerAvTiming(video,{start_time:'0.251',duration:'7.249'}),
+    e=>e.code==='M58_DECODE_AV_CONTAINER_DRIFT');
+  assert.throws(()=>assessContainerAvTiming(video,{start_time:'0.0',duration:'7.201'}),
+    e=>e.code==='M58_DECODE_AV_CONTAINER_DRIFT');
+  assert.throws(()=>assessContainerAvTiming(video,{start_time:'N/A',duration:'7.5'}),
+    e=>e.code==='M58_DECODE_STREAM_TIMESTAMP_MISSING');
+  assert.throws(()=>assessContainerAvTiming(video,good,{maxOffsetMs:-1}),
+    e=>e.code==='M58_DECODE_POLICY_INVALID');
 });
