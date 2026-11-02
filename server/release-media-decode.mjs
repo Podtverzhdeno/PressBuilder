@@ -7,6 +7,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {inspectP05ActiveRelease} from './release-media-integrity.mjs';
 import {analyzePcm16leStereo} from './release-pcm-qc.mjs';
+import {parseLoudnormInput,evaluateLoudness} from './release-loudness-qc.mjs';
 
 const bad=(code,status=422)=>{throw Object.assign(new Error(code),{code,status})};
 function tool(binary,args,code,timeout){
@@ -134,6 +135,16 @@ export function inspectP05DecodedMedia({
   // audio metadata; padding near AAC packet boundaries is tolerated.
   if(Math.abs(pcmQuality.pcm_duration_sec-expectedDuration)>0.25)
     bad('M58_PCM_TIMELINE_DRIFT');
+  // Separate read-only EBU R128 integrated loudness and true-peak analysis.
+  // loudnorm reports *input* values; it never writes a mastered MP4.
+  const measuredLoudness=tool('ffmpeg',[
+    '-hide_banner','-nostats','-nostdin','-loglevel','info',
+    '-xerror','-err_detect','explode','-i',master,
+    '-map','0:a:0','-vn',
+    '-af','loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json',
+    '-f','null','-',
+  ],'M58_LOUDNORM_ANALYSIS_FAILED',120000);
+  const loudness=evaluateLoudness(parseLoudnormInput(measuredLoudness.stderr));
   const after=inspectP05ActiveRelease({
     rootOut,projectId,expectedMasterSha256:attestation.master_sha256,
   });
@@ -158,11 +169,14 @@ export function inspectP05DecodedMedia({
     long_black_intervals:longBlackIntervals,
     manual_visual_review_required:longBlackIntervals.length>0,
     pcm_quality:pcmQuality,
-    manual_audio_review_required:pcmQuality.manual_audio_review_required,
+    loudness_quality:loudness,
+    manual_audio_review_required:pcmQuality.manual_audio_review_required||
+      loudness.manual_audio_review_required,
     media_quality_verdict:longBlackIntervals.length>0||
-      pcmQuality.manual_audio_review_required?'REVIEW':'TECHNICAL_PASS',
+      pcmQuality.manual_audio_review_required||
+      loudness.manual_audio_review_required?'REVIEW':'TECHNICAL_PASS',
     scene_content_reviewed:false,voice_alignment_verified:false,
     licensing_verified:false,independent_review_verified:false,
-    caveat:'Container timing, full A/V decode and 48kHz stereo PCM sample peak/RMS/silence measured. Black, clipping or long silence requires review. No LUFS, true peak, lip-sync, font/flash, licensing or release authorization.',
+    caveat:'A/V timestamps, full decode, PCM diagnostics, FFmpeg EBU R128 input LUFS and 4x true-peak measured. Black/silent/loudness issues require review; no auto mastering, lip-sync, font/flash, licensing or release authorization.',
   };
 }
