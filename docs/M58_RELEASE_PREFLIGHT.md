@@ -55,9 +55,37 @@ Exit code: `2` = valid manifest but blocked evidence, `1` = malformed or unsafe 
 green self-reported receipts. It refuses non-regular files, hardlinks, symlinks and
 files larger than 128 KiB; it does not expose raw input in error messages.
 
-The repo's `test:cloud` script also discovers the two M58 test files.
+The repo's `test:cloud` script also discovers the three M58 test files.
 The first M58 CI run passed before the CLI was added; subsequent CI runs
 must pass both tests to count as the updated branch's verification.
+
+## P05 current release master integrity (M58-R02)
+
+The read-only inspector `server/release-media-integrity.mjs` validates P05's current
+release pointer, bounded manifest metadata and exact `final.mp4` bytes. It
+checks project/release IDs, hashes the file independently of the manifest,
+optionally matches an expected M58 master SHA, rejects tampering, missing
+approvals, symlinks/hardlinks and changed pointers, and never writes files.
+It reports how many source scenes **claim** a P08 approved version; it does
+not re-verify those approvals. The P05 `qa.verdict` displayed is a stored
+claim, **not** independently decoded frame/audio evidence.
+
+To inspect a local release, once the local `out/releases/<project-id>/current.json`
+and immutable P05 `final.mp4` actually exist:
+
+```powershell
+node tools/inspect-p05-release.mjs out <project-id>
+# To compare against an independently known M58 master digest:
+node tools/inspect-p05-release.mjs out <project-id> <expected-master-sha256>
+```
+
+Exit code `0` means **only P05 file byte integrity confirmed**, not the
+full video release gate; code `2` means failed inspection; code `1`
+is an invalid invocation. This command cannot create a missing release or
+generate a trusted M58 receipt. A standalone inspector never makes a
+client-supplied receipt trustworthy. Remaining requirements include
+source/rights approvals, actual MP4/PCM decode, render worker identity,
+CI/build provenance, reviewer signoff and rollback.
 
 ## Next acceptance gates (not implemented)
 
