@@ -2,6 +2,7 @@
  * Read-only PCM diagnostics. A change in music/voice loudness is not an error.
  * Flags only severe mid-overlap dropouts, clipped samples or over-gain risks.
  */
+import {spawnSync} from 'node:child_process';
 const bad=code=>{throw Object.assign(new Error(code),{code,status:422})};
 const RATE=48000,CHANNELS=2,BIN=480;
 const round=(v,n=5)=>Number(v.toFixed(n));
@@ -120,4 +121,22 @@ export function analyzeCrossfadePcm(pcm,{
     may_publish:false,may_deploy:false,
     caveat:'Observed envelope and sample clipping in three declared P05 crossfades. Intended fades to/from silence and volume changes are not defects. Not LUFS, multi-track source separation, lip sync, or release approval.',
   };
+}
+
+/** Decode one already-QA-verified P05 master with no temporary file and no shell. */
+export function inspectP05CrossfadeAudioMp4(master,{sceneDurationSec=3}={}){
+  if(typeof master!=='string'||!master.length||
+    ![3,4,5,6,7].includes(sceneDurationSec))
+    bad('M58_CROSSFADE_AUDIO_PROFILE_INVALID');
+  const result=spawnSync('ffmpeg',[
+    '-hide_banner','-nostats','-nostdin','-loglevel','error',
+    '-xerror','-err_detect','explode',
+    '-i',master,'-map','0:a:0','-vn',
+    '-ac','2','-ar','48000','-c:a','pcm_s16le','-f','s16le','-',
+  ],{encoding:null,timeout:90000,maxBuffer:22*1024*1024,
+    shell:false,windowsHide:true,stdio:['ignore','pipe','pipe']});
+  if(result.error||result.status!==0||result.signal||
+    !Buffer.isBuffer(result.stdout))
+    bad('M58_CROSSFADE_AUDIO_FFMPEG_DECODE_FAILED');
+  return analyzeCrossfadePcm(result.stdout,{sceneDurationSec});
 }
