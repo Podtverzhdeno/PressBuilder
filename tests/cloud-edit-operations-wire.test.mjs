@@ -21,7 +21,7 @@ test('M01-R02 live REST/MCP journal: director ACL, Origin/CAS and absent approve
  let log='';child.stdout.on('data',x=>log+=x.toString());child.stderr.on('data',x=>log+=x.toString());
  const endpoint='http://127.0.0.1:'+port;
  const fetchJson=async(url,init={})=>{
-  const response=await fetch(endpoint+url,init);
+  const response=await fetch(endpoint+url,{...init,signal:AbortSignal.timeout(8000)});
   return {status:response.status,data:await response.json().catch(()=>null)};
  };
  const get=(url,auth=true)=>fetchJson(url,{headers:auth?{Authorization:basic}:{}});
@@ -66,7 +66,11 @@ test('M01-R02 live REST/MCP journal: director ACL, Origin/CAS and absent approve
    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});
   assert.equal(unauthorized.status,401);
  }finally{
-  child.kill('SIGTERM');await new Promise(resolve=>child.once('exit',resolve));
+  if(child.exitCode===null&&child.signalCode===null){
+   child.kill('SIGTERM');
+   await Promise.race([new Promise(resolve=>child.once('exit',resolve)),sleep(1800)]);
+  }
+  if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');
   fs.rmSync(root,{recursive:true,force:true});
  }
 });
