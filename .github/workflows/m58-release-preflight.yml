@@ -1,0 +1,96 @@
+name: M58 release evidence preflight
+
+on:
+  push:
+    branches:
+      - feat/m58-release-evidence-preflight-20261102
+  pull_request:
+    paths:
+      - 'server/release-evidence-preflight.mjs'
+      - 'tests/cloud-release-evidence-preflight.test.mjs'
+      - 'tests/cloud-release-evidence-cli.test.mjs'
+      - 'tools/release-preflight.mjs'
+      - 'tools/inspect-p05-release.mjs'
+      - 'server/release-media-integrity.mjs'
+      - 'server/release-media-decode.mjs'
+      - 'server/release-pcm-qc.mjs'
+      - 'tests/cloud-release-pcm-qc.test.mjs'
+      - 'server/release-loudness-qc.mjs'
+      - 'server/release-performance-samples.mjs'
+      - 'tools/measure-p05-assembly.mjs'
+      - 'tools/compare-p05-profiles.mjs'
+      - 'tests/cloud-release-p05-profiles.test.mjs'
+      - 'tools/compare-p13-single-edit.mjs'
+      - 'tests/cloud-release-p13-single-edit.test.mjs'
+      - 'server/release-seam-ssim.mjs'
+      - 'tests/cloud-release-seam-ssim.test.mjs'
+      - 'server/release-audio-seam-qc.mjs'
+      - 'tests/cloud-release-audio-seam-qc.test.mjs'
+      - 'server/release-crossfade-audio-qc.mjs'
+      - 'tests/cloud-release-crossfade-audio-qc.test.mjs'
+      - 'server/release-known-voice-music-qc.mjs'
+      - 'tools/check-p05-known-voice-music.mjs'
+      - 'tests/cloud-release-known-voice-music.test.mjs'
+      - 'tools/probe-offline-speech.mjs'
+      - 'server/release-offline-speech-qc.mjs'
+      - 'tests/cloud-release-offline-speech.test.mjs'
+      - 'server/release-speech-cue-timing.mjs'
+      - 'tests/cloud-release-speech-cue-timing.test.mjs'
+      - 'tests/cloud-release-p05-benchmark.test.mjs'
+      - 'tools/measure-m58-performance.mjs'
+      - 'tests/cloud-release-performance-samples.test.mjs'
+      - 'tests/cloud-release-p05-benchmark.test.mjs'
+      - 'tests/cloud-release-loudness-qc.test.mjs'
+      - 'server/release-discovery.mjs'
+      - 'tests/cloud-release-discovery.test.mjs'
+      - 'package.json'
+      - 'tests/cloud-release-six-scene-decode.test.mjs'
+      - 'tools/inspect-p05-media.mjs'
+      - 'tests/cloud-release-media-integrity.test.mjs'
+      - 'docs/M58_RELEASE_PREFLIGHT.md'
+      - '.github/workflows/m58-release-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.20.0'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install and verify FFmpeg and FFprobe
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg espeak-ng
+          ffmpeg -version
+          ffprobe -version
+      - name: Evidence, byte-integrity and six-scene media decode
+        run: node --test tests/cloud-release-evidence-preflight.test.mjs tests/cloud-release-evidence-cli.test.mjs tests/cloud-release-media-integrity.test.mjs tests/cloud-release-six-scene-decode.test.mjs tests/cloud-release-discovery.test.mjs tests/cloud-release-pcm-qc.test.mjs tests/cloud-release-loudness-qc.test.mjs tests/cloud-release-performance-samples.test.mjs
+      - name: P05 baseline forced-encode five-trial QA
+        run: node --test tests/cloud-release-p05-benchmark.test.mjs
+      - name: Corrupted real MP4 cut-frame and FFmpeg SSIM parser
+        run: node --test tests/cloud-release-seam-ssim.test.mjs
+      - name: M58-R14 crossfade audio mixing, clipping and real AAC dropout
+        run: node --test tests/cloud-release-crossfade-audio-qc.test.mjs
+      - name: Require offline TTS engine (no skipped speech integration)
+        run: node tools/probe-offline-speech.mjs --require-available
+      - name: Genuine offline original spoken-word AAC audio preservation and missing speech
+        run: node --test tests/cloud-release-offline-speech.test.mjs
+      - name: R17 genuine original speech cue timestamp, missing voice and 250ms drift
+        run: node --test tests/cloud-release-speech-cue-timing.test.mjs
+      - name: Six-scene AAC controlled music bed and synthetic voice ducking QA
+        run: node --test tests/cloud-release-known-voice-music.test.mjs
+      - name: P05 animated 3-second hard-cut versus crossfade profiles
+        run: node --test tests/cloud-release-p05-profiles.test.mjs
+      - name: M58-R13 independent PCM cut-click/dropout and actual AAC corruption
+        run: node --test tests/cloud-release-audio-seam-qc.test.mjs
+      - name: P13 incremental single-scene edit versus forced P05 baseline and video SSIM
+        run: node --test tests/cloud-release-p13-single-edit.test.mjs
+      - run: npm run typecheck
+      - run: npm run build

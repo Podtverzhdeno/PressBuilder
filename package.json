@@ -17,7 +17,17 @@
     "check": "node tools/check.mjs",
     "timing": "node tools/timing.mjs",
     "start:cloud": "node server/cloud.mjs",
-    "test:cloud": "node --test tests/cloud-*.test.mjs"
+    "test:cloud": "node --test tests/cloud-*.test.mjs",
+    "check:media": "node tools/inspect-p05-media.mjs",
+    "check:media:list": "node tools/inspect-p05-media.mjs --list",
+    "check:media:self-test": "node tools/inspect-p05-media.mjs --self-test",
+    "measure:media": "node tools/measure-m58-performance.mjs",
+    "measure:p05": "node tools/measure-p05-assembly.mjs",
+    "measure:p05:compare": "node tools/compare-p05-profiles.mjs",
+    "measure:p13": "node tools/compare-p13-single-edit.mjs",
+    "check:p05:voice-music": "node tools/check-p05-known-voice-music.mjs",
+    "check:p05:offline-speech": "node tools/check-p05-known-voice-music.mjs --offline-speech",
+    "check:p05:speech-timing": "node tools/check-p05-known-voice-music.mjs --speech-timing"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
