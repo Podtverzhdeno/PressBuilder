@@ -12,8 +12,8 @@ const deny=(fn,code)=>assert.throws(fn,e=>e?.code===code||e?.message===code,code
 function make(){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-m50-'));
  fs.mkdirSync(path.join(root,'demo'));
- let now=200000,pointerSha=sha;
- const versions={approved:()=>({revision:3,version_id:'1234567890abcdef',
+ let now=200000,pointerSha=sha,approvalRevision=3;
+ const versions={approved:()=>({revision:approvalRevision,version_id:'1234567890abcdef',
   artifact:{sha256:pointerSha,qa:{verdict:'PASS'}}})};
  const opts={root,getDeck:()=>({slides:[{id:'s01'}]}),versions,enabled:true,clock:()=>now,leaseMs:1000};
  const ledger=()=>fencedJobLedger(opts);
@@ -22,7 +22,7 @@ function make(){
   job_id:job,request_id:'once',source_sha256:sha,version_id:'1234567890abcdef'});
  const cleanup=()=>fs.rmSync(root,{recursive:true,force:true});
  return {root,opts,ledger,id,scene,job,begin,cleanup,advance:ms=>{now+=ms},
-  changeSource:()=>{pointerSha=wrong}};
+  changeSource:()=>{pointerSha=wrong},advanceApproval:()=>{approvalRevision++}};
 }
 test('M50-R01 begin is source-attested P08 and idempotent; no output or release',()=>{
  const f=make();try{
@@ -120,5 +120,15 @@ test('M50-R01 strict invalid journal/symlink and CAS/lease cancellation',()=>{
   deny(()=>f.ledger().read(f.id,f.scene,f.job),'M50_UNSAFE_JOURNAL');
   const disabled=fencedJobLedger({...f.opts,enabled:false});
   deny(()=>disabled.read(f.id,f.scene,f.job),'M50_DISABLED');
+ }finally{f.cleanup()}
+});
+
+
+test('M50-R01 same MP4 at new P08 approval revision is stale, never silently reauthorized',()=>{
+ const f=make();try{
+  f.begin();
+  f.advanceApproval();
+  assert.equal(f.ledger().read(f.id,f.scene,f.job).needs_reverification,true);
+  deny(()=>f.ledger().claim(f.id,f.scene,f.job,worker,1),'M50_P08_APPROVAL_STALE');
  }finally{f.cleanup()}
 });
