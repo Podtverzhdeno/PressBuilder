@@ -1,5 +1,10 @@
 # PresBuilder
 
+## 30-day engineering delivery queue (pilot)
+
+For code work on PressBuilder itself (not editing a customer's video scene), read [docs/AGENT_DELIVERY_30D.md](docs/AGENT_DELIVERY_30D.md). The local SQLite queue in `tools/agent_work_queue.py` imports the current P01–P10 and OpenSpec M01–M60 tasks. Four developers use `acquire`, reserve source files, heartbeat and submit a real PR; an independent architect handles review. If no code is eligible, developers review other agents' changes. Always re-read the current specification and Git HEAD. This queue is **not** authenticated actor identity, owner acceptance or production authority; never commit the database or lease tokens.
+
+
 ## Professional Montage P15–P24 — OpenSpec + SDD (план, не реализованные функции)
 
 Для новых задач по качественному монтажу сначала прочитай `openspec/changes/professional-montage-p15-p24/proposal.md`, `design.md`, точную capability-спецификацию и `specs/002-professional-montage/spec.md`, `plan.md`, `tasks.md`. Полный протокол независимых агентов и доказательств: [docs/PRO_MONTAGE_AGENTS.md](docs/PRO_MONTAGE_AGENTS.md). Машинный реестр: `docs/pro-montage-checkpoints.json`, **60 этапов начально TODO**. Эти документы не означают, что P15–P24 реализованы, и не дают права ставить `done` без реального тестирования и reviewer signoff. Проверь `node --test tests/pro-montage-spec.test.mjs` и OpenSpec strict после изменений. Не переписывай чужие сценовые задания, `deck.json` и принятые версии MP4.
