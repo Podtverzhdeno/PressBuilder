@@ -132,6 +132,7 @@ export function inspectP05DecodedMedia({
     av_container_timestamps_verified:true,
     long_black_intervals:longBlackIntervals,
     manual_visual_review_required:longBlackIntervals.length>0,
+    media_quality_verdict:longBlackIntervals.length>0?'REVIEW':'TECHNICAL_PASS',
     scene_content_reviewed:false,voice_alignment_verified:false,
     licensing_verified:false,independent_review_verified:false,
     caveat:'Container A/V start/end offsets and full video/audio decoding measured. Long black spans require review; no lip-sync, perceptual audio quality, font/flash/readability, licensing or production authorization.',
