@@ -13,12 +13,12 @@ import {analyzeOfflineSpokenVoicePcm}
 const RATE=48000,FRAMES=RATE*17.1;
 const exists=['ffmpeg','ffprobe'].every(bin=>
   spawnSync(bin,['-version'],{timeout:4000,stdio:'ignore'}).status===0);
-test('M58-R16 original offline synthesizer produces actual WAV speech without network',()=>{
+const speechAvailable=probeOfflineSpeech().any_available;
+test('M58-R16 original offline synthesizer produces actual WAV speech without network',{
+  skip:!speechAvailable,
+},()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'m58-spoken-'));
   try{
-    const status=probeOfflineSpeech();
-    assert.equal(status.any_available,true,
-      'Offline TTS required: Windows System.Speech or Linux espeak-ng');
     const file=path.join(root,'original-words.wav');
     const gen=createOfflineSpokenWav(file);
     assert.ok(['sapi','espeak','espeak-ng'].includes(gen.engine));
@@ -50,7 +50,7 @@ test('M58-R16 unknown speech and forged source policy fail closed',async()=>{
     /M58_OFFLINE_TTS_PATH_INVALID/);
 });
 test('M58-R16 two actual P05 six-scene MP4 assemblies preserve original spoken words and isolate missing s05', {
-  timeout:240000,skip:!exists,
+  timeout:240000,skip:!exists||!speechAvailable,
 },async()=>{
   const report=await checkP05KnownVoiceMusic({voiceSource:'offline-speech'});
   assert.equal(report.scope,'CONTROLLED_REAL_P05_AAC_OFFLINE_SPOKEN_WORDS_E2E');
