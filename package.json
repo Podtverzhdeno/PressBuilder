@@ -15,7 +15,9 @@
     "typecheck": "tsc --noEmit",
     "new": "node tools/new.mjs",
     "check": "node tools/check.mjs",
-    "timing": "node tools/timing.mjs"
+    "timing": "node tools/timing.mjs",
+    "qa:mp4": "node tools/verify-mp4.mjs",
+    "test:qa": "node --test tests/upstream-mp4-quality.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
