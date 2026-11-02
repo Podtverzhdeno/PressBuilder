@@ -76,6 +76,8 @@ jobs:
         run: node --test tests/cloud-release-seam-ssim.test.mjs
       - name: M58-R14 crossfade audio mixing, clipping and real AAC dropout
         run: node --test tests/cloud-release-crossfade-audio-qc.test.mjs
+      - name: Require offline TTS engine (no skipped speech integration)
+        run: node tools/probe-offline-speech.mjs --require-available
       - name: Genuine offline original spoken-word AAC audio preservation and missing speech
         run: node --test tests/cloud-release-offline-speech.test.mjs
       - name: Six-scene AAC controlled music bed and synthetic voice ducking QA
