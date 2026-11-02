@@ -25,7 +25,9 @@ test('M58-R11: five authentic s03-only updates reuse 5 cached P13 scenes versus 
   assert.ok(report.p95_incremental_to_full_ratio>0);
   assert.ok(report.min_video_ssim_all>=0&&report.min_video_ssim_all<=1);
   assert.equal(report.manual_visual_comparison_required,
-    report.min_video_ssim_all<0.95);
+    report.min_video_ssim_all<0.95||report.cut_seam_review_required);
+  assert.ok(report.min_seam_window_ssim>=0&&
+    report.min_seam_window_ssim<=1);
   assert.equal(report.optimized_incremental.scope,
     'SIX_SCENE_P13_INCREMENTAL_P05_WALL_TIME');
   assert.equal(report.baseline_full_filter.scope,
@@ -44,6 +46,12 @@ test('M58-R11: five authentic s03-only updates reuse 5 cached P13 scenes versus 
     assert.equal(t.segments_encoded,1);
     assert.equal(t.both_outputs_qa_passed,true);
     assert.ok(t.video_ssim_all>=0&&t.video_ssim_all<=1);
+    assert.equal(t.video_ssim_seams.scope,
+      'DECODED_FRAME_SSIM_P05_HARDCUT_BOUNDARIES');
+    assert.equal(t.video_ssim_seams.frame_count,6*3*24);
+    assert.equal(t.video_ssim_seams.boundaries.length,5);
+    assert.ok(t.video_ssim_seams.min_seam_window_ssim>=0);
+    assert.equal(t.video_ssim_seams.may_publish,false);
     assert.ok(t.incremental_wall_ms>0);
     assert.ok(t.full_wall_ms>0);
     assert.match(t.incremental_output_sha256,/^[0-9a-f]{64}$/);
