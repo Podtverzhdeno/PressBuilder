@@ -60,7 +60,9 @@ test('MP4 QA: missing and corrupt output fail closed',()=>{
 });
 const ffmpegOk=spawnSync('ffmpeg',['-version'],{stdio:'ignore'}).status===0;
 const ffprobeOk=spawnSync('ffprobe',['-version'],{stdio:'ignore'}).status===0;
-test('MP4 QA: real 24fps H.264/AAC video and CLI JSON smoke', {skip:!(ffmpegOk&&ffprobeOk)},()=>{
+test('MP4 QA: real 24fps H.264/AAC video and CLI JSON smoke',
+  {skip:!(ffmpegOk&&ffprobeOk)&&process.env.PB_REQUIRE_FFMPEG_TEST!=='1'},()=>{
+  assert.ok(ffmpegOk&&ffprobeOk,'CI requires ffmpeg and ffprobe for real MP4 validation');
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pb-real-qa-'));
   try{
     const file=path.join(dir,'sample.mp4');
