@@ -86,6 +86,11 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
   assert.deepEqual(decoded.long_black_intervals,[]);
   assert.equal(decoded.manual_visual_review_required,false);
   assert.equal(decoded.media_quality_verdict,'TECHNICAL_PASS');
+  assert.equal(decoded.manual_audio_review_required,false);
+  assert.equal(decoded.pcm_quality.clipping_risk,false);
+  assert.equal(decoded.pcm_quality.long_silence_count,0);
+  assert.ok(Math.abs(decoded.pcm_quality.pcm_duration_sec-7.5)<0.25);
+  assert.equal(decoded.pcm_quality.lufs_verified,false);
   assert.equal(decoded.video_decoded,true);
   assert.equal(decoded.audio_decoded,true);
   assert.equal(decoded.may_publish,false);
@@ -157,6 +162,40 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
     assert.ok(report.long_black_intervals.some(x=>x.duration_sec>=0.75),
       'Detect long all-black P05 master while FFmpeg can still decode it');
     assert.equal(report.may_publish,false);
+  }finally{
+    fs.writeFileSync(file,original);
+    fs.writeFileSync(manifestPath,originalManifest);
+  }
+
+  // Another decodable media forgery: preserve video frames, replace audio
+  // with digital silence, then recompute a consistent P05 manifest checksum.
+  const muteFile=path.join(root,'mute.mp4');
+  run(['-i',file,'-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=48000',
+    '-map','0:v:0','-map','1:a:0','-t','7.5',
+    '-c:v','copy','-c:a','aac','-b:a','96k',muteFile]);
+  try{
+    const muted=fs.readFileSync(muteFile);
+    fs.writeFileSync(file,muted);
+    const fake=JSON.parse(originalManifest.toString('utf8'));
+    fake.output.sha256=hash(muted);
+    fake.output.bytes=muted.length;
+    fs.writeFileSync(manifestPath,JSON.stringify(fake));
+    assert.equal(inspectP05ActiveRelease({rootOut:out,projectId:deck.id,
+      expectedMasterSha256:fake.output.sha256}).status,'BYTES_VERIFIED');
+    const report=inspectP05DecodedMedia({
+      rootOut:out,projectId:deck.id,expectedMasterSha256:fake.output.sha256,
+    });
+    assert.equal(report.video_decoded,true);
+    assert.equal(report.audio_decoded,true);
+    assert.equal(report.manual_audio_review_required,true);
+    assert.ok(report.pcm_quality.long_silence_count>0);
+    assert.equal(report.media_quality_verdict,'REVIEW');
+    assert.equal(report.may_publish,false);
+    const muteCli=spawnSync(process.execPath,[
+      'tools/inspect-p05-media.mjs',out,deck.id,fake.output.sha256,
+    ],{encoding:'utf8',timeout:120000,maxBuffer:256*1024});
+    assert.equal(muteCli.status,2);
+    assert.equal(JSON.parse(muteCli.stdout).media_quality_verdict,'REVIEW');
   }finally{
     fs.writeFileSync(file,original);
     fs.writeFileSync(manifestPath,originalManifest);
