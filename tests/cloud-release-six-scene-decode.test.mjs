@@ -87,6 +87,13 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
   assert.equal(decoded.licensing_verified,false);
   assert.ok(Math.abs(decoded.decoded_duration_sec-7.5)<0.25);
   assert.equal(fs.existsSync(file),true);
+  const cli=spawnSync(process.execPath,[
+    'tools/inspect-p05-media.mjs',out,deck.id,expectedSha,
+  ],{encoding:'utf8',timeout:120000,maxBuffer:256*1024});
+  assert.equal(cli.status,0,cli.stderr);
+  const cliReport=JSON.parse(cli.stdout);
+  assert.equal(cliReport.status,'MEDIA_DECODED_FOR_REVIEW');
+  assert.equal(cliReport.may_publish,false);
 
   // Strong negative case: a forged P05 manifest can match a corrupt file.
   // Byte-integrity alone is insufficient; FFprobe/FFmpeg must fail closed.
