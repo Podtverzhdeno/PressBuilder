@@ -22,7 +22,8 @@
     "check:media:list": "node tools/inspect-p05-media.mjs --list",
     "check:media:self-test": "node tools/inspect-p05-media.mjs --self-test",
     "measure:media": "node tools/measure-m58-performance.mjs",
-    "measure:p05": "node tools/measure-p05-assembly.mjs"
+    "measure:p05": "node tools/measure-p05-assembly.mjs",
+    "measure:p05:compare": "node tools/compare-p05-profiles.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
