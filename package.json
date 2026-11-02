@@ -25,7 +25,8 @@
     "measure:p05": "node tools/measure-p05-assembly.mjs",
     "measure:p05:compare": "node tools/compare-p05-profiles.mjs",
     "measure:p13": "node tools/compare-p13-single-edit.mjs",
-    "check:p05:voice-music": "node tools/check-p05-known-voice-music.mjs"
+    "check:p05:voice-music": "node tools/check-p05-known-voice-music.mjs",
+    "check:p05:offline-speech": "node tools/check-p05-known-voice-music.mjs --offline-speech"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
