@@ -87,6 +87,11 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
   assert.equal(decoded.manual_visual_review_required,false);
   assert.equal(decoded.media_quality_verdict,'TECHNICAL_PASS');
   assert.equal(decoded.manual_audio_review_required,false);
+  assert.equal(decoded.loudness_quality.measurement_status,'MEASURED');
+  assert.ok(Number.isFinite(decoded.loudness_quality.integrated_lufs));
+  assert.ok(Number.isFinite(decoded.loudness_quality.true_peak_dbtp));
+  assert.equal(decoded.loudness_quality.normalized_output_generated,false);
+  assert.equal(decoded.loudness_quality.manual_audio_review_required,false);
   assert.equal(decoded.pcm_quality.clipping_risk,false);
   assert.equal(decoded.pcm_quality.long_silence_count,0);
   assert.ok(Math.abs(decoded.pcm_quality.pcm_duration_sec-7.5)<0.25);
@@ -188,6 +193,8 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
     assert.equal(report.video_decoded,true);
     assert.equal(report.audio_decoded,true);
     assert.equal(report.manual_audio_review_required,true);
+    assert.equal(report.loudness_quality.manual_audio_review_required,true);
+    assert.ok(report.loudness_quality.issues.length>0);
     assert.ok(report.pcm_quality.long_silence_count>0);
     assert.equal(report.media_quality_verdict,'REVIEW');
     assert.equal(report.may_publish,false);
