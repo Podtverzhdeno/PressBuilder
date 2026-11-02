@@ -44,6 +44,21 @@ export function parseLongBlackIntervals(stderr,minDurationSec=0.75){
   }
   return out;
 }
+export function assessContainerAvTiming(video,audio,{maxOffsetMs=250}={}){
+  if(!Number.isSafeInteger(maxOffsetMs)||maxOffsetMs<0||maxOffsetMs>2000)
+    bad('M58_DECODE_POLICY_INVALID',400);
+  const vStart=finiteSeconds(video?.start_time);
+  const aStart=finiteSeconds(audio?.start_time);
+  const vDuration=finiteSeconds(video?.duration);
+  const aDuration=finiteSeconds(audio?.duration);
+  if([vStart,aStart,vDuration,aDuration].some(x=>x===null))
+    bad('M58_DECODE_STREAM_TIMESTAMP_MISSING');
+  const avStartOffsetMs=Math.round((aStart-vStart)*1000);
+  const avEndOffsetMs=Math.round(((aStart+aDuration)-(vStart+vDuration))*1000);
+  if(Math.abs(avStartOffsetMs)>maxOffsetMs||Math.abs(avEndOffsetMs)>maxOffsetMs)
+    bad('M58_DECODE_AV_CONTAINER_DRIFT');
+  return {start_offset_ms:avStartOffsetMs,end_offset_ms:avEndOffsetMs};
+}
 /** A six-scene real-media preflight, not a production release authorization. */
 export function inspectP05DecodedMedia({
   rootOut,projectId,expectedMasterSha256=null,
@@ -87,16 +102,9 @@ export function inspectP05DecodedMedia({
   if(Math.abs(duration-expectedDuration)>0.25||
     Math.abs(frameCount/realFps-expectedDuration)>0.25)
     bad('M58_DECODE_TIMELINE_DRIFT');
-  const vStart=finiteSeconds(v.start_time),aStart=finiteSeconds(a.start_time);
-  const vDuration=finiteSeconds(v.duration),aDuration=finiteSeconds(a.duration);
-  // This checks muxed stream timestamps only; it is NOT spoken-word sync.
-  // Missing timestamps must never be silently interpreted as zero.
-  if(vStart===null||aStart===null||vDuration===null||aDuration===null)
-    bad('M58_DECODE_STREAM_TIMESTAMP_MISSING');
-  const avStartOffsetMs=Math.round((aStart-vStart)*1000);
-  const avEndOffsetMs=Math.round(((aStart+aDuration)-(vStart+vDuration))*1000);
-  if(Math.abs(avStartOffsetMs)>250||Math.abs(avEndOffsetMs)>250)
-    bad('M58_DECODE_AV_CONTAINER_DRIFT');
+  // Container stream PTS/DTS consistency only, not perceptual word/lip sync.
+  const {start_offset_ms:avStartOffsetMs,end_offset_ms:avEndOffsetMs}=
+    assessContainerAvTiming(v,a);
 
   // Decode ALL video frames and audio samples; concurrently flag long fully
   // black runs. Short transitions and deliberate dark scenes need a reviewer,
