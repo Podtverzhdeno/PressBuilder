@@ -8,6 +8,8 @@ on:
     paths:
       - 'server/release-evidence-preflight.mjs'
       - 'tests/cloud-release-evidence-preflight.test.mjs'
+      - 'tests/cloud-release-evidence-cli.test.mjs'
+      - 'tools/release-preflight.mjs'
       - 'docs/M58_RELEASE_PREFLIGHT.md'
       - '.github/workflows/m58-release-preflight.yml'
 
@@ -25,6 +27,6 @@ jobs:
           node-version: '22.20.0'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test tests/cloud-release-evidence-preflight.test.mjs
+      - run: node --test tests/cloud-release-evidence-preflight.test.mjs tests/cloud-release-evidence-cli.test.mjs
       - run: npm run typecheck
       - run: npm run build
