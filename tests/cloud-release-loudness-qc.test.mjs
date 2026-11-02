@@ -58,7 +58,7 @@ test('M58 loudnorm rejects forged, duplicated, partial and malformed FFmpeg summ
   fail('M58_LOUDNORM_SCHEMA_INVALID',()=>parseLoudnormInput(
     '{"input_i":"-10","input_tp":"-1"}'));
   fail('M58_LOUDNORM_VALUE_INVALID',()=>parseLoudnormInput(report('NaN','-2')));
-  fail('M58_LOUDNORM_VALUE_INVALID',()=>parseLoudnormInput(report('0" bad','-2')));
+  fail('M58_LOUDNORM_JSON_INVALID',()=>parseLoudnormInput(report('0" bad','-2')));
   fail('M58_LOUDNORM_LOG_INVALID',()=>parseLoudnormInput('x'.repeat(262145)));
   fail('M58_LOUDNORM_POLICY_INVALID',()=>evaluateLoudness(
     {integrated_lufs:-15,true_peak_dbtp:-2,loudness_range_lu:5},
