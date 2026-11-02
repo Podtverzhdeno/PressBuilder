@@ -26,6 +26,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+      - name: Ensure FFmpeg and ffprobe for real media smoke
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci --no-audit --no-fund
       - run: npm run test:qa
+        env:
+          PB_REQUIRE_FFMPEG_TEST: '1'
       - run: npm run build
