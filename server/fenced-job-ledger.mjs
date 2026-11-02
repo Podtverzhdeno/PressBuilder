@@ -142,6 +142,9 @@ export function fencedJobLedger({root,getDeck,versions,enabled=false,clock=()=>D
   // Idempotent replay returns same recorded result, not a second side effect.
   if(receipt){
    if(receipt.evidence_sha256!==args.evidence_sha256)bad('M50_OPERATION_REPLAY_CONFLICT');
+   if(actor?.id!==d.assignee||args.fence!==receipt.fence||
+    typeof args.lease_token!=='string'||args.lease_token.length!==48||
+    hashSecret(args.lease_token)!==receipt.token_sha256)bad('M50_INVALID_FENCE',403);
    return read(id,scene,job);
   }
   if(!integer(args.expected_revision)||d.revision!==args.expected_revision)bad('M50_CAS_CONFLICT');
@@ -149,7 +152,7 @@ export function fencedJobLedger({root,getDeck,versions,enabled=false,clock=()=>D
   const p=approval(id,scene,d.version_id,d.source_sha256);
   if(args.evidence_sha256!==p.artifact.sha256)bad('M50_EVIDENCE_MISMATCH',422);
   d.receipts.push({operation_id:args.operation_id,evidence_sha256:args.evidence_sha256,
-   fence:d.fence,approved_revision:p.revision});
+   fence:d.fence,approved_revision:p.revision,token_sha256:d.token_sha256});
   d.revision++;d.updated_ms=stamp();d.state='VERIFIED_FOR_REVIEW';d.expires_at=0;
   d.token_sha256=null;
   save(id,scene,job,d);
