@@ -85,6 +85,7 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
   assert.ok(Math.abs(decoded.av_container_end_offset_ms)<=250);
   assert.deepEqual(decoded.long_black_intervals,[]);
   assert.equal(decoded.manual_visual_review_required,false);
+  assert.equal(decoded.media_quality_verdict,'TECHNICAL_PASS');
   assert.equal(decoded.video_decoded,true);
   assert.equal(decoded.audio_decoded,true);
   assert.equal(decoded.may_publish,false);
@@ -146,6 +147,13 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
     assert.equal(report.video_decoded,true);
     assert.equal(report.audio_decoded,true);
     assert.equal(report.manual_visual_review_required,true);
+    assert.equal(report.media_quality_verdict,'REVIEW');
+    const blackCli=spawnSync(process.execPath,[
+      'tools/inspect-p05-media.mjs',out,deck.id,fake.output.sha256,
+    ],{encoding:'utf8',timeout:120000,maxBuffer:256*1024});
+    assert.equal(blackCli.status,2,
+      'CLI must block an otherwise valid but all-black master pending review');
+    assert.equal(JSON.parse(blackCli.stdout).media_quality_verdict,'REVIEW');
     assert.ok(report.long_black_intervals.some(x=>x.duration_sec>=0.75),
       'Detect long all-black P05 master while FFmpeg can still decode it');
     assert.equal(report.may_publish,false);
