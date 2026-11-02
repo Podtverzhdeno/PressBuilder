@@ -526,6 +526,43 @@ and cannot approve commercial publication: `may_publish:false`,
 `may_deploy:false`. A real-media acceptance gate still needs
 authorized source stems and human listening review.
 
+## Genuine offline spoken-word preservation using existing P05 fixture (M58-R16)
+
+The existing `check:p05:voice-music` six-scene harness is reused with
+`--offline-speech`; no duplicate P05 assembler is introduced. Its
+source now contains **original, offline-synthesized spoken English words**,
+rather than a 440-Hz voice-like reference tone, over a deliberately known
+110-Hz music bed. On Windows the tool uses installed System.Speech/SAPI;
+in Linux CI it uses the offline `espeak-ng` package (no web synthesis,
+downloaded media, vendor service or licensing assumption).
+
+```powershell
+node tools/probe-offline-speech.mjs
+npm run check:p05:offline-speech
+node --test tests/cloud-release-offline-speech.test.mjs
+```
+
+The source WAV is decoded to 48 kHz stereo PCM, peak-normalized within
+the temporary scene fixture, mixed with music, encoded into H.264/AAC
+scene MP4s, then assembled by real P05 into **two immutable six-scene
+releases** with three 300-ms crossfades. The second release deletes
+only the spoken-word track from scene s05, preserving five source SHA-256
+values and the source music timeline. Each output has independent
+format, duration and source SHA checks. The read-only QA computes
+source-aware 200-ms 110-Hz Fourier music projections and residual
+(non-music) signal energy in stable mid-scene windows. It detects loss
+of speech-band energy in scene s05 even when both finished MP4
+files individually pass ordinary technical QA.
+
+This is deliberately **not automatic transcription, ASR, word accuracy,
+human intelligibility, instrument/vocal separation or general speech
+presence detection**. Unknown or unlicensed real media cannot inherit
+these reference thresholds. Offline engines can have different
+voices and prosody; the controls test the same engine's normal and
+corrupted releases separately. In particular, this does not give
+permission to publish user recordings, videos or proprietary media.
+`may_publish:false` and `may_deploy:false` remain unchanged.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
