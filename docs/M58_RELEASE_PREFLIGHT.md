@@ -44,7 +44,20 @@ npm run typecheck
 npm run build
 ```
 
-The repo's `test:cloud` script also discovers the new test. CI is expected on the PR branch.
+An optional read-only CLI reports diagnostic blockers without any authentication callback:
+
+```bash
+node tools/release-preflight.mjs /path/to/manifest.json
+```
+
+Exit code: `2` = valid manifest but blocked evidence, `1` = malformed or unsafe input,
+`0` = help only. The CLI **cannot produce a release authorization**, even with
+green self-reported receipts. It refuses non-regular files, hardlinks, symlinks and
+files larger than 128 KiB; it does not expose raw input in error messages.
+
+The repo's `test:cloud` script also discovers the two M58 test files.
+The first M58 CI run passed before the CLI was added; subsequent CI runs
+must pass both tests to count as the updated branch's verification.
 
 ## Next acceptance gates (not implemented)
 
