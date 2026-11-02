@@ -76,7 +76,8 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
   const decoded=inspectP05DecodedMedia({rootOut:out,projectId:deck.id,expectedMasterSha256:expectedSha});
   assert.equal(decoded.status,'MEDIA_DECODED_FOR_REVIEW');
   assert.equal(decoded.scope,'SIX_SCENE_SYNTHETIC_COMPATIBLE_MEDIA_DECODE');
-  assert.ok(Math.abs(decoded.frame_count-180)<=1,\n    'P05 frame-rate normalization may round the final presentation frame by one');
+  assert.ok(Math.abs(decoded.frame_count-180)<=1,
+    'P05 frame-rate normalization may round the final presentation frame by one');
   assert.equal(decoded.audio_sample_rate,48000);
   assert.equal(decoded.audio_channels,2);
   assert.equal(decoded.video_decoded,true);
