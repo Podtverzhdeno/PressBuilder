@@ -16,6 +16,9 @@ on:
       - 'server/release-pcm-qc.mjs'
       - 'tests/cloud-release-pcm-qc.test.mjs'
       - 'server/release-loudness-qc.mjs'
+      - 'server/release-performance-samples.mjs'
+      - 'tools/measure-m58-performance.mjs'
+      - 'tests/cloud-release-performance-samples.test.mjs'
       - 'tests/cloud-release-loudness-qc.test.mjs'
       - 'server/release-discovery.mjs'
       - 'tests/cloud-release-discovery.test.mjs'
@@ -47,6 +50,6 @@ jobs:
           ffmpeg -version
           ffprobe -version
       - name: Evidence, byte-integrity and six-scene media decode
-        run: node --test tests/cloud-release-evidence-preflight.test.mjs tests/cloud-release-evidence-cli.test.mjs tests/cloud-release-media-integrity.test.mjs tests/cloud-release-six-scene-decode.test.mjs tests/cloud-release-discovery.test.mjs tests/cloud-release-pcm-qc.test.mjs tests/cloud-release-loudness-qc.test.mjs
+        run: node --test tests/cloud-release-evidence-preflight.test.mjs tests/cloud-release-evidence-cli.test.mjs tests/cloud-release-media-integrity.test.mjs tests/cloud-release-six-scene-decode.test.mjs tests/cloud-release-discovery.test.mjs tests/cloud-release-pcm-qc.test.mjs tests/cloud-release-loudness-qc.test.mjs tests/cloud-release-performance-samples.test.mjs
       - run: npm run typecheck
       - run: npm run build
