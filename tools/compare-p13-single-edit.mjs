@@ -17,6 +17,7 @@ import {styleContractStore} from '../server/style-contract.mjs';
 import {inspectMp4} from '../server/video-qa.mjs';
 import {summarizeFfmpegTrialSamples} from '../server/release-performance-samples.mjs';
 import {parseFrameSsimStats,summarizeSeamFrameSsim} from '../server/release-seam-ssim.mjs';
+import {measurePcmSeamWindows,comparePcmCutSeams} from '../server/release-audio-seam-qc.mjs';
 
 const ID='m58-p13-comparison',SIDS=['s01','s02','s03','s04','s05','s06'];
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -102,6 +103,25 @@ export function compareVideoSimilarity(left,right,{durationSec=3}={}){
   return {overall:ssimRound(score),seam};
 }
 const ssimRound=n=>Number(n.toFixed(6));
+/** Exact 48kHz stereo decoding, bounded in-memory, no side effects. */
+export function measureAudioVideoSeams(incrementalMp4,fullMp4,{durationSec=3}={}){
+  if(![3,4,5,6,7].includes(durationSec))
+    throw error('AUDIO_SEAM_PROFILE_INVALID');
+  const decode=file=>{
+    const r=spawnSync('ffmpeg',[
+      '-hide_banner','-nostats','-nostdin','-loglevel','error',
+      '-xerror','-err_detect','explode','-i',file,
+      '-map','0:a:0','-vn','-ac','2','-ar','48000',
+      '-c:a','pcm_s16le','-f','s16le','-',
+    ],{encoding:null,timeout:90000,maxBuffer:22*1024*1024,
+       windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});
+    if(r.error||r.status!==0||r.signal||!Buffer.isBuffer(r.stdout))
+      throw error('AUDIO_SEAM_DECODE_FAILED');
+    return measurePcmSeamWindows(r.stdout,{sceneDurationSec:durationSec});
+  };
+  // No production render mutation; compare both immutable MP4 release paths.
+  return comparePcmCutSeams(decode(incrementalMp4),decode(fullMp4));
+}
 const sample=(job,wallMs,strategy)=>({
   wall_ms:round(wallMs),
   child_maxrss_kib:strategy==='incremental-hardcut-v1'?
@@ -171,14 +191,18 @@ export async function compareP13SingleSceneUpdate({
       seen.add(fullRelease.release_id);
       // Compare decoded video after both timed jobs; similarity overhead
       // is deliberately excluded from P05 assembly latency samples.
+      const incrementalMp4=service.download(ID,incRelease.release_id);
+      const fullMp4=service.download(ID,fullRelease.release_id);
       const videoQuality=compareVideoSimilarity(
-        service.download(ID,incRelease.release_id),
-        service.download(ID,fullRelease.release_id),{durationSec});
+        incrementalMp4,fullMp4,{durationSec});
+      const audioQuality=measureAudioVideoSeams(
+        incrementalMp4,fullMp4,{durationSec});
       fresh.push(sample(delta,deltaMs,'incremental-hardcut-v1'));
       full.push(sample(rebuilt,fullMs,'full-filter'));
       trials.push({trial:cycle,updated_scene:'s03',
         video_ssim_all:videoQuality.overall,
         video_ssim_seams:videoQuality.seam,
+        audio_seams:audioQuality,
         unchanged_source_count:5,segments_reused:5,segments_encoded:1,
         incremental_wall_ms:round(deltaMs),full_wall_ms:round(fullMs),
         incremental_output_sha256:incRelease.sha,
@@ -200,6 +224,7 @@ export async function compareP13SingleSceneUpdate({
     const minVideoSsim=Math.min(...trials.map(t=>t.video_ssim_all));
     const minSeamSsim=Math.min(...trials.map(t=>t.video_ssim_seams.min_seam_window_ssim));
     const seamReview=trials.some(t=>t.video_ssim_seams.manual_visual_review_required);
+    const audioReview=trials.some(t=>t.audio_seams.manual_audio_review_required);
     return {
       schema_version:1,
       scope:'SIX_SCENE_SYNTHETIC_P13_SINGLE_SCENE_EDIT_BENCHMARK',
@@ -220,10 +245,14 @@ export async function compareP13SingleSceneUpdate({
       cut_seam_review_required:seamReview,
       video_ssim_measurement:'DECODED_FRAME_SSIM_AND_FIVE_P05_CUT_WINDOWS',
       manual_visual_comparison_required:minVideoSsim<0.95||seamReview,
+      manual_audio_review_required:audioReview,
+      audio_cut_review_trial_count:trials.filter(
+        t=>t.audio_seams.manual_audio_review_required).length,
+      audio_cut_measurement:'RELATIVE_48K_PCM_CLICK_DROPOUT_AND_TIMELINE',
       trials,
       production_p95_ms:null,cloud_cost_usd:null,
       baseline_slo_accepted:false,may_publish:false,may_deploy:false,
-      caveat:'Sequential local synthetic 720p P05 comparison. Incremental runs precede forced full runs; scheduling, thermal and storage caches can confound ratios. QA checks format and SHA provenance; decoded-video global and cut-seam SSIM are technical similarity, not perceptual equivalence or rights approval. No source rights, real agent render, production representative SLO, or deployment.',
+      caveat:'Sequential local synthetic 720p P05 comparison. Incremental runs precede forced full runs; scheduling, thermal and storage caches can confound ratios. QA checks format and SHA provenance; decoded-video global/cut SSIM and relative PCM seam metrics are technical diagnostics, not perceptual equivalence or rights approval. No source rights, real agent render, production representative SLO, or deployment.',
     };
   }finally{fs.rmSync(root,{recursive:true,force:true,maxRetries:3,retryDelay:100})}
 }
