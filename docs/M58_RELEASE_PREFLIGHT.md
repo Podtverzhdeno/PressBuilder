@@ -203,6 +203,34 @@ Reports keep `may_publish:false` and `may_deploy:false`.
 node --test tests/cloud-release-pcm-qc.test.mjs tests/cloud-release-six-scene-decode.test.mjs
 ```
 
+## Integrated LUFS and oversampled true peak (M58-R07)
+
+The six-scene media inspector now runs **FFmpeg loudnorm** as a read-only
+measurement pass. It extracts the **input** integrated loudness (EBU R128,
+LUFS), input true peak (4× oversampled, dBTP) and loudness range (LU); it
+never confuses normalized-output readings with source measurements and never
+writes normalized media. A bounded parser rejects invalid/missing/multiple
+summaries and unsafe measurements. Silence may report `-inf`; it becomes
+`null` with `measurement_status:'UNMEASURABLE'`, never fabricated 0 LUFS.
+
+A provisional diagnostic envelope (for review, **not** a universal mastering
+standard) flags input loudness below **-38 LUFS**, above **-8 LUFS**, or
+true peak above **-1 dBTP**. Flagged or unmeasurable audio requires manual
+review, and the operator CLI returns exit 2. The `loudness_quality` result
+is independent from the PCM sample-peak/RMS/long-silence check, so an
+apparently clean PCM report cannot hide intersample true-peak overs.
+
+```bash
+node --test tests/cloud-release-loudness-qc.test.mjs tests/cloud-release-six-scene-decode.test.mjs
+npm run check:media
+```
+
+The synthetic six-scene test independently encodes real AAC, assembles a
+real MP4 and measures loudness and true peak with FFmpeg. All resulting
+evidence is **diagnostic** with `may_publish:false` and
+`may_deploy:false`, not a mastering guarantee, signed measurement,
+commercial licensing proof, subjective listening review, or final signoff.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
