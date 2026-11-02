@@ -12,10 +12,10 @@ async function freePort(){
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 test('M01-R02 live REST/MCP journal: director ACL, Origin/CAS and absent approved MP4 refusal',{timeout:45000},async()=>{
  const root=fs.mkdtempSync(os.tmpdir()+'/pb-editops-wire-'),port=await freePort();
- const basic='Basic '+Buffer.from('owner:secure-pass-123').toString('base64');
+ const basic='Basic '+Buffer.from('owner:secure-pass-12345').toString('base64');
  const key=randomBytes(24).toString('hex'),workerKey=randomBytes(24).toString('hex');
  const child=spawn(process.execPath,['server/cloud.mjs'],{cwd:process.cwd(),stdio:['ignore','pipe','pipe'],
-  env:{...process.env,PORT:String(port),PB_DATA_DIR:root,PB_WEB_USER:'owner',PB_WEB_PASSWORD:'secure-pass-123',
+  env:{...process.env,PORT:String(port),PB_DATA_DIR:root,PB_WEB_USER:'owner',PB_WEB_PASSWORD:'secure-pass-12345',
    MCP_API_KEY:key,PB_EDITGRAPH_PREVIEW:'1',PB_AGENT_KEYS_JSON:JSON.stringify([
     {id:'editor',role:'worker',token:workerKey,projects:['test-editops'],scenes:['s01']}])}});
  let log='';child.stdout.on('data',x=>log+=x.toString());child.stderr.on('data',x=>log+=x.toString());
