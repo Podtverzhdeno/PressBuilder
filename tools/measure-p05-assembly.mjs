@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {performance} from 'node:perf_hooks';
 import {assemblyService} from '../server/assemble-scenes.mjs';
@@ -155,11 +156,6 @@ async function main(args){
     return 2;
   }
 }
-if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(new URL(import.meta.url).pathname)){
-  // The path comparison above is OS-specific; separate invocation is handled
-  // by the platform-safe file URL comparison below.
-}
-if(process.argv[1]&&new URL(import.meta.url).href===
-  new URL('file://'+path.resolve(process.argv[1]).replaceAll('\\','/')).href){
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   process.exitCode=await main(process.argv.slice(2));
 }
