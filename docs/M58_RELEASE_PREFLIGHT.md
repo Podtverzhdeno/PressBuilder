@@ -486,6 +486,46 @@ provenance, or an automatic mastering decision. No real production source,
 feature flag, release approvals or deployment are modified.
 `may_publish:false`, `may_deploy:false` remain explicit.
 
+## Controlled music-bed and voice-surrogate preservation (M58-R15)
+
+P05 now has an additional **opt-in, controlled synthetic reference**.
+It generates six independent H.264/AAC scene clips, with a known continuous
+110-Hz background music-surrogate tone and a known 440-Hz voice-surrogate
+tone on scenes 2 and 5. Music is intentionally ducked from a nominal
+0.14 amplitude to 0.04 while voice is active. Three 300-ms crossfade
+transitions are assembled using the actual P05 encoder and editorial
+plan. All input scene files, release IDs and output MP4s are validated.
+
+The decoded final AAC track is analyzed in bounded 200-ms spectral windows
+by sine/cosine projection against these **known** frequencies. Checks
+cover music continuity through all three transitions, missing voice on
+scenes 2/5, unexpectedly retained voice on other scenes, missing or
+excessive music ducking, and incorrect timeline length. Music amplitude
+during voice is compared to the median music level from the unvoiced
+scenes. A reference without valid music fails closed instead of
+inventing a PASS.
+
+A second **real P05 full-filter encode**, under the same isolated project,
+changes only scene 5 by removing the 440-Hz surrogate; MP4 video and
+container QA still pass, but the spectral check must report
+`VOICE_SURROGATE_MISSING`. Both builds have different immutable releases,
+and six scene-source SHA-256 hashes prove only s05 changed.
+
+```powershell
+npm run check:p05:voice-music
+node --test tests/cloud-release-known-voice-music.test.mjs
+```
+
+**Important scope:** these are purposely chosen diagnostic sine frequencies;
+this is **not voice recognition, stem separation, speech intelligibility,
+real-world music continuity, or proof of good ducking on creative footage**.
+The ordinary M58-R14 peak/RMS/crossfade indicators still analyze more
+general decoded audio, but cannot label actual voices or instruments.
+The fixture lives in temporary files, does not modify real user projects,
+and cannot approve commercial publication: `may_publish:false`,
+`may_deploy:false`. A real-media acceptance gate still needs
+authorized source stems and human listening review.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
