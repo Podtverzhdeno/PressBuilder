@@ -40,7 +40,10 @@ function selfTest(){
 function diagnose(rootOut,projectId,expectedMasterSha256){
   const report=inspectP05DecodedMedia({rootOut,projectId,expectedMasterSha256});
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
-  return 0;
+  // Read-only diagnosis can succeed while media still needs human review.
+  // Fail the operator command closed so a shell script cannot treat REVIEW
+  // as approved output.
+  return report.media_quality_verdict==='REVIEW'?2:0;
 }
 function main(args){
   if(args.length===1&&['--help','-h'].includes(args[0])){
