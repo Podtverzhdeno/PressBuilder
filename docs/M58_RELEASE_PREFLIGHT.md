@@ -180,6 +180,29 @@ accessibility, font readability, flashing, color grading, source licenses,
 independent signoff or an accepted production SLO. These remain separately
 required evidence categories.
 
+## PCM clipping and long-silence diagnostics (M58-R06)
+
+The independent P05 media preflight now additionally decodes the AAC track
+into **bounded, in-memory** interleaved 48-kHz stereo signed 16-bit PCM. It
+measures sample peak and whole-program RMS (both in dBFS), counts samples
+within 68 raw units of full scale, and detects contiguous windows of digital
+silence below -55 dBFS for **at least 2 seconds**. A clipping fraction of
+0.1% or more, or a long digital-silence interval, sets
+`manual_audio_review_required:true` and
+`media_quality_verdict:'REVIEW'`. The operator CLI exits 2 for review.
+
+The 100-ms PCM windows do not judge musicality, spoken-word alignment,
+true/intersample peak, integrated LUFS, audio rights, deliberate artistic
+silences or listener fatigue. Real synthetic negative tests retain video
+content, replace the actual AAC audio with silence, rewrite the P05 SHA and
+show that otherwise decodable files still require manual audio review.
+There are no writes to any source/deck/release file by the inspector.
+Reports keep `may_publish:false` and `may_deploy:false`.
+
+```bash
+node --test tests/cloud-release-pcm-qc.test.mjs tests/cloud-release-six-scene-decode.test.mjs
+```
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
