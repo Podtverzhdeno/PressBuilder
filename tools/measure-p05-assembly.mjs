@@ -11,6 +11,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {performance} from 'node:perf_hooks';
+import {createHash} from 'node:crypto';
 import {assemblyService} from '../server/assemble-scenes.mjs';
 import {assemblyPlanStore} from '../server/assembly-plan.mjs';
 import {styleContractStore} from '../server/style-contract.mjs';
@@ -43,13 +44,18 @@ function parse(args){
     return {count:Number(args[0].split('=')[1])};
   return null;
 }
-export async function measureSixSceneP05({count=5}={}){
-  if(!Number.isSafeInteger(count)||count<5||count>10)
+export async function measureSixSceneP05({count=5,durationSec=0.75,
+  transition='hard-cut',height=720}={}){
+  if(!Number.isSafeInteger(count)||count<1||count>10)
     throw new Error('M58_P05_BENCH_SAMPLE_LIMIT');
+  if(![0.75,3,4,5,6,7].includes(durationSec)||
+     !['hard-cut','crossfade'].includes(transition)||
+     ![720,1080].includes(height))
+    throw new Error('M58_P05_BENCH_PROFILE_INVALID');
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-m58-p05-bench-'));
   const out=path.join(root,'out'),decks=path.join(root,'decks');
   const deck={id:projectId,slides:ids.map(id=>({id})),
-    format:{height:720,fps:24}};
+    format:{height,fps:24}};
   const getDeck=()=>deck;
   fs.mkdirSync(out,{recursive:true});
   try{
@@ -57,23 +63,38 @@ export async function measureSixSceneP05({count=5}={}){
     // normalization and synthetic silence injection. Fixtures excluded from
     // measured P05 wall time, reported separately.
     const fixtureStarted=performance.now();
+    const inputHashes=[];
     for(let i=0;i<6;i++){
       const file=path.join(out,projectId+'_'+ids[i]+'.mp4');
+      const visual=durationSec===0.75?
+        'color=c='+colors[i]+':s=160x90:r='+(i%2===0?'24':'30')+':d=0.75':
+        'testsrc2=size=320x180:rate='+(i%2===0?'24':'30')+
+          ':duration='+durationSec;
       const args=['-hide_banner','-nostdin','-loglevel','error','-y',
-        '-f','lavfi','-i','color=c='+colors[i]+':s=160x90:r='+
-          (i%2===0?'24':'30')+':d=0.75'];
+        '-f','lavfi','-i',visual];
       if(i%2===0)args.push('-f','lavfi','-i',
-        'sine=frequency='+(500+i*50)+':sample_rate=48000:duration=0.75');
-      args.push('-t','0.75','-c:v','libx264','-preset','ultrafast',
+        'sine=frequency='+(500+i*50)+':sample_rate=48000:duration='+durationSec);
+      args.push('-t',String(durationSec),'-c:v','libx264','-preset','ultrafast',
         '-pix_fmt','yuv420p');
       if(i%2===0)args.push('-c:a','aac','-b:a','96k');
       else args.push('-an');
       args.push(file);
       command('ffmpeg',args);
+      inputHashes.push(createHash('sha256').update(fs.readFileSync(file)).digest('hex'));
     }
+    const inputFingerprint=createHash('sha256').update(JSON.stringify(inputHashes)).digest('hex');
     const fixtureGenerationMs=round(performance.now()-fixtureStarted);
     const styles=styleContractStore({root:decks,getDeck});
     const plans=assemblyPlanStore({root:decks,getDeck,getStyle:id=>styles.read(id)});
+    const crossfadeEdges=transition==='crossfade'?[0,2,4]:[];
+    if(crossfadeEdges.length){
+      const record=plans.read(projectId);
+      const plan=structuredClone(record.plan);
+      for(const edge of crossfadeEdges)
+        plan.scenes[edge].transition_after={type:'crossfade',duration:0.3};
+      plans.put(projectId,plan,record.revision);
+    }
+    const expectedDuration=6*durationSec-crossfadeEdges.length*0.3;
     const assembler=assemblyService({
       out,getDeck,getPlan:id=>plans.read(id),getStyle:id=>styles.read(id),
       getRender:()=>({status:'completed',qa_report:{verdict:'PASS'}}),
@@ -99,8 +120,8 @@ export async function measureSixSceneP05({count=5}={}){
       if(job.manifest?.scenes?.length!==6||job.manifest.output.qa?.verdict!=='PASS')
         throw new Error('M58_P05_BENCH_QA_MISSING');
       const file=assembler.download(projectId,release);
-      const qa=inspectMp4(file,{height:720,fps:24,audio_required:true,
-        duration:4.5});
+      const qa=inspectMp4(file,{height,fps:24,audio_required:true,
+        duration:expectedDuration});
       if(qa.verdict!=='PASS')throw new Error('M58_P05_BENCH_OUTPUT_QA_FAILED');
       const encode=job.timings_ms?.encode;
       if(!Number.isFinite(encode)||encode<=0||encode>elapsed+200)
@@ -125,7 +146,17 @@ export async function measureSixSceneP05({count=5}={}){
       scope:'SIX_SCENE_SYNTHETIC_REAL_P05_FULL_ASSEMBLY',
       status:'LOCAL_P05_MEASUREMENT_NOT_PRODUCTION_SLO',
       fixture_generation_ms:fixtureGenerationMs,
-      project_fixture:'six_generated_color_scenes_mixed_fps_aac_silence',
+      project_fixture:durationSec===0.75?
+        'six_generated_color_scenes_mixed_fps_aac_silence':
+        'six_generated_animated_testsrc2_scenes_mixed_fps_aac_silence',
+      input_fingerprint_sha256:inputFingerprint,
+      input_sha256:inputHashes,
+      scene_duration_sec:durationSec,
+      total_output_duration_sec:expectedDuration,
+      transition_profile:transition,
+      crossfade_count:crossfadeEdges.length,
+      crossfade_duration_sec:0.3,
+      height,fps:24,
       p50_encode_ms:encodes[Math.ceil(encodes.length*0.5)-1],
       p95_encode_ms:encodes[Math.ceil(encodes.length*0.95)-1],
       unique_release_count:seen.size,
