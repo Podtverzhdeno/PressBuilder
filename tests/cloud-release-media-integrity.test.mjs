@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {inspectP05ActiveRelease} from '../server/release-media-integrity.mjs';
 
@@ -124,4 +125,28 @@ test('M58 rejects enormous or malformed manifest before inspecting video bytes',
   reject('M58_P05_MANIFEST_UNSAFE',()=>f.inspect());
   fs.writeFileSync(path.join(f.release,'manifest.json'),'{corrupted');
   reject('M58_P05_MANIFEST_MALFORMED',()=>f.inspect());
+});
+
+test('M58 P05 CLI checks local fixture without publishing and returns a stable code',t=>{
+  const f=fixture(t);
+  const run=(...args)=>spawnSync(process.execPath,
+    ['tools/inspect-p05-release.mjs',...args],{
+      cwd:process.cwd(),encoding:'utf8',timeout:15000,maxBuffer:128*1024
+    });
+  let result=run(f.out,'montage',hash(f.bytes));
+  assert.equal(result.status,0,result.stderr);
+  let report=JSON.parse(result.stdout);
+  assert.equal(report.status,'BYTES_VERIFIED');
+  assert.equal(report.may_publish,false);
+  assert.equal(report.decoded_media_verified,false);
+  result=run(f.out,'montage','f'.repeat(64));
+  assert.equal(result.status,2);
+  assert.match(result.stderr,/M58_P05_EXPECTED_MASTER_MISMATCH/);
+  assert.equal(result.stdout,'');
+  result=run(f.out,'../escape');
+  assert.equal(result.status,2);
+  assert.match(result.stderr,/M58_P05_PROJECT_INVALID/);
+  const help=run('--help');
+  assert.equal(help.status,0);
+  assert.match(help.stdout,/Usage:/);
 });
