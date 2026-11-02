@@ -256,6 +256,49 @@ node --test tests/cloud-release-performance-samples.test.mjs
 
 This is the start of instrumentation toward M58-C05, not its acceptance.
 
+## Five forced six-scene P05 end-to-end assembly trials (M58-R09)
+
+Unlike the earlier `lavfi -> null` FFmpeg microbenchmark, this opt-in
+benchmark exercises **the actual P05 assembly service**, with six separately
+encoded source MP4s, mixed 24/30-fps inputs, alternating source AAC and
+missing audio, real FPS normalization, six-scene concat, H.264/AAC output,
+independent MP4 QA, immutable release directories and pointer writes.
+
+```powershell
+npm run measure:p05
+node tools/measure-p05-assembly.mjs --samples=10
+node --test tests/cloud-release-p05-benchmark.test.mjs
+```
+
+The script creates a unique temporary workspace and generates inputs
+**before** the timed trials. Each of 5–10 trials calls
+`assembly.start(projectId, sixIds, {force:true})`, explicitly disables
+incremental hard-cut reuse and verifies it generated a different immutable
+release, fresh encode, six scenes and `PASS` output QA. Existing user
+project files and release directories are **not accessed**. Temporary
+fixture videos, manifests and releases are removed afterwards.
+
+Measurements include p50/p95 of the actual P05 request-to-success wall time,
+p50/p95 of `timings_ms.encode`, individual encode+QA durations, actual
+FFmpeg child CPU and `maxrss` where reported, and an integrity hash of
+raw timing samples. FFmpeg child RSS is deliberately not conflated with
+overall Node/browser/worker peak memory. Missing measurements remain null,
+never zero. The measured wall time excludes original six-scene rendering
+and fixture generation; fixture-generation timing is reported separately.
+
+A five-trial Windows run on this synthetic 720p/24-fps, 4.5-second master
+recorded p50 wall **685.877 ms**, p95 wall **719.317 ms**, p95 encoding
+**393 ms**, and max FFmpeg child RSS **377.906 MiB**. These are
+*machine-specific observations*, not production baselines or contractual
+targets. Performance depends strongly on source duration, frame content,
+codec, hardware, simultaneous load and storage.
+
+This is still not production M58-C05: no representative 3–7-second authored
+scene renders, Browser/Chromium workload, independent real media, actual
+cloud cost, measured on-production host p95/RSS, baseline comparison,
+human review, rollback or release signoff. All reports carry
+`may_publish:false`, `may_deploy:false`.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
