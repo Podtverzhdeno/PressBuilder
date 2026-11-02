@@ -11,7 +11,7 @@ const RATE=48000,DURATION=17.1,FRAMES=Math.round(RATE*DURATION);
 const fades=[2.7,8.4,14.1];
 const ready=['ffmpeg','ffprobe'].every(x=>
   spawnSync(x,['-version'],{timeout:4000,stdio:'ignore'}).status===0);
-function program({dropout=false,clipping=false,fadeOutSilence=false}={}){
+function program({dropout=false,clipping=false,fadeOutSilence=false,gainSpike=false}={}){
   const pcm=Buffer.alloc(FRAMES*4);
   for(let i=0;i<FRAMES;i++){
     const t=i/RATE;
@@ -34,6 +34,8 @@ function program({dropout=false,clipping=false,fadeOutSilence=false}={}){
     if(dropout&&t>=2.83&&t<2.88)signal=0;
     if(clipping&&t>=8.52&&t<8.57)
       signal=1.7*Math.sin(2*Math.PI*440*t);
+    if(gainSpike&&t>=8.52&&t<8.6)
+      signal=.78*Math.sin(2*Math.PI*440*t);
     const x=Math.max(-32768,Math.min(32767,Math.round(signal*32768)));
     pcm.writeInt16LE(x,i*4);pcm.writeInt16LE(x,i*4+2);
   }
@@ -77,6 +79,14 @@ test('M58-R14 mixed-track overload clips near second crossfade',()=>{
   assert.equal(q.boundaries[1].clipping_risk,true);
   assert.equal(q.boundaries[0].clipping_risk,false);
   assert.equal(q.boundaries[2].clipping_risk,false);
+});
+test('M58-R14 severe overlap gain spike without clipping requires review',()=>{
+  const q=analyzeCrossfadePcm(program({gainSpike:true}));
+  assert.equal(q.manual_audio_review_required,true);
+  assert.equal(q.boundaries[1].excessive_gain_risk,true);
+  assert.equal(q.boundaries[1].clipping_risk,false);
+  assert.equal(q.boundaries[0].review_required,false);
+  assert.equal(q.boundaries[2].review_required,false);
 });
 test('M58-R14 intentional fade-to-silence does not force dropout review',()=>{
   const q=analyzeCrossfadePcm(program({fadeOutSilence:true}));
