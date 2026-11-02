@@ -34,6 +34,8 @@ on:
       - 'tools/probe-offline-speech.mjs'
       - 'server/release-offline-speech-qc.mjs'
       - 'tests/cloud-release-offline-speech.test.mjs'
+      - 'server/release-speech-cue-timing.mjs'
+      - 'tests/cloud-release-speech-cue-timing.test.mjs'
       - 'tests/cloud-release-p05-benchmark.test.mjs'
       - 'tools/measure-m58-performance.mjs'
       - 'tests/cloud-release-performance-samples.test.mjs'
@@ -80,6 +82,8 @@ jobs:
         run: node tools/probe-offline-speech.mjs --require-available
       - name: Genuine offline original spoken-word AAC audio preservation and missing speech
         run: node --test tests/cloud-release-offline-speech.test.mjs
+      - name: R17 genuine original speech cue timestamp, missing voice and 250ms drift
+        run: node --test tests/cloud-release-speech-cue-timing.test.mjs
       - name: Six-scene AAC controlled music bed and synthetic voice ducking QA
         run: node --test tests/cloud-release-known-voice-music.test.mjs
       - name: P05 animated 3-second hard-cut versus crossfade profiles
