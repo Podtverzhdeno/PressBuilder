@@ -68,6 +68,7 @@ export function fencedJobLedger({root,getDeck,versions,enabled=false,clock=()=>D
   const v=structuredClone(record);
   delete v.token_sha256;
   delete v.checksum;
+  v.receipts=v.receipts.map(({token_sha256,...receipt})=>receipt);
   return v;
  };
  function read(id,scene,job){
