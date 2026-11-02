@@ -64,6 +64,11 @@ export function fencedJobLedger({root,getDeck,versions,enabled=false,clock=()=>D
    bad('M50_P08_SOURCE_STALE',409);
   return p;
  }
+ function assertApproval(d){
+  const p=approval(d.project_id,d.scene_id,d.version_id,d.source_sha256);
+  if(p.revision!==d.approval_revision)bad('M50_P08_APPROVAL_STALE');
+  return p;
+ }
  const safe=record=>{
   const v=structuredClone(record);
   delete v.token_sha256;
@@ -77,7 +82,7 @@ export function fencedJobLedger({root,getDeck,versions,enabled=false,clock=()=>D
   return {...safe(d),
    recoverable:d.state==='LEASED'&&stamp()>=d.expires_at,
    needs_reverification:d.state!=='CANCELLED'&&
-    (()=>{try{approval(id,scene,d.version_id,d.source_sha256);return false}catch{return true}})(),
+    (()=>{try{assertApproval(d);return false}catch{return true}})(),
    may_publish:false};
  }
  function begin(id,scene,actor,args){
@@ -108,7 +113,7 @@ export function fencedJobLedger({root,getDeck,versions,enabled=false,clock=()=>D
   if(d.state==='CANCELLED'||d.state==='VERIFIED_FOR_REVIEW')bad('M50_JOB_TERMINAL');
   const now=stamp();
   if(d.state==='LEASED'&&now<d.expires_at)bad('M50_LEASE_IN_USE');
-  approval(id,scene,d.version_id,d.source_sha256);
+  assertApproval(d);
   if(d.fence>=Number.MAX_SAFE_INTEGER)bad('M50_FENCE_EXHAUSTED',500);
   const token=randomBytes(24).toString('hex');
   d.fence++;d.revision++;d.state='LEASED';
@@ -150,7 +155,7 @@ export function fencedJobLedger({root,getDeck,versions,enabled=false,clock=()=>D
   }
   if(!integer(args.expected_revision)||d.revision!==args.expected_revision)bad('M50_CAS_CONFLICT');
   guard(d,actor,args);
-  const p=approval(id,scene,d.version_id,d.source_sha256);
+  const p=assertApproval(d);
   if(args.evidence_sha256!==p.artifact.sha256)bad('M50_EVIDENCE_MISMATCH',422);
   d.receipts.push({operation_id:args.operation_id,evidence_sha256:args.evidence_sha256,
    fence:d.fence,approved_revision:p.revision,token_sha256:d.token_sha256});
