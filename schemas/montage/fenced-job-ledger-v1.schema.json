@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pressbuilder.local/schemas/montage/fenced-job-ledger-v1.schema.json",
+  "title": "M50 pre-release fenced job ledger v1 (internal disk format)",
+  "description": "Candidate-only durable journal. A QA receipt is not a P05 publish/approval decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "scene_id",
+    "job_id",
+    "request_id",
+    "source_sha256",
+    "version_id",
+    "approval_revision",
+    "state",
+    "revision",
+    "fence",
+    "expires_at",
+    "token_sha256",
+    "receipts",
+    "created_ms",
+    "updated_ms",
+    "checksum"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+    },
+    "scene_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "version_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+    },
+    "approval_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "state": {
+      "enum": [
+        "QUEUED",
+        "LEASED",
+        "VERIFIED_FOR_REVIEW",
+        "CANCELLED"
+      ]
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "expires_at": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "token_sha256": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "receipts": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation_id",
+          "evidence_sha256",
+          "fence",
+          "approved_revision",
+          "token_sha256"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,40}$"
+          },
+          "evidence_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "fence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "approved_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "token_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "created_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "updated_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "assignee": {
+      "type": "string",
+      "minLength": 1
+    },
+    "checksum": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
