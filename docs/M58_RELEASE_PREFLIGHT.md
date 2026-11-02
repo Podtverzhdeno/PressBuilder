@@ -299,6 +299,43 @@ cloud cost, measured on-production host p95/RSS, baseline comparison,
 human review, rollback or release signoff. All reports carry
 `may_publish:false`, `may_deploy:false`.
 
+## Animated 3–7-second scene profile comparison (M58-R10)
+
+The `measure:p05:compare` command measures **P05 itself** on six actual,
+newly encoded, animated `testsrc2` clips, using 3-second scenes by default
+and comparing hard cuts with three declared 300-ms crossfade transitions.
+Each profile forces 5 separate P05 full-filter encodes, validates an
+immutable release and independent MP4 QA for every trial, collects P05
+request→completed time, encode/QA time and real FFmpeg child RSS.
+
+```powershell
+npm run measure:p05:compare
+node tools/compare-p05-profiles.mjs --samples=5 --seconds=7 --height=1080
+node --test tests/cloud-release-p05-profiles.test.mjs
+```
+
+The duration and resolution flags are **bounded**: 3–7 seconds per scene;
+720p/1080p; 5–10 samples per profile. Each profile uses the same
+source-generation recipe, and the comparator additionally checks the actual
+SHA-256 fingerprints for all six MP4s: a mismatch returns
+`INCOMPARABLE_SOURCE_HASHES` and **no p95 ratio**. The observed ratio is
+descriptive only: profiles currently run sequentially and can be distorted
+by thermal and cache effects, background load, or system scheduling.
+
+A first five-trial-per-profile 720p run using six 3-second animated inputs
+measured hard-cut p50/p95 **3,848.044/4,338.321 ms** and crossfade p50/p95
+**3,851.777/4,902.414 ms**, a descriptive **1.13×** p95 ratio. Maximum
+reported FFmpeg child RSS was **383.313 MiB** hard-cut and **446.652 MiB**
+crossfade. Both profiles produced **5/5** QA-valid releases. These are
+Windows-machine sample measurements, not agreed regression thresholds
+or production performance.
+
+Input scenes are machine-generated animation, **not authored brand/story
+media**. This does not measure original P02 scene creation, Chromium/3D,
+subtitle compositing, approved footage, external licenses, actual cloud cost,
+non-synthetic baseline, or end-user aesthetic quality. Both sides remain
+`may_publish:false` and `may_deploy:false`.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
