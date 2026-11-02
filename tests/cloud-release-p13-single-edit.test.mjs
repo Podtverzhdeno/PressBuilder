@@ -28,6 +28,12 @@ test('M58-R11: five authentic s03-only updates reuse 5 cached P13 scenes versus 
     report.min_video_ssim_all<0.95||report.cut_seam_review_required);
   assert.ok(report.min_seam_window_ssim>=0&&
     report.min_seam_window_ssim<=1);
+  assert.equal(report.audio_cut_measurement,
+    'RELATIVE_48K_PCM_CLICK_DROPOUT_AND_TIMELINE');
+  assert.equal(report.manual_audio_review_required,
+    report.audio_cut_review_trial_count>0);
+  assert.ok(report.audio_cut_review_trial_count>=0&&
+    report.audio_cut_review_trial_count<=5);
   assert.equal(report.optimized_incremental.scope,
     'SIX_SCENE_P13_INCREMENTAL_P05_WALL_TIME');
   assert.equal(report.baseline_full_filter.scope,
@@ -52,6 +58,13 @@ test('M58-R11: five authentic s03-only updates reuse 5 cached P13 scenes versus 
     assert.equal(t.video_ssim_seams.boundaries.length,5);
     assert.ok(t.video_ssim_seams.min_seam_window_ssim>=0);
     assert.equal(t.video_ssim_seams.may_publish,false);
+    assert.equal(t.audio_seams.scope,
+      'P13_VS_IDENTICAL_SOURCE_FULL_P05_AUDIO_CUT_COMPARISON');
+    assert.equal(t.audio_seams.boundaries.length,5);
+    assert.ok(t.audio_seams.relative_decoded_duration_delta_ms>=0);
+    assert.ok(t.audio_seams.relative_decoded_duration_delta_ms<=80);
+    assert.equal(t.audio_seams.may_publish,false);
+    assert.equal(t.audio_seams.may_deploy,false);
     assert.ok(t.incremental_wall_ms>0);
     assert.ok(t.full_wall_ms>0);
     assert.match(t.incremental_output_sha256,/^[0-9a-f]{64}$/);
