@@ -29,3 +29,17 @@ M01-C01 independent architecture and security review; M01-C02 cross-platform fra
 ## CI evidence (M01-R01)
 
 GitHub Actions https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41361188906 on SHA 9b177777c7e4fa8e4e61376cb65e3321ade97a61: cloud suite PASS, production Docker 181/181 passed, 0 skipped, 0 failures; existing real MP4 smoke rendered 332050 bytes. OpenSpec/SDD strict validation https://github.com/Podtverzhdeno/PressBuilder/actions/runs/41361188887 PASS. No full six-scene mixed-fps EditGraph-to-render test, no independent signoff. Feature flag stays OFF.
+
+
+## R02 — Reversible edit-operation journal, still REVIEW_ONLY
+
+Implementation: `server/edit-operations.mjs`; REST `GET/POST /api/decks/:id/edit-graph/operations`; MCP director-only `get_edit_operations` and `update_edit_operations`. All endpoints use existing Basic/Bearer access control and REST cross-origin write guard. The candidate project directory stores an atomic JSON file `.editgraph/operations.json`. The OpenSpec feature flag `PB_EDITGRAPH_PREVIEW` remains OFF in production.
+
+- Compiles the current approved P08 source descriptors into deterministic clip intervals with integer frame PTS in 240000 ticks/s, no float addition.
+- Supports exact-frame `TRIM`, `SPLIT` and `MOVE` only on P08 SHA-verified PASS media. `SPLIT` creates deterministic stable clip IDs. `MOVE` changes only the candidate ordering; `TRIM` is constrained to the parent interval. Unknown fields and IDs, invalid frames, stale P08, non-director actor fail closed.
+- `APPLY/UNDO/REDO` are CAS guarded by exact `expected_revision` and `expected_source_sha256`. Branching after undo discards old redo tail; stale source makes the journal read-only and prevents applying previous operations.
+- Pure 1000-step replay tests verify identical graph JSON and SHA after undo-to-zero and redo-to-end. This does NOT prove 1000 real MP4 renders, subframe audio alignment or transactional multi-replica writes. It is a **single-process journal** behind an OFF feature flag.
+- Every preview explicitly carries `render_allowed:false`, `publication_allowed:false` and warnings that voice/cue timing and P05 transitions are NOT retimed or recomputed.
+- The Studio offers read-only clip timeline inspection and CAS undo/redo. Authoring operations currently use authorized director MCP/REST; no automatic relay into P05 assembly.
+
+**Still open:** real non-destructive trim/split/move MP4 renderer with independent production media tests, 48 kHz audio retime/PCM sample accuracy and loudness proof, P05 crossfade handle constraints and transition E2E, source variation or VFR conversion, independent artistic/security signoff, and measured canary/rollback. M01-C01–C08 remain open. Planned follow-on: M50 persistent retry/idempotent orchestration.

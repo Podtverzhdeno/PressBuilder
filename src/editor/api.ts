@@ -7,6 +7,17 @@ import type { Scene3DRecord, Scene3DSpec } from '../engine/scene3d.ts';
 export type { SceneTask, SceneCheckpoint, ProjectReadme };
 
 
+export interface EditOperationsView {
+ revision:number;cursor:number;operation_count:number;source_sha256:string;
+ history_source_sha256:string|null;state:'EMPTY'|'REVIEW_ONLY'|'STALE_SOURCE';
+ preview:null|{
+  schema_version:1;project_id:string;source_sha256:string;duration_tick:number;
+  graph_sha256:string;render_allowed:false;publication_allowed:false;
+  clips:Array<{clip_id:string;scene_id:string;source_in_frame:number;source_out_frame:number;
+   timeline_start_tick:number;timeline_end_tick:number;available:boolean;source_sha256:string|null}>;
+ };
+}
+
 export interface EditGraphView {
  schema_version:1;project_id:string;timebase:{ticks_per_second:240000;fps:{num:number;den:number;frame_ticks:number}};
  source_sha256:string;duration_tick:number;
@@ -205,6 +216,12 @@ const body = (data: unknown): RequestInit => ({
 
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
+  getEditOperations: (id:string) =>
+    call<EditOperationsView>('/api/decks/'+encodeURIComponent(id)+'/edit-graph/operations'),
+  updateEditOperations: (id:string, request:{action:'UNDO'|'REDO';
+    expected_revision:number;expected_source_sha256:string}) =>
+    call<EditOperationsView>('/api/decks/'+encodeURIComponent(id)+'/edit-graph/operations',
+      {method:'POST',...body(request)}),
   getEditGraph: (id:string) =>
     call<EditGraphView>('/api/decks/'+encodeURIComponent(id)+'/edit-graph'),
   getTypedSceneBrief: (id:string,slideId:string) =>

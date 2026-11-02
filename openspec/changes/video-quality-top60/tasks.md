@@ -399,6 +399,8 @@
 
 ### M01 — Единый рациональный монтажный граф (rank #15, 9.20/10, W0)
 
+**R02 (ещё не приёмка):** детерминированный журнал `APPLY/UNDO/REDO` с CAS, typed TRIM/SPLIT/MOVE, восстановление 1000 операций, SHA P08, права режиссёра, Studio просмотр. Нет аудиопересчёта, реально применённого MP4, mixed-FPS E2E; флаг OFF. PR #44.
+
 **Реальный прогресс без галочек C01–C08:** R01 — вычисляемая рациональная шкала P01/P05/P08/P09 с project-source SHA, правами P06 на MCP, CAS проектных trim-превью и read-only Studio. Feature flag OFF. Не считать обычный Docker-render подтверждением того, что новая шкала управляет экспортом. Дальше — source trim/split/move + reversible journal, sample-accurate mix, отработка crossfade handles, шестисценный mixed-fps E2E и измерение эффекта. Доказательства/контракты: docs/M01_RATIONAL_EDITGRAPH.md, PR #43.
 
 
