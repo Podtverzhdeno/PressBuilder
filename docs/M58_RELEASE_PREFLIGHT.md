@@ -448,6 +448,44 @@ mastering, validate source licenses, establish perceptual sound quality
 or constitute publishing approval. Every report remains
 `may_publish:false` and `may_deploy:false`.
 
+## Crossfade PCM envelope and multilayer gain diagnostics (M58-R14)
+
+The actual P05 six-scene benchmark now decodes the **finished crossfade MP4
+audio** to 48 kHz signed stereo PCM after each P05 render and measures the
+three explicitly declared **300-ms crossfade overlaps** (after scenes 1, 3
+and 5). For 3-second scenes their absolute intervals are 2.7–3.0,
+8.4–8.7 and 14.1–14.4 seconds; the 17.1-second total timeline is verified
+with an AAC-padding allowance of 120 ms.
+
+Each overlap has 10-ms window RMS, local sample peak, clipped sample fraction,
+and pre-/post-overlap RMS. A likely unintended **40-ms-or-longer envelope
+dropout** is flagged when both sides are audible (pre/post RMS ≥0.04) but the
+overlap has **at least two consecutive 10-ms near-silent windows** (RMS
+<0.004). Sample clipping risk requires ≥0.1% near-full-scale PCM samples;
+an over-gain candidate requires a 10-ms overlap RMS above both neighbors by
+more than 1.8× and a minimum absolute RMS of 0.16. Deliberate fades to
+silence and ordinary volume changes do **not** trigger a dropout solely due
+to the fade shape.
+
+```powershell
+node --test tests/cloud-release-crossfade-audio-qc.test.mjs
+npm run measure:p05:compare
+```
+
+The tests mix two synthetic tone tracks with a third quiet background bed,
+vary program gain deliberately, inject a near-silent 50-ms gap, and simulate
+multi-track overload. A separately **AAC-encoded real MP4** is checked both
+before and after a 50-ms audio dropout. Crossfade PCM diagnostics are
+collected **after the P05 encode timer** and included per trial as
+`crossfade_audio` and in a review count. A missing/truncated/invalid
+audio track fails closed; missing data never becomes fabricated PASS evidence.
+
+These are objective PCM envelope/clipping indicators, **not** separate
+voice/music stem analysis, subjective listening validation, speech/lip sync,
+provenance, or an automatic mastering decision. No real production source,
+feature flag, release approvals or deployment are modified.
+`may_publish:false`, `may_deploy:false` remain explicit.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
