@@ -408,6 +408,46 @@ pair of P05 renders; this diagnostic processing time is excluded from the
 original encode-and-QA timing measurements. The dedicated M58 CI workflow
 requires both the one-frame corruption attack and all P13 edit trials.
 
+## Comparative 48-kHz PCM audio cut diagnostics (M58-R13)
+
+The existing P13 vs forced P05 six-scene benchmark now decodes the
+**immutable audio tracks** of both completed MP4 releases to bounded,
+in-memory **48 kHz stereo signed 16-bit PCM**. For each of the five
+hard-cut boundaries, it reports the largest adjacent-sample jump within
+±20 ms and ten consecutive 10-ms RMS windows within ±50 ms.
+Only **excessive differences relative to the same-source full P05**
+are flagged: a jump more than **0.35 normalized units above** the full
+P05 reference and above **0.55 absolute** is a click risk. A possible
+dropout requires at least **two 10-ms windows** that were audible in
+the P05 reference (RMS ≥0.07) but nearly silent in P13 (RMS <0.004).
+
+Both decoders must return a complete track matching the expected
+six-scene timeline within 120 ms, and the two decoded durations must
+agree within **80 ms**. Missing, malformed or truncated PCM fails
+closed. This checks **mux/decode timeline consistency**, not spoken-word
+or lip synchronization. Deliberate creative silences and hard cuts
+can be natural; the differential detector avoids marking these as
+errors merely because the waveform changes at a cut.
+
+```powershell
+node --test tests/cloud-release-audio-seam-qc.test.mjs
+npm run measure:p13
+```
+
+Adversarial tests inject a single clipped sample, a 40-ms synthetic
+PCM dropout, and a 50-ms dropout into a **real AAC-encoded MP4**.
+The last test must identify the correct first cut, with the untouched
+other cuts remaining clean. The five-cycle P13 E2E checks all five
+cut measurements per trial and reports
+`manual_audio_review_required` independently of the visual SSIM gate.
+
+The inspection is read-only on finished release masters and runs
+**outside the timed P13/P05 encode interval**. It does not change the
+existing incremental feature flag, mutate a production release, apply
+mastering, validate source licenses, establish perceptual sound quality
+or constitute publishing approval. Every report remains
+`may_publish:false` and `may_deploy:false`.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
