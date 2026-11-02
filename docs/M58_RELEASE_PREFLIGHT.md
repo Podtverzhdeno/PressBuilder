@@ -87,6 +87,32 @@ client-supplied receipt trustworthy. Remaining requirements include
 source/rights approvals, actual MP4/PCM decode, render worker identity,
 CI/build provenance, reviewer signoff and rollback.
 
+## Zero-argument media doctor (M58-R04)
+
+The operator no longer needs to guess a `project-id` or copy angle-bracket
+placeholders into PowerShell. From the project root, run:
+
+```powershell
+npm run check:media
+```
+
+This finds the newest candidate P05 current release under the project's own
+`out/releases` and **independently** checks its bytes and decodes H.264/AAC.
+It never treats the discovery pointer as an approval. If there are no saved
+releases at all, it runs a temporary **synthetic** six-scene FFmpeg/P05 smoke test
+and labels the output `SYNTHETIC_SELF_TEST_PASSED` with
+`real_release_found:false`. This is not a verified customer video.
+
+```powershell
+npm run check:media:list       # read-only candidate overview; no SHA claims
+npm run check:media:self-test  # always run temporary six-scene E2E
+```
+
+Malformed pointers, unsafe filesystem entries or unusable releases fail closed;
+the doctor never creates a fake release or silently marks missing quality
+evidence as accepted. The older explicit API remains available to CI/operator
+scripts that already know the exact `out-dir` and release ID.
+
 ## Real FFmpeg/FFprobe six-scene decode (M58-R03)
 
 The **opt-in local** read-only `server/release-media-decode.mjs` verifies an
