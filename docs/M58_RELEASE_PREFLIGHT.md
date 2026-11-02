@@ -458,7 +458,7 @@ and 5). For 3-second scenes their absolute intervals are 2.7–3.0,
 with an AAC-padding allowance of 120 ms.
 
 Each overlap has 10-ms window RMS, local sample peak, clipped sample fraction,
-and pre-/post-overlap RMS. A likely unintended **40-ms-or-longer envelope
+and pre-/post-overlap RMS. A likely unintended **20-ms-or-longer envelope
 dropout** is flagged when both sides are audible (pre/post RMS ≥0.04) but the
 overlap has **at least two consecutive 10-ms near-silent windows** (RMS
 <0.004). Sample clipping risk requires ≥0.1% near-full-scale PCM samples;
