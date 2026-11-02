@@ -17,7 +17,10 @@
     "check": "node tools/check.mjs",
     "timing": "node tools/timing.mjs",
     "start:cloud": "node server/cloud.mjs",
-    "test:cloud": "node --test tests/cloud-*.test.mjs"
+    "test:cloud": "node --test tests/cloud-*.test.mjs",
+    "check:media": "node tools/inspect-p05-media.mjs",
+    "check:media:list": "node tools/inspect-p05-media.mjs --list",
+    "check:media:self-test": "node tools/inspect-p05-media.mjs --self-test"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
