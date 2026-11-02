@@ -36,3 +36,10 @@ A consistent quantitative rubric values **incremental quality** (30%), **editor-
 - Per-feature 8 planned checkpoints; dependencies, rollback, real media QA and independent review described.
 - Cross-check baseline P15–P24, zero production settings/assets modified.
 - CI spec integrity and review. **Merging this proposal approves only the backlog design, not feature implementation.**
+
+
+## 30-day engineering delivery specification annex (proposed, not implementation)
+
+For the goal of coordinating four developer agents and one independent reviewer without duplicate code or wasted reviewer time, a separate [engineering-delivery RFC](../../../docs/engineering-30d/README.md) proposes source-pinned work allocation, exclusive cooperative file reservations, hard-stage versus advisory integration dependencies, scoped review evidence, recoverability, and measured capacity/quality. Its [traceability overlay](../../../docs/engineering-30d/traceability.json) indexes all original 60 modules and all original 480 C01–C08 IDs without altering their ranks or truthful TODO status. A [real-media quality annex](../../../docs/engineering-30d/montage-quality-gates.md) adds professional editorial, accessible typography, speech and music, actual FFmpeg master and human A/B acceptance constraints.
+
+**This annex changes no existing feature status or production configuration.** Thirty calendar days is an ambitious **planning hypothesis**, explicitly subject to source/media authorization, independent review, staging rollback, actual measured throughput and owner-governed scope. Engineering peer review is not authoritative OpenSpec or release acceptance, and a synthetic six-scene test is not proof of professional licensed-footage quality.
