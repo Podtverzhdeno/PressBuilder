@@ -80,6 +80,11 @@ test('M58-R03: six real H264/AAC scenes -> P05 immutable master -> SHA -> indepe
     'P05 frame-rate normalization may round the final presentation frame by one');
   assert.equal(decoded.audio_sample_rate,48000);
   assert.equal(decoded.audio_channels,2);
+  assert.equal(decoded.av_container_timestamps_verified,true);
+  assert.ok(Math.abs(decoded.av_container_start_offset_ms)<=250);
+  assert.ok(Math.abs(decoded.av_container_end_offset_ms)<=250);
+  assert.deepEqual(decoded.long_black_intervals,[]);
+  assert.equal(decoded.manual_visual_review_required,false);
   assert.equal(decoded.video_decoded,true);
   assert.equal(decoded.audio_decoded,true);
   assert.equal(decoded.may_publish,false);
