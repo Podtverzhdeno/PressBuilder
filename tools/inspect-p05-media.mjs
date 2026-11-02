@@ -15,7 +15,7 @@ function fail(code){
 }
 function selfTest(){
   const test=spawnSync(process.execPath,[
-    '--test','tests/cloud-release-six-scene-decode.test.mjs',
+    '--test','--test-reporter=tap','tests/cloud-release-six-scene-decode.test.mjs',
   ],{cwd:PROJECT_ROOT,encoding:'utf8',timeout:180000,maxBuffer:512*1024,
      windowsHide:true,shell:false});
   if(test.error||test.status!==0||
