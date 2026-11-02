@@ -14,10 +14,14 @@ function fail(code){
   return 2;
 }
 function selfTest(){
+  const env={...process.env};
+  // Node test-runner children inherit NODE_TEST_CONTEXT; nested smoke runs
+  // must be a fresh top-level process, not another runner worker.
+  delete env.NODE_TEST_CONTEXT;
   const test=spawnSync(process.execPath,[
     '--test','--test-reporter=tap','tests/cloud-release-six-scene-decode.test.mjs',
   ],{cwd:PROJECT_ROOT,encoding:'utf8',timeout:180000,maxBuffer:512*1024,
-     windowsHide:true,shell:false});
+     windowsHide:true,shell:false,env});
   if(test.error||test.status!==0||
      !/(?:^|\n)# pass [1-9]\d*(?:\r?\n|$)/.test(test.stdout??'')||
      !/(?:^|\n)# skipped 0(?:\r?\n|$)/.test(test.stdout??'')){
