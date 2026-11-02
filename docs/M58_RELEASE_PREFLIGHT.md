@@ -336,6 +336,47 @@ subtitle compositing, approved footage, external licenses, actual cloud cost,
 non-synthetic baseline, or end-user aesthetic quality. Both sides remain
 `may_publish:false` and `may_deploy:false`.
 
+## Controlled incremental P13 single-scene update (M58-R11)
+
+This opt-in experiment measures an **existing** P13 scene-content-addressed
+segment cache, not a new production feature flag. Six separate synthetic
+3-second, mixed-fps H.264/AAC scenes are created in an isolated temporary
+workspace. The first P13 assembly populates the cache with six segments.
+
+Each of five measured cycles changes **only scene s03**, verifies the five
+other source SHA-256 values remain unchanged, and runs P13 normally. It
+requires exactly `segments_reused:5`, `segments_encoded:1` and a fresh
+immutable QA-positive release. It then forces the ordinary full-filter P05
+on the **exact same six source hashes**, independently validates the MP4
+and records request-to-completion latency and FFmpeg child RSS.
+
+A separate FFmpeg decoded-video **SSIM** comparison measures the technical
+similarity between the incremental and full-filter outputs, outside the
+timed assembly interval. An SSIM below 0.95 is flagged for manual review,
+never auto-approved; SSIM is not human perceptual equivalence or legal
+media provenance.
+
+```powershell
+npm run measure:p13
+node tools/compare-p13-single-edit.mjs --seconds=7
+node --test tests/cloud-release-p13-single-edit.test.mjs
+```
+
+A first five-cycle Windows run *before adding the independent SSIM pass*
+recorded full P05 wall p50/p95 **3162.667 / 3302.815 ms** versus incremental
+P13 **2627.371 / 3231.240 ms**, with FFmpeg child maximum RSS
+**383.676 MiB** versus **285.172 MiB**, respectively. The p95 ratio was
+**0.978** (about **2.2% faster**) in this run, not a general guarantee.
+P13 output can be larger than the corresponding full-filter output. The
+benchmark always reports independent output SHA/bytes, not just speed.
+
+The cached branch and forced branch run in a fixed order, which can
+introduce thermal/cache confounding. This is a reproducible technical
+fixture, **not** production footage, independent artistic evaluation,
+P02 rendering, signed provenance, cloud cost, production load, or a
+qualified release SLO. All reports keep `may_publish:false` and
+`may_deploy:false`; P13's existing opt-in feature flag stays unchanged.
+
 ## Next acceptance gates (not implemented)
 
 1. M58-C01: independent contract approval and source trust model (current code is a proposal, not an accepted schema).
