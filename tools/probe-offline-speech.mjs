@@ -74,5 +74,14 @@ export function probeOfflineSpeech(){
     any_available:Object.values(engines).some(x=>x.available)};
 }
 if(process.argv[1]&&process.argv[1].endsWith('probe-offline-speech.mjs')){
-  process.stdout.write(JSON.stringify(probeOfflineSpeech(),null,2)+'\n');
+  const args=process.argv.slice(2);
+  if(args.length>1||(args.length===1&&args[0]!=='--require-available')){
+    process.stderr.write('M58_OFFLINE_SPEECH_PROBE_USAGE_INVALID\n');
+    process.exitCode=1;
+  }else{
+    const result=probeOfflineSpeech();
+    process.stdout.write(JSON.stringify(result,null,2)+'\n');
+    if(args[0]==='--require-available'&&!result.any_available)
+      process.exitCode=2;
+  }
 }
