@@ -33,6 +33,8 @@ test('M58-R10: 3-second animated scene profiles, real P05 hard cuts and crossfad
     r.crossfade.crossfade_audio_review_trial_count>0);
   assert.ok(r.crossfade.crossfade_audio_review_trial_count>=0&&
     r.crossfade.crossfade_audio_review_trial_count<=5);
+  assert.equal(r.crossfade.crossfade_audio_review_trial_count,0,
+    'Intended synthetic fade into empty audio tracks must not be mislabeled as a dropout');
   for(const t of r.crossfade.trials){
     assert.equal(t.crossfade_audio?.scope,
       'P05_SYNTHETIC_CROSSFADE_PCM_ENVELOPE_48KHZ_STEREO');
