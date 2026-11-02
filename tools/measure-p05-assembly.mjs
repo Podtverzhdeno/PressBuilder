@@ -17,6 +17,7 @@ import {assemblyPlanStore} from '../server/assembly-plan.mjs';
 import {styleContractStore} from '../server/style-contract.mjs';
 import {inspectMp4} from '../server/video-qa.mjs';
 import {summarizeFfmpegTrialSamples} from '../server/release-performance-samples.mjs';
+import {inspectP05CrossfadeAudioMp4} from '../server/release-crossfade-audio-qc.mjs';
 
 const projectId='m58-p05-benchmark';
 const colors=['red','green','blue','yellow','magenta','cyan'];
@@ -123,6 +124,9 @@ export async function measureSixSceneP05({count=5,durationSec=0.75,
       const qa=inspectMp4(file,{height,fps:24,audio_required:true,
         duration:expectedDuration});
       if(qa.verdict!=='PASS')throw new Error('M58_P05_BENCH_OUTPUT_QA_FAILED');
+      // Independent, read-only crossfade QC runs OUTSIDE timed P05 wall time.
+      const crossfadeAudio=transition==='crossfade'?
+        inspectP05CrossfadeAudioMp4(file,{sceneDurationSec:durationSec}):null;
       const encode=job.timings_ms?.encode;
       if(!Number.isFinite(encode)||encode<=0||encode>elapsed+200)
         throw new Error('M58_P05_BENCH_ENCODE_TIMING_INVALID');
@@ -137,7 +141,8 @@ export async function measureSixSceneP05({count=5,durationSec=0.75,
         ffmpeg_child_maxrss_kib:rss,
         output_bytes:job.manifest.output.bytes,
         output_sha256:job.manifest.output.sha256,
-        qa_verdict:qa.verdict,cache_hit:false});
+        qa_verdict:qa.verdict,cache_hit:false,
+        crossfade_audio:crossfadeAudio});
     }
     const summary=summarizeFfmpegTrialSamples(raw);
     const encodes=trials.map(t=>t.p05_encode_ms).sort((a,b)=>a-b);
@@ -162,10 +167,14 @@ export async function measureSixSceneP05({count=5,durationSec=0.75,
       unique_release_count:seen.size,
       all_trials_forced_full_encode:true,
       all_output_qa_passed:true,
+      crossfade_audio_review_required:transition==='crossfade'?
+        trials.some(t=>t.crossfade_audio?.manual_audio_review_required):null,
+      crossfade_audio_review_trial_count:transition==='crossfade'?
+        trials.filter(t=>t.crossfade_audio?.manual_audio_review_required).length:null,
       trials,
       cloud_cost_usd:null,production_p95_ms:null,baseline_ratio:null,
       may_publish:false,may_deploy:false,
-      caveat:'Measured actual local P05 six-scene montage encode, source snapshot, QA and release writes on temporary generated MP4. No browser/Chromium scene render, real licensed footage, production workers, cloud invoice, representative baseline or release SLO.',
+      caveat:'Measured actual local P05 six-scene montage encode, source snapshot, QA and release writes on temporary generated MP4. Crossfade PCM QC (when enabled) is post-timing review-only. No browser/Chromium scene render, real licensed footage, production workers, cloud invoice, representative baseline or release SLO.',
     };
   }finally{
     fs.rmSync(root,{recursive:true,force:true,maxRetries:3,retryDelay:100});
