@@ -18,6 +18,8 @@ on:
       - 'server/release-loudness-qc.mjs'
       - 'server/release-performance-samples.mjs'
       - 'tools/measure-p05-assembly.mjs'
+      - 'tools/compare-p05-profiles.mjs'
+      - 'tests/cloud-release-p05-profiles.test.mjs'
       - 'tests/cloud-release-p05-benchmark.test.mjs'
       - 'tools/measure-m58-performance.mjs'
       - 'tests/cloud-release-performance-samples.test.mjs tests/cloud-release-p05-benchmark.test.mjs'
@@ -37,7 +39,7 @@ permissions:
 jobs:
   preflight-tests:
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,5 +55,7 @@ jobs:
           ffprobe -version
       - name: Evidence, byte-integrity and six-scene media decode
         run: node --test tests/cloud-release-evidence-preflight.test.mjs tests/cloud-release-evidence-cli.test.mjs tests/cloud-release-media-integrity.test.mjs tests/cloud-release-six-scene-decode.test.mjs tests/cloud-release-discovery.test.mjs tests/cloud-release-pcm-qc.test.mjs tests/cloud-release-loudness-qc.test.mjs tests/cloud-release-performance-samples.test.mjs
+      - name: P05 animated 3-second hard-cut versus crossfade profiles
+        run: node --test tests/cloud-release-p05-profiles.test.mjs
       - run: npm run typecheck
       - run: npm run build
