@@ -1,0 +1,30 @@
+name: M58 release evidence preflight
+
+on:
+  push:
+    branches:
+      - feat/m58-release-evidence-preflight-20261102
+  pull_request:
+    paths:
+      - 'server/release-evidence-preflight.mjs'
+      - 'tests/cloud-release-evidence-preflight.test.mjs'
+      - 'docs/M58_RELEASE_PREFLIGHT.md'
+      - '.github/workflows/m58-release-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.20.0'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test tests/cloud-release-evidence-preflight.test.mjs
+      - run: npm run typecheck
+      - run: npm run build
