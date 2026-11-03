@@ -42,25 +42,31 @@ export function createP05RequestQuota({
    throw Error('P05_QUOTA_INVALID_LIMIT');
  if(typeof now!=='function')throw Error('P05_QUOTA_INVALID_CLOCK');
  const actors=new Map(),projects=new Map();
- function bucket(store,key,capacity,maxKeys,t){
-  let b=store.get(key);
-  if(b){
-   const elapsed=Math.max(0,t-b.last);
-   b.tokens=Math.min(capacity,b.tokens+elapsed/1000*b.rate);
-   b.last=Math.max(b.last,t);
-   return b;
+ // Inspect both limits without allocating either bucket. An exhausted
+ // principal must not fill the project-key map with rejected requests;
+ // likewise an exhausted project must not create useless actor records.
+ function peek(store,key,capacity,maxKeys,t,rate){
+  const existing=store.get(key);
+  if(existing){
+   const elapsed=Math.max(0,t-existing.last);
+   return {store,key,existing,
+    tokens:Math.min(capacity,existing.tokens+elapsed/1000*rate),
+    last:Math.max(existing.last,t),rate};
   }
   if(store.size>=maxKeys){
-   // Only evict fully idle keys; never reset an active principal's
-   // exhausted budget through map churn.
+   // Only evict truly idle identities, never active/exhausted ones.
    for(const [k,v] of store){
     if(t-v.last>=idleMs)store.delete(k);
    }
    if(store.size>=maxKeys)throw failure(429,'P05_QUOTA_IDENTITY_CAPACITY',1);
   }
-  b={tokens:capacity,last:t,rate:store===actors?actorRefillPerSecond:projectRefillPerSecond};
-  store.set(key,b);
-  return b;
+  return {store,key,existing:null,tokens:capacity,last:t,rate};
+ }
+ function commit(state){
+  const item=state.existing??{tokens:0,last:state.last,rate:state.rate};
+  item.tokens=state.tokens-1;
+  item.last=state.last;
+  if(!state.existing)state.store.set(state.key,item);
  }
  function admit(principal,project){
   if(typeof principal!=='string'||!principal||
@@ -69,17 +75,16 @@ export function createP05RequestQuota({
   const t=now();
   if(typeof t!=='number'||!Number.isFinite(t)||t<0)
    throw Error('P05_QUOTA_CLOCK_INVALID');
-  const a=bucket(actors,principal,actorCapacity,maxActors,t);
-  const p=bucket(projects,project,projectCapacity,maxProjects,t);
+  const a=peek(actors,principal,actorCapacity,maxActors,t,actorRefillPerSecond);
+  const p=peek(projects,project,projectCapacity,maxProjects,t,projectRefillPerSecond);
   const waitA=Math.max(0,1-a.tokens)/actorRefillPerSecond;
   const waitP=Math.max(0,1-p.tokens)/projectRefillPerSecond;
   if(waitA>0||waitP>0)
    throw failure(429,'P05_VERIFICATION_RATE_LIMITED',
     Math.max(1,Math.min(60,Math.ceil(Math.max(waitA,waitP)))));
-  // Charge the actor and the project atomically. Crossing projects
-  // cannot reset the actor budget; changing identities cannot reset
-  // the hot project's aggregate budget.
-  a.tokens-=1;p.tokens-=1;
+  // Commit both only after both pass. The quota maps themselves must not
+  // grow on rate-limited requests, even for real existing projects.
+  commit(a);commit(p);
   return {accepted:true};
  }
  return {admit,snapshot:()=>({actors:actors.size,projects:projects.size})};
