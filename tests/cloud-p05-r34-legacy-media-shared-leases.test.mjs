@@ -56,7 +56,7 @@ test('P05-R34 eight retained media FDs are shared across exports, voice and SHA-
  const rpc=(name,args)=>fetch(base+'/mcp',{method:'POST',
   headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
   body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',
-   params:{name,arguments:args}}}),
+   params:{name,arguments:args}}),
   signal:AbortSignal.timeout(10000)});
  try{
   child=spawn(process.execPath,['server/cloud.mjs'],{
