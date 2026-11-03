@@ -37,6 +37,11 @@ budget, entirely after authentication and REST origin checks:
   original route without allocating actor/project quota entries. This
   prevents authenticated guesses of fake project IDs from filling
   the 512-project key map without causing any real SHA work.
+- An MCP agent must have the target project in its **server-verified
+  `actor.projects`** before it can debit that project's quota.
+  The existing MCP handler independently denies out-of-scope reads;
+  checking scope before admission prevents unauthorized workers from
+  exhausting someone else's shared project budget.
 - A bounded in-memory registry holds at most **256 actors and 512
   projects**. Only entries idle for at least 180 seconds may be
   evicted when the map is full; pressure fails closed with 429.
