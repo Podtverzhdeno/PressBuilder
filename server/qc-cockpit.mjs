@@ -121,22 +121,25 @@ export function qcCockpitService({assembly,reviews,enabled=false,
   if(!release)bad('M51_NO_VERIFIED_RELEASE',409);
   return project(id,release,{sceneId});
  }
- async function readAsync(id,{sceneId=null}={}){
+ async function readAsync(id,{sceneId=null,signal=null}={}){
   requireId(id);
+  if(signal?.aborted)bad('P05_SHA_REQUEST_ABORTED',499);
   const release=typeof assembly.currentAsync==='function'?
-   await assembly.currentAsync(id):assembly.current(id);
+   await assembly.currentAsync(id,{signal}):assembly.current(id);
+  if(signal?.aborted)bad('P05_SHA_REQUEST_ABORTED',499);
   if(!release)bad('M51_NO_VERIFIED_RELEASE',409);
   // P06 cannot load director's full-project real-audio receipt.
   let result=null;
   if(sceneId===null&&typeof realAudioReadAsync==='function'){
-   try{result=await realAudioReadAsync(id)}
+   try{result=await realAudioReadAsync(id,{signal})}
    catch(e){
     // A saturated SHA governor is not a corrupt audio receipt. Surface
     // temporary HTTP 429 with Retry-After; never misreport it as INVALID.
-    if(e?.status===429)throw e;
+    if(e?.status===429||e?.status===499)throw e;
     result={job:{status:'INVALID'},receipt:null};
    }
   }
+  if(signal?.aborted)bad('P05_SHA_REQUEST_ABORTED',499);
   return project(id,release,{sceneId,
    usePreloadedAudio:typeof realAudioReadAsync==='function',
    preloadedAudio:result});
