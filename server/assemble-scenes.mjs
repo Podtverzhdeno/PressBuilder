@@ -140,7 +140,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
   // R25: async, inode-pinned SHA validation for user-facing QC/audio HTTP.
   // A bounded 256 KiB async read yields to the event loop between chunks;
   // no cache of previously accepted SHA may bypass current-media verification.
-  async function verifiedReleaseAsync(id,releaseId){
+  async function verifiedReleaseAsync(id,releaseId,{keepOpen=false}={}){
     if(typeof id!=='string'||!ID.test(id))throw bad('Invalid project ID',400);
     if(typeof releaseId!=='string'||!/^[a-f0-9-]{36}$/.test(releaseId))
       throw bad('Invalid release ID',400);
@@ -154,7 +154,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
        !Number.isSafeInteger(manifest.output?.bytes)||manifest.output.bytes<1024||
        !/^[0-9a-f]{64}$/.test(manifest.output?.sha256||''))
       throw bad('Invalid assembly release manifest',409);
-    let handle;
+    let handle,retained=false;
     try{
       handle=await fs.promises.open(file,fs.constants.O_RDONLY|
         fs.constants.O_NOFOLLOW|fs.constants.O_NONBLOCK);
@@ -177,11 +177,17 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
          after.size!==before.size||atPath.size!==before.size||
          hash.digest('hex')!==manifest.output.sha256)
         throw bad('Assembly release integrity check failed',409);
+      if(keepOpen){
+        retained=true;
+        return {file,manifest,handle};
+      }
+      return {file,manifest};
     }catch(e){
       if(e?.status)throw e;
       throw bad('Assembly release integrity check failed',409);
-    }finally{await handle?.close()}
-    return {file,manifest};
+    }finally{
+      if(!retained)await handle?.close();
+    }
   }
   async function currentAsync(id){
     const p=pointer(id);
@@ -201,6 +207,11 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     getDeck(id);
     return (await verifiedReleaseAsync(id,releaseId)).file;
   }
+  async function downloadHandleAsync(id,releaseId){
+    getDeck(id);
+    // The response consumes the same SHA-verified inode, not a reopened path.
+    return verifiedReleaseAsync(id,releaseId,{keepOpen:true});
+  }
   function current(id){
     const p=pointer(id);
     if(!fs.existsSync(p))return null;
@@ -215,7 +226,14 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
   function get(id){
     if(typeof id!=='string'||!ID.test(id))throw bad('Invalid project ID');
     getDeck(id);
-    const release=current(id);
+    return projectStatus(id,current(id));
+  }
+  async function getAsync(id){
+    if(typeof id!=='string'||!ID.test(id))throw bad('Invalid project ID');
+    getDeck(id);
+    return projectStatus(id,await currentAsync(id));
+  }
+  function projectStatus(id,release){
     const unresolved_scenes=(release?.manifest?.scenes||[])
       .filter(scene=>scene.approved_version_id&&
         reviewUnresolved(id,scene.id,scene.approved_version_id))
@@ -500,5 +518,5 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     })();
     return {...job};
   }
-  return {start,get,cancel,download,current,currentAsync,downloadAsync};
+  return {start,get,getAsync,cancel,download,current,currentAsync,downloadAsync,downloadHandleAsync};
 }

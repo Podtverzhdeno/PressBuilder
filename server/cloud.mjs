@@ -173,6 +173,43 @@ function fileResponse(req,res,file) {
   res.writeHead(status,headers);
   fs.createReadStream(file,{start,end}).pipe(res);
 }
+// P05-R26: serve the exact inode verified asynchronously by P05.
+// Never reopen final.mp4 from a mutable pathname after computing SHA.
+async function pinnedMp4Response(req,res,{handle}){
+  let ownedByStream=false;
+  try{
+    const stat=await handle.stat();
+    if(!stat.isFile())throw new UserError('Not a regular MP4',404);
+    let start=0,end=stat.size-1,status=200;
+    const range=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range||'');
+    if(range){
+      start=Number(range[1]);end=range[2]?Number(range[2]):end;
+      if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||
+         start>=stat.size||end>=stat.size||start>end){
+        res.writeHead(416,{'Content-Range':'bytes */'+stat.size,
+          'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});
+        res.end();return;
+      }
+      status=206;
+    }
+    const headers={'Content-Type':'video/mp4','Content-Length':end-start+1,
+      'Accept-Ranges':'bytes','X-Content-Type-Options':'nosniff',
+      'Cache-Control':'private, no-store'};
+    if(status===206)headers['Content-Range']='bytes '+start+'-'+end+'/'+stat.size;
+    if(req.method==='HEAD'){
+      res.writeHead(status,headers);res.end();return;
+    }
+    // FileHandle.createReadStream owns the descriptor with autoClose=true.
+    const stream=handle.createReadStream({start,end,autoClose:true});
+    ownedByStream=true;
+    stream.on('error',e=>{if(!res.destroyed)res.destroy(e)});
+    res.once('close',()=>stream.destroy());
+    res.writeHead(status,headers);
+    stream.pipe(res);
+  }finally{
+    if(!ownedByStream)await handle.close();
+  }
+}
 let exportSession=null;
 const ffmpeg = process.env.FFMPEG || 'ffmpeg';
 function voiceOptions(voice){
@@ -329,7 +366,7 @@ async function api(req,res,url) {
   if(releaseMatch){
     if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
     const id=deckId(escaped(releaseMatch[1])),releaseId=escaped(releaseMatch[2]);
-    return fileResponse(req,res,assembly.download(id,releaseId));
+    return pinnedMp4Response(req,res,await assembly.downloadHandleAsync(id,releaseId));
   }
   const cancelAssembly=/^\/api\/decks\/([^/]+)\/assemble\/cancel$/.exec(p);
   if(cancelAssembly){
@@ -339,7 +376,7 @@ async function api(req,res,url) {
   const assembleMatch=/^\/api\/decks\/([^/]+)\/assemble$/.exec(p);
   if(assembleMatch){
     const id=deckId(escaped(assembleMatch[1]));
-    if(method==='GET')return json(res,200,assembly.get(id));
+    if(method==='GET')return json(res,200,await assembly.getAsync(id));
     if(method==='POST'){
       const body=await readJson(req);
       return json(res,202,assembly.start(id,body?.scene_ids,{force:body?.force??false}));
