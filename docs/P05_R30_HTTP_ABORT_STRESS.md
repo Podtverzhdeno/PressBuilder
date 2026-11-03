@@ -29,7 +29,11 @@ seeks or disconnected sockets could waste otherwise bounded capacity.
 - The existing `finally` closes every aborted FileHandle and
   releases its SHA permit. An aborted waiter is removed from the
   governor FIFO. A client abort is a distinct internal 499
-  cancellation, not an `INVALID` P05 release. The server does not try
+  cancellation, not an `INVALID` P05 release. Bare native
+  `AbortController.abort()` and custom cancellation reasons are both
+  normalized to `P05_SHA_REQUEST_ABORTED` (internal 499), never
+  silently reported as a corrupt MP4 (409) or null current release.
+  The server does not try
   to send a response to an already destroyed connection.
 - Full SHA, manifest bytes, regular-file-only/O_NOFOLLOW,
   device/inode/size checks, current-pointer CAS, R28 request quotas,
