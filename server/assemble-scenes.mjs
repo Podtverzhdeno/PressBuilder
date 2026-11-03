@@ -146,7 +146,16 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
   // R25: async, inode-pinned SHA validation for user-facing QC/audio HTTP.
   // A bounded 256 KiB async read yields to the event loop between chunks;
   // no cache of previously accepted SHA may bypass current-media verification.
-  async function verifiedReleaseAsync(id,releaseId,{keepOpen=false}={}){
+  async function verifiedReleaseAsync(id,releaseId,{keepOpen=false,signal=null}={}){
+    // HTTP request cancellation must free both its SHA queue position
+    // and any pinned FD; a client-aborted scan cannot claim verification.
+    const assertLive=()=>{
+      // Normalize both bare AbortController.abort() and custom reasons.
+      // Neither is a corrupted master. Never trust caller-supplied errors
+      // to influence P05 integrity or persistent job classifications.
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
+    };
+    assertLive();
     if(typeof id!=='string'||!ID.test(id))throw bad('Invalid project ID',400);
     if(typeof releaseId!=='string'||!/^[a-f0-9-]{36}$/.test(releaseId))
       throw bad('Invalid release ID',400);
@@ -162,34 +171,42 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       throw bad('Invalid assembly release manifest',409);
     let handle,retained=false,releaseShaSlot=null;
     try{
-      releaseShaSlot=await shaGovernor.acquire();
+      releaseShaSlot=await shaGovernor.acquire({signal});
+      assertLive();
       handle=await fs.promises.open(file,fs.constants.O_RDONLY|
         fs.constants.O_NOFOLLOW|fs.constants.O_NONBLOCK);
       const before=await handle.stat();
+      assertLive();
       if(!before.isFile()||before.size!==manifest.output.bytes)
         throw bad('Assembly release integrity check failed',409);
       const hash=createHash('sha256'),buffer=Buffer.allocUnsafe(256*1024);
       let pos=0;
       while(pos<before.size){
+        assertLive();
         const {bytesRead}=await handle.read(buffer,0,
           Math.min(buffer.length,before.size-pos),pos);
+        assertLive();
         if(!bytesRead)throw bad('Assembly release integrity check failed',409);
         hash.update(buffer.subarray(0,bytesRead));
         pos+=bytesRead;
       }
+      assertLive();
       const after=await handle.stat(),atPath=await fs.promises.lstat(file);
+      assertLive();
       if(!after.isFile()||!atPath.isFile()||atPath.isSymbolicLink()||
          after.dev!==before.dev||after.ino!==before.ino||
          atPath.dev!==before.dev||atPath.ino!==before.ino||
          after.size!==before.size||atPath.size!==before.size||
          hash.digest('hex')!==manifest.output.sha256)
         throw bad('Assembly release integrity check failed',409);
+      assertLive();
       if(keepOpen){
         retained=true;
         return {file,manifest,handle};
       }
       return {file,manifest};
     }catch(e){
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
       if(e?.status)throw e;
       throw bad('Assembly release integrity check failed',409);
     }finally{
@@ -197,22 +214,25 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       finally{releaseShaSlot?.()}
     }
   }
-  async function currentAsync(id){
+  async function currentAsync(id,{signal=null}={}){
     const p=pointer(id);
     try{
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
       const first=JSON.parse(await fs.promises.readFile(p,'utf8'));
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
       if(!/^[a-f0-9-]{36}$/.test(first.release_id))return null;
-      const {manifest}=await verifiedReleaseAsync(id,first.release_id);
+      const {manifest}=await verifiedReleaseAsync(id,first.release_id,{signal});
       // The current pointer may change while awaiting disk I/O; never return
       // a verified but no longer current release as the latest source.
       const last=JSON.parse(await fs.promises.readFile(p,'utf8'));
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
       if(last.release_id!==first.release_id)return null;
       return {release_id:first.release_id,manifest,download_url:baseUrl()+
         '/api/decks/'+encodeURIComponent(id)+'/assembly/releases/'+first.release_id+'/final.mp4'};
     }catch(e){
       // Rate-limited requests must advertise real backpressure, not a
       // misleading 200 response with current_release:null.
-      if(e?.status===429)throw e;
+      if(e?.status===429||e?.status===499)throw e;
       return null;
     }
   }
@@ -220,10 +240,10 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     getDeck(id);
     return (await verifiedReleaseAsync(id,releaseId)).file;
   }
-  async function downloadHandleAsync(id,releaseId){
+  async function downloadHandleAsync(id,releaseId,{signal=null}={}){
     getDeck(id);
     // The response consumes the same SHA-verified inode, not a reopened path.
-    return verifiedReleaseAsync(id,releaseId,{keepOpen:true});
+    return verifiedReleaseAsync(id,releaseId,{keepOpen:true,signal});
   }
   function current(id){
     const p=pointer(id);
@@ -241,10 +261,10 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     getDeck(id);
     return projectStatus(id,current(id));
   }
-  async function getAsync(id){
+  async function getAsync(id,{signal=null}={}){
     if(typeof id!=='string'||!ID.test(id))throw bad('Invalid project ID');
     getDeck(id);
-    return projectStatus(id,await currentAsync(id));
+    return projectStatus(id,await currentAsync(id,{signal}));
   }
   function projectStatus(id,release){
     const unresolved_scenes=(release?.manifest?.scenes||[])
