@@ -205,7 +205,9 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
           onClick={()=>seek(f.global_seconds)}
           title="Перейти к приблизительному началу окна PCM">{time(f.global_seconds)}</button></td>
          <td>{time(f.window_end_seconds)}</td>
-         <td>{f.message}<div><code>{f.issue_code}</code></div></td>
+         <td>{f.message}<div><code class="qc-audio-issue-code"
+          title={f.issue_code} aria-label={'Код аудиодефекта: '+f.issue_code}>
+          {f.issue_code}</code></div></td>
          <td>Требует ручного прослушивания</td>
         </tr>)}</tbody>
        </table></div>
