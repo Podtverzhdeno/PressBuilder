@@ -51,13 +51,18 @@ test('P05-R30 abort before and during full P05 SHA releases queue slot and never
   const id='abort-verify',f=release(root,id,32*1024*1024),a=localAssembly(root,id);
   const before=new AbortController();before.abort(abortError());
   await assert.rejects(()=>a.getAsync(id,{signal:before.signal}),
-   e=>e?.status===499);
+   e=>e?.status===499&&e.message==='P05_SHA_REQUEST_ABORTED');
+  const bareBefore=new AbortController();bareBefore.abort();
+  await assert.rejects(()=>a.getAsync(id,{signal:bareBefore.signal}),
+   e=>e?.status===499&&e.message==='P05_SHA_REQUEST_ABORTED',
+   'native AbortError must not become a false P05 corruption/null release');
   assert.deepEqual(a.verificationSnapshot(),{capacity:1,active:0,waiting:0});
 
   const inFlight=new AbortController();
   const scan=a.downloadHandleAsync(id,f.rid,{signal:inFlight.signal});
-  setImmediate(()=>inFlight.abort(abortError()));
-  await assert.rejects(()=>scan,e=>e?.status===499);
+  setImmediate(()=>inFlight.abort());
+  await assert.rejects(()=>scan,
+   e=>e?.status===499&&e.message==='P05_SHA_REQUEST_ABORTED');
   assert.deepEqual(a.verificationSnapshot(),{capacity:1,active:0,waiting:0},
    'in-flight abort must close P05 FD and return SHA token');
   const actual=await a.getAsync(id);
