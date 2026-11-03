@@ -257,6 +257,15 @@ test('P05-R31 protected QC plus completed audio mixed burst is bounded and recov
   const restored=await call('audio');
   assert.equal(restored.status,200);
   assert.equal((await restored.json()).receipt.report.release_sha256,f.sha);
+  // During the burst all POSTs may legitimately receive 429. Verify
+  // the positive path separately after pressure subsides: this must
+  // be a cache hit on the SAME immutable job, never a second worker.
+  const recoveredPost=await call('post');
+  assert.equal(recoveredPost.status,202);
+  const cached=await recoveredPost.json();
+  assert.equal(cached.cache_hit,true);
+  assert.equal(cached.job_id,queued.job_id);
+  assert.equal(cached.publication_allowed,false);
   assert.equal(hash(fs.readFileSync(jobFile)),previousJob);
   assert.equal(hash(fs.readFileSync(receiptFile)),previousReceipt);
   assert.equal(workerRuns,1,'HTTP cannot replay isolated worker');
