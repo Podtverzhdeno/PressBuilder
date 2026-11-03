@@ -150,8 +150,10 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     // HTTP request cancellation must free both its SHA queue position
     // and any pinned FD; a client-aborted scan cannot claim verification.
     const assertLive=()=>{
-      if(signal?.aborted)throw (signal.reason instanceof Error?signal.reason:
-        Object.assign(new Error('P05_SHA_REQUEST_ABORTED'),{status:499}));
+      // Normalize both bare AbortController.abort() and custom reasons.
+      // Neither is a corrupted master. Never trust caller-supplied errors
+      // to influence P05 integrity or persistent job classifications.
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
     };
     assertLive();
     if(typeof id!=='string'||!ID.test(id))throw bad('Invalid project ID',400);
@@ -204,6 +206,7 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       }
       return {file,manifest};
     }catch(e){
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
       if(e?.status)throw e;
       throw bad('Assembly release integrity check failed',409);
     }finally{
@@ -214,15 +217,15 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
   async function currentAsync(id,{signal=null}={}){
     const p=pointer(id);
     try{
-      if(signal?.aborted)throw signal.reason;
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
       const first=JSON.parse(await fs.promises.readFile(p,'utf8'));
-      if(signal?.aborted)throw signal.reason;
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
       if(!/^[a-f0-9-]{36}$/.test(first.release_id))return null;
       const {manifest}=await verifiedReleaseAsync(id,first.release_id,{signal});
       // The current pointer may change while awaiting disk I/O; never return
       // a verified but no longer current release as the latest source.
       const last=JSON.parse(await fs.promises.readFile(p,'utf8'));
-      if(signal?.aborted)throw signal.reason;
+      if(signal?.aborted)throw bad('P05_SHA_REQUEST_ABORTED',499);
       if(last.release_id!==first.release_id)return null;
       return {release_id:first.release_id,manifest,download_url:baseUrl()+
         '/api/decks/'+encodeURIComponent(id)+'/assembly/releases/'+first.release_id+'/final.mp4'};
