@@ -14,6 +14,9 @@ const toolsAvailable=['ffmpeg','ffprobe'].every(x=>
 const browserAvailable=spawnSync(chromium,['--version'],{
  stdio:'ignore',timeout:4000}).status===0;
 const ready=toolsAvailable&&browserAvailable;
+// Docker image sets CHROMIUM_PATH: a missing dependency is a hard FAIL,
+// not a green build with a silently skipped browser test.
+const requiredInContainer=!!process.env.CHROMIUM_PATH;
 async function freePort(){
  const s=net.createServer();
  await new Promise(resolve=>s.listen(0,'127.0.0.1',resolve));
@@ -95,8 +98,9 @@ function createMaster(root,project){
 }
 
 test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio review, captures screenshot',{
- timeout:150000,skip:!ready,
+ timeout:150000,skip:!ready&&!requiredInContainer,
 },async()=>{
+ assert.ok(ready,'Docker browser smoke requires Chromium, ffmpeg and ffprobe');
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pb-r05-browser-'));
  const profile=path.join(root,'chromium-profile');
  const [appPort,debugPort]=await Promise.all([freePort(),freePort()]);
