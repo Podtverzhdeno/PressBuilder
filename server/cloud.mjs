@@ -32,6 +32,7 @@ import { renderWithChrome } from './render.mjs';
 import { inspectMp4, mergeVisualQA } from './video-qa.mjs';
 import { makeRenderQueue } from './render-queue.mjs';
 import {createResourceGovernor} from './resource-governor.mjs';
+import {createP05RequestQuota,p05HttpQuotaProject,p05McpQuotaProject} from './p05-request-quota.mjs';
 import {findReusableScene} from './scene-reuse.mjs';
 import {styleContractStore,enforceScene3D,enforceVisuals} from './style-contract.mjs';
 import {styleById} from '../src/engine/styles.ts';
@@ -134,7 +135,17 @@ function send(res,status,body,contentType='application/json; charset=utf-8',head
   res.end(buf);
 }
 const json=(res,status,payload)=>send(res,status,payload);
-const error=(res,e)=>json(res,e?.status>=400&&e?.status<=599?e.status:500,{error:e instanceof Error?e.message:'Internal error'});
+const error=(res,e)=>{
+  if(e?.status===429){
+    // Applies both to authenticated request admission and to the R27
+    // disk SHA governor. Clients can back off instead of hammering.
+    res.setHeader('Retry-After',String(
+      Number.isSafeInteger(e.retryAfter)&&e.retryAfter>=1&&e.retryAfter<=60?
+        e.retryAfter:1));
+  }
+  return json(res,e?.status>=400&&e?.status<=599?e.status:500,
+    {error:e instanceof Error?e.message:'Internal error'});
+};
 function readBody(req, max=1024*1024) {
   return new Promise((resolve,reject)=>{
     const chunks=[]; let len=0;
@@ -780,6 +791,9 @@ const qcCockpit=qcCockpitService({assembly,reviews,
     id=>realAudioQueue.read(id):null,
   realAudioReadAsync:process.env.PB_REAL_AUDIO_AUDIT==='1'?
     id=>realAudioQueue.readAsync(id):null});
+// Web is one Basic-auth principal today. MCP has authenticated actor IDs.
+// No forwarded-IP trust or user-controlled project-as-identity shortcut.
+const p05Quota=createP05RequestQuota();
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
   assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps,jobLedger,qcCockpit});
 const server=http.createServer(async(req,res)=>{
@@ -795,6 +809,14 @@ const server=http.createServer(async(req,res)=>{
         {'WWW-Authenticate':oauth.enabled?oauth.challenge:'Bearer realm="PressBuilder MCP"'});
       if(req.method!=='POST')return json(res,405,{error:'Streamable HTTP supports POST' });
       const msg=await readJson(req);
+      const quotaProject=p05McpQuotaProject(msg);
+      // makeMcp enforces actor.projects, but quota admission must check
+      // scope BEFORE charging: otherwise denied agents could exhaust a
+      // different project's shared budget with unauthorized calls.
+      if(quotaProject&&
+         (actor.role==='director'||actor.projects?.includes(quotaProject))&&
+         hasDeck(quotaProject))p05Quota.admit(
+        actor.role==='director'?'mcp:director':'mcp:agent:'+actor.id,quotaProject);
       const reply=await mcp(msg,actor);
       if(reply===null){res.writeHead(202);res.end();return}
       return json(res,200,reply);
@@ -808,6 +830,8 @@ const server=http.createServer(async(req,res)=>{
           if(origin.host!==req.headers.host)throw new UserError('Cross-origin write blocked',403);
         }
       }
+      const quotaProject=p05HttpQuotaProject(p,req.method);
+      if(quotaProject&&hasDeck(quotaProject))p05Quota.admit('web:director',quotaProject);
       return await api(req,res,url);
     }
     if(p.startsWith('/out/')){
