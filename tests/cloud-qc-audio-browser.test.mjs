@@ -9,8 +9,11 @@ import {createHash,randomBytes,randomUUID} from 'node:crypto';
 
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const chromium=process.env.CHROMIUM_PATH||'chromium';
-const ready=['ffmpeg','ffprobe',chromium].every(x=>
- spawnSync(x,['--version'],{stdio:'ignore',timeout:4000}).status===0);
+const toolsAvailable=['ffmpeg','ffprobe'].every(x=>
+ spawnSync(x,['-version'],{stdio:'ignore',timeout:4000}).status===0);
+const browserAvailable=spawnSync(chromium,['--version'],{
+ stdio:'ignore',timeout:4000}).status===0;
+const ready=toolsAvailable&&browserAvailable;
 async function freePort(){
  const s=net.createServer();
  await new Promise(resolve=>s.listen(0,'127.0.0.1',resolve));
