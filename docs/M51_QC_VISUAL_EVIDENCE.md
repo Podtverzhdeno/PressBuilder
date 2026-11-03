@@ -13,8 +13,10 @@ and renders review-only findings in the QC cockpit.
 
 It then captures:
 
-- `qc-audio-desktop-1280.png`: full desktop QC dialog with verified
-  synthetic antiphase warnings and no publication permission.
+- `qc-audio-desktop-1280.png`: full desktop QC dialog with P05 MP4
+  preview and explicit no-publication notice.
+- `qc-audio-desktop-findings-1280.png`: desktop audio-review findings
+  scrolled into view, with antiphase notices and approximate PCM time.
 - `qc-audio-mobile-390.png`: responsive **390 CSS-pixel** × 844px
   Chromium viewport (narrow desktop-identity emulation, **not a mobile UA**),
   scrolled to the real-master audio summary and approximate PCM times.
@@ -24,10 +26,16 @@ It then captures:
 - `qc-audio-visual-evidence.json`: bounded non-sensitive test metadata,
   viewport dimensions, fixture status and review-only flags.
 
-All three files are uploaded to the **private GitHub Actions artifact**
+All four files are uploaded to the **private GitHub Actions artifact**
 `qc-audio-visual-evidence`, retained for **14 days**. The CI screenshot
 runner is independent from production and never uses customer media, passwords
 or bearer tokens in filenames, JSON or page-visible content.
+
+The long machine-readable issue codes are visually collapsed to a
+single ellipsized line on narrow screens; the full code stays available
+through the element's tooltip and accessible label. Screenshot SHA-256
+hashes are recorded in the JSON to detect accidental artifact mix-ups
+(**not** to authenticate the issuer).
 
 The browser test checks that on mobile:
 - the QC dialog remains inside the viewport, with no modal horizontal overflow;
