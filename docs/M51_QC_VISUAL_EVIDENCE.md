@@ -15,8 +15,12 @@ It then captures:
 
 - `qc-audio-desktop-1280.png`: full desktop QC dialog with verified
   synthetic antiphase warnings and no publication permission.
-- `qc-audio-mobile-390.png`: responsive 390×844 Chromium viewport,
-  scrolled to the real-master audio summary and its approximate PCM times.
+- `qc-audio-mobile-390.png`: responsive **390 CSS-pixel** × 844px
+  Chromium viewport (narrow desktop-identity emulation, **not a mobile UA**),
+  scrolled to the real-master audio summary and approximate PCM times.
+  Using CDP `mobile:true` after desktop navigation can yield a 390px
+  visual viewport but a misleading 1560px layout viewport in headless Chrome;
+  the test explicitly measures `window.innerWidth===390` instead.
 - `qc-audio-visual-evidence.json`: bounded non-sensitive test metadata,
   viewport dimensions, fixture status and review-only flags.
 
