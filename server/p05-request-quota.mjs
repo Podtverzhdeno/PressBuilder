@@ -49,9 +49,15 @@ export function createP05RequestQuota({
   const existing=store.get(key);
   if(existing){
    const elapsed=Math.max(0,t-existing.last);
-   return {store,key,existing,
-    tokens:Math.min(capacity,existing.tokens+elapsed/1000*rate),
-    last:Math.max(existing.last,t),rate};
+   const tokens=Math.min(capacity,existing.tokens+elapsed/1000*rate);
+   const last=Math.max(existing.last,t);
+   // A rejected request must NOT allocate a new key or spend a token,
+   // but it IS activity by this existing identity. Refresh last here
+   // so an attacker cannot force idle eviction/reset of an active
+   // exhausted bucket merely by hammering during backpressure.
+   existing.tokens=tokens;
+   existing.last=last;
+   return {store,key,existing,tokens,last,rate};
   }
   if(store.size>=maxKeys){
    // Only evict truly idle identities, never active/exhausted ones.
