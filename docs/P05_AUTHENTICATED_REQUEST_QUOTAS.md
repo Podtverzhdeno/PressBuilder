@@ -8,10 +8,13 @@ until the owner independently reviews and merges the PR chain.
 The current PressBuilder web editor has **one configured Basic Auth
 username/password**. It does **not** establish separate browser users.
 Consequently, R28 does **not** claim per-human fairness: all authenticated
-web editor traffic shares the trusted principal `web-director`.
-Authenticated MCP requests are charged to the agent ID returned by
-`authMcp`, OAuth token verification or `agents.authenticate`; in the
-current MCP code, token/OAuth directors share `mcp-director`.
+web editor traffic shares the trusted principal `web:director`.
+Authenticated MCP calls use a **distinct namespaced principal**:
+`mcp:director` for token/OAuth directors, and
+`mcp:agent:<verified-agent-id>` for directory agents. The agent IDs
+come from `agents.authenticate`, not from request JSON. Separating
+these namespaces prevents a worker with a reserved-looking ID from
+draining the web or MCP director's quota.
 
 **No identity is derived from `X-Forwarded-For`, `X-Real-IP`, request
 JSON, query parameters or untrusted caller-supplied actor IDs.**
