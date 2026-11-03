@@ -13,6 +13,16 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
  const [sceneFilter,setSceneFilter]=useState('');
  const video=useRef<HTMLVideoElement>(null);
  const requestVersion=useRef(0);
+ useEffect(()=>{
+  const onEscape=(event:KeyboardEvent)=>{
+   if(event.key!=='Escape'||event.defaultPrevented||document.fullscreenElement)return;
+   event.preventDefault();
+   event.stopPropagation();
+   onClose();
+  };
+  window.addEventListener('keydown',onEscape);
+  return ()=>window.removeEventListener('keydown',onEscape);
+ },[onClose]);
  async function load(){
   const request=++requestVersion.current;
   setBusy(true);setData(null);setError('');setSeekError('');
