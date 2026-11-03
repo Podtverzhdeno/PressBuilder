@@ -810,7 +810,12 @@ const server=http.createServer(async(req,res)=>{
       if(req.method!=='POST')return json(res,405,{error:'Streamable HTTP supports POST' });
       const msg=await readJson(req);
       const quotaProject=p05McpQuotaProject(msg);
-      if(quotaProject&&hasDeck(quotaProject))p05Quota.admit(
+      // makeMcp enforces actor.projects, but quota admission must check
+      // scope BEFORE charging: otherwise denied agents could exhaust a
+      // different project's shared budget with unauthorized calls.
+      if(quotaProject&&
+         (actor.role==='director'||actor.projects?.includes(quotaProject))&&
+         hasDeck(quotaProject))p05Quota.admit(
         actor.role==='director'?'mcp:director':'mcp:agent:'+actor.id,quotaProject);
       const reply=await mcp(msg,actor);
       if(reply===null){res.writeHead(202);res.end();return}
