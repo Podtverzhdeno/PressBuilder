@@ -223,7 +223,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
           if(!args.slide_id)throw new UserError('Scene ID required for scoped QC cockpit',403);
           scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
         }
-        return qcCockpit.read(args.id,{sceneId:actor.role==='director'?null:args.slide_id});
+        return qcCockpit.readAsync(args.id,{sceneId:actor.role==='director'?null:args.slide_id});
       }
       case 'get_fenced_job': scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
         return jobLedger.read(args.id,args.slide_id,args.job_id);
