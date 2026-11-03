@@ -1869,6 +1869,7 @@ kbd {
 
 /* Agent collaboration: one self-contained task board per project. */
 .task-overlay {
+  grid-template-columns: minmax(0, 1fr);
   position: fixed;
   z-index: 160;
   inset: 0;
@@ -1881,6 +1882,7 @@ kbd {
 .task-window {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   background: var(--panel, #142034);
   border: 1px solid var(--line, #344155);
   border-radius: 16px;
@@ -1959,6 +1961,20 @@ kbd {
 .task-add { display:flex; gap:10px; margin-top:15px; }
 .task-add input { flex:1; }
 .task-error { color:#ffa2a2; white-space:pre-wrap; overflow-wrap:anywhere; }
+/* Long machine-readable M58 codes must not take over narrow QC table cells.
+ * Full code is retained in title and aria-label on the element.
+ */
+.qc-audio-issue-code {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dim);
+  font-size: 11px;
+}
 .task-footer {
   position:sticky; bottom:-25px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;
   margin:23px -25px -25px; padding:13px 25px;
@@ -1968,6 +1984,9 @@ kbd {
 @media (max-width: 850px) {
   .task-overlay { padding: 5px; }
   .task-window { height: min(99vh, 1000px); max-height:99vh; min-height:0; }
+  .task-header { flex-wrap: wrap; gap:10px; padding:12px 14px; }
+  .task-header > div { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+  .task-detail code { overflow-wrap:anywhere; }
   .task-layout { grid-template-columns:1fr; grid-template-rows:160px minmax(0,1fr); }
   .task-list { flex-direction:row; border-right:0; border-bottom:1px solid var(--line); }
   .task-scene { min-width:175px; }

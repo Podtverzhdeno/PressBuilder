@@ -33,6 +33,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build production container
         run: docker build -t pressbuilder-cloud:ci .
+      - name: Capture review-only QC screenshots (desktop and mobile)
+        run: |
+          mkdir -p qc-visual-evidence
+          docker run --rm --entrypoint node \
+            -e PB_QC_EVIDENCE_DIR=/qc-evidence \
+            -v "$PWD/qc-visual-evidence:/qc-evidence" \
+            pressbuilder-cloud:ci \
+            --test tests/cloud-qc-audio-browser.test.mjs
+      - name: Require both review screenshots and readable fixture metadata
+        run: |
+          sudo chmod -R a+rX qc-visual-evidence
+          test -s qc-visual-evidence/qc-audio-desktop-1280.png
+          test -s qc-visual-evidence/qc-audio-desktop-findings-1280.png
+          test -s qc-visual-evidence/qc-audio-mobile-390.png
+          test -s qc-visual-evidence/qc-audio-visual-evidence.json
       - name: Start isolated test service
         run: |
           docker run -d --name pb-cloud -p 3987:3000 \
@@ -48,6 +63,15 @@ jobs:
           exit 1
       - name: Render short video and download real MP4
         run: node tests/render-smoke.mjs
+      - name: Upload synthetic QC visual evidence (requires human review)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qc-audio-visual-evidence
+          path: qc-visual-evidence/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
       - name: Diagnostics
         if: always()
         run: docker logs pb-cloud || true
