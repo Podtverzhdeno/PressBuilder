@@ -28,11 +28,13 @@ function hashFile(file){
 }
 export function inspectCurrentMasterStereo({
  assembly,projectId,ffmpegBin=process.env.FFMPEG||'ffmpeg',
+ ffprobeBin=process.env.FFPROBE||'ffprobe',
 }={}){
  if(typeof projectId!=='string'||!PROJECT.test(projectId)||
     typeof assembly?.current!=='function'||
     typeof assembly?.download!=='function'||
-    typeof ffmpegBin!=='string'||!ffmpegBin||ffmpegBin.length>512)
+    typeof ffmpegBin!=='string'||!ffmpegBin||ffmpegBin.length>512||
+    typeof ffprobeBin!=='string'||!ffprobeBin||ffprobeBin.length>512)
    bad('M58_REAL_AUDIT_INPUT_INVALID');
  const release=assembly.current(projectId);
  const manifest=release?.manifest;
@@ -84,6 +86,34 @@ export function inspectCurrentMasterStereo({
  if(!stat.isFile()||stat.size!==manifest.output.bytes||
     hashFile(file)!==manifest.output.sha256)
    bad('M58_REAL_MASTER_HASH_MISMATCH');
+ // Do not silently upmix mono or downmix surround into "two-channel"
+ // evidence: that would erase the original channel topology.
+ const probe=spawnSync(ffprobeBin,[
+  '-v','error','-show_entries','format=duration:stream=codec_type,codec_name,channels,sample_rate',
+  '-of','json',file,
+ ],{shell:false,windowsHide:true,encoding:'utf8',timeout:15000,
+   maxBuffer:262144,stdio:['ignore','pipe','pipe']});
+ if(probe.error||probe.signal||probe.status!==0)
+  bad('M58_REAL_AUDIO_PROBE_FAILED');
+ let metadata;
+ try{metadata=JSON.parse(probe.stdout)}
+ catch{bad('M58_REAL_AUDIO_PROBE_FAILED')}
+ const audioStreams=(metadata.streams??[]).filter(x=>x.codec_type==='audio');
+ const videoStreams=(metadata.streams??[]).filter(x=>x.codec_type==='video');
+ if(audioStreams.length!==1||videoStreams.length<1||
+    audioStreams[0].codec_name!=='aac'||audioStreams[0].channels!==2)
+  bad('M58_REAL_MASTER_AUDIO_LAYOUT_UNSUPPORTED');
+ const measuredDuration=Number(metadata.format?.duration);
+ if(!Number.isFinite(measuredDuration)||
+    Math.abs(measuredDuration-duration)>.35)
+  bad('M58_REAL_MASTER_PROBE_DURATION_MISMATCH');
+ const sourceAudioStream={codec:audioStreams[0].codec_name,
+  channels:audioStreams[0].channels,
+  sample_rate_hz:Number(audioStreams[0].sample_rate)};
+ if(!Number.isSafeInteger(sourceAudioStream.sample_rate_hz)||
+    sourceAudioStream.sample_rate_hz<8000||
+    sourceAudioStream.sample_rate_hz>192000)
+  bad('M58_REAL_MASTER_AUDIO_LAYOUT_UNSUPPORTED');
  const decode=spawnSync(ffmpegBin,[
   '-hide_banner','-nostats','-nostdin','-loglevel','error',
   '-xerror','-err_detect','explode','-i',file,
@@ -114,6 +144,7 @@ export function inspectCurrentMasterStereo({
   project_id:projectId,release_id:release.release_id,
   release_sha256:manifest.output.sha256,
   release_bytes:manifest.output.bytes,
+  source_audio_stream:sourceAudioStream,
   source_scene_hashes:manifest.scenes.map(x=>({scene_id:x.id,
    declared_source_sha256:x.sha256})),
   provenance:'P05_CURRENT_AND_DOWNLOAD_SERVER_VERIFIED_HASH_BEFORE_AND_AFTER',
