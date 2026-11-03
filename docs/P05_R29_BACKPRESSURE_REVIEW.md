@@ -7,7 +7,7 @@ and tests in this PR, no merge/deployment/production authorization.
 
 | ID | Severity | Failure mode before R29 | Repair |
 | --- | --- | --- | --- |
-| F1 | Medium | `createP05RequestQuota.admit` **created both bucket records before token availability was checked**. An exhausted authenticated actor could submit SHA-route requests for many *existing* projects, get 429 and still allocate new project entries. In reverse, an exhausted project could allocate actor entries. The bounded key maps could fill with requests **that never performed a SHA**, prematurely rejecting legitimate users with `P05_QUOTA_IDENTITY_CAPACITY`. | Two-phase `peek` then `commit`: check/refill both budgets without key insertion, reject atomically, create or debit both only if **both** pass. Existing idle-key reclamation remains bounded. |
+| F1 | Medium | `createP05RequestQuota.admit` **created both bucket records before token availability was checked**. An exhausted authenticated actor could submit SHA-route requests for many *existing* projects, get 429 and still allocate new project entries. In reverse, an exhausted project could allocate actor entries. The bounded key maps could fill with requests **that never performed a SHA**, prematurely rejecting legitimate users with `P05_QUOTA_IDENTITY_CAPACITY`. | Two-phase `peek` then `commit`: check/refill both budgets without inserting a new key, reject atomically, create or debit both only if **both** pass. Existing key activity timestamps still refresh on denied requests, preventing eviction-based rate-limit reset when a saturated principal remains active. |
 | F2 | Medium | M51 async QC handled **every** `realAudioReadAsync` rejection as a bad receipt, including `{status:429}` from the SHA governor. A healthy verified release could be displayed as `INVALID` and HTTP 200 under brief storage pressure. | Re-throw 429 unchanged (HTTP layer produces 429 + Retry-After); continue to reject genuinely malformed/tampered receipts in the projection. |
 | F3 | Medium/High (availability) | The M58 queued worker did three full-P05 verification checkpoints. If any hit a transient **429 from the bounded R27 SHA governor**, the job was immediately marked `FAILED`. In particular, a 429 **after FFmpeg completed** threw away its review and forced the owner to initiate another expensive audit. | At **each** of three checks, retry only `verifiedCurrentAsync` with exponential bounded delays (75/150/300/600/750/750 ms; at most 7 total full checks per checkpoint). Still verify SHA and release identity after await. The FFmpeg worker is **not** replayed. If contention persists, fail closed with explicit `M58_AUDIO_SHA_BACKPRESSURE_EXHAUSTED` and keep no receipt. |
 
@@ -23,6 +23,9 @@ different owner/security reviewer must inspect and approve before merge.
    project keys: snapshot must still contain **one** actor and **one**
    project. An exhausted project must not allocate a new actor. A
    successful later request is charged to both normally.
+   A separate test holds an exhausted principal active through repeated
+   429s across an idle TTL and asserts that the principal cannot be
+   evicted/recreated to reset its burst budget.
 2. M51 director QC with asynchronous verified release: a second-phase
    audio reader 429 must reject with status 429, not render `INVALID`.
    A genuine non-429 malformed receipt remains nonpublishable.
