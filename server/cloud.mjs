@@ -503,7 +503,8 @@ async function api(req,res,url) {
   if(previewFileMatch){
     if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
     const id=deckId(escaped(previewFileMatch[1])),scene=deckId(escaped(previewFileMatch[2]));
-    return fileResponse(req,res,previews.frame(id,scene,Number(previewFileMatch[3])));
+    return await streamedFileResponse(req,res,
+      previews.frame(id,scene,Number(previewFileMatch[3])));
   }
   const previewMatch=/^\/api\/decks\/([^/]+)\/preview\/([^/]+)(\/cancel)?$/.exec(p);
   if(previewMatch){
@@ -518,7 +519,8 @@ async function api(req,res,url) {
     if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
     const id=deckId(escaped(diffMatch[1])),scene=deckId(escaped(diffMatch[2])),
       before=diffMatch[3],after=diffMatch[4];
-    if(diffMatch[5]!==undefined)return fileResponse(req,res,await comparisons.frame(id,scene,before,after,Number(diffMatch[5])));
+    if(diffMatch[5]!==undefined)return await streamedFileResponse(req,res,
+      await comparisons.frame(id,scene,before,after,Number(diffMatch[5])));
     return json(res,200,await comparisons.compare(id,scene,before,after));
   }
   const sourceStateMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)\/source-state$/.exec(p);
