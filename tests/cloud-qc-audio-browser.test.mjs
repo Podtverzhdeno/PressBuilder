@@ -242,7 +242,11 @@ test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio rev
    const detail=dialog?.querySelector('.task-detail');
    section?.scrollIntoView({block:'start',behavior:'instant'});
    const r=window?.getBoundingClientRect(),s=section?.getBoundingClientRect();
+   const overlay=dialog?.getBoundingClientRect();
    return {viewport:document.documentElement.clientWidth,
+    innerWidth:window.innerWidth,visualWidth:window.visualViewport?.width,
+    mobileCss:window.matchMedia('(max-width:850px)').matches,
+    overlay:overlay?{left:overlay.left,width:overlay.width,right:overlay.right}:null,
     bounds:r?{left:r.left,right:r.right,width:r.width,height:r.height}:null,
     audioBounds:s?{left:s.left,right:s.right,width:s.width}:null,
     audioVisible:!!s&&s.width>150&&s.left>=-2&&s.right<=392,
