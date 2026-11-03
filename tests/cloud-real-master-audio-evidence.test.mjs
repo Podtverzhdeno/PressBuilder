@@ -33,6 +33,7 @@ function media(dir,mode='clean'){
   '-f','lavfi','-i','testsrc2=size=160x90:rate=24:duration=2.4',
   '-map','1:v:0','-map','0:a:0','-t','2.4',
   '-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p',
+  ...(mode==='mono'?['-ac','1']:[]),
   '-c:a','aac','-b:a','160k',file];
  const res=spawnSync('ffmpeg',args,{encoding:'utf8',timeout:45000});
  assert.equal(res.status,0,String(res.stderr).slice(-1000));
@@ -88,6 +89,7 @@ test('M58-R20 two genuine 2.4s MP4/AAC masters: SHA-attested current release and
   assert.equal(normal.decoded_master_audio.issues.length,0);
   assert.equal(normal.decoded_master_audio.scanned_windows,8);
   assert.equal(normal.cryptographically_signed,false);
+  assert.deepEqual(normal.source_audio_stream,{codec:'aac',channels:2,sample_rate_hz:48000});
   assert.equal(normal.source_scene_files_rehashed_now,false);
   assert.equal(normal.may_publish,false);
   assert.equal(normal.human_listening_verified,false);
@@ -131,6 +133,9 @@ test('M58-R20 reject stale current pointer, mutated master, forged QA and durati
   badTransition.manifest.scenes[1].transition_after={type:'crossfade',duration:.3};
   fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(file,badTransition),
    projectId:'real-audio-test'}),'M58_REAL_MASTER_TIMELINE_INVALID');
+  const mono=media(root,'mono');
+  fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(mono),
+   projectId:'real-audio-test'}),'M58_REAL_MASTER_AUDIO_LAYOUT_UNSUPPORTED');
   const badQa=structuredClone(r);
   badQa.manifest.output.qa.verdict='FAIL';
   fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(file,badQa),
