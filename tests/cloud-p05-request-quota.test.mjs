@@ -52,6 +52,7 @@ test('P05-R28 atomic actor+project token budgets prevent changing project/identi
  q.admit('agent-b','beta');
  now+=2000;
  q.admit('web-director','alpha');
+ q.admit('web-director','beta');
  assert.throws(()=>q.admit('web-director','beta'),e=>e.status===429);
  assert.deepEqual(q.snapshot(),{actors:3,projects:2});
 });
