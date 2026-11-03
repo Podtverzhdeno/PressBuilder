@@ -120,7 +120,8 @@ export function qcCockpitService({assembly,reviews,enabled=false,
   const source=buildQcCockpit({projectId:id,release,reviewsByScene:reviewData});
   let report=null;
   let audio;
-  if(typeof m58ReportLoader==='function'&&typeof verifyM58Report==='function'){
+  // A P06 scene-scoped request must not even load full-project lab evidence.
+  if(sceneId===null&&typeof m58ReportLoader==='function'&&typeof verifyM58Report==='function'){
    try{report=m58ReportLoader(id,release)}catch{audio={...projectM58SyntheticAudio(),state:'REJECTED'}}
   }
   if(!audio)audio=projectM58SyntheticAudio({release,report,verifyReport:verifyM58Report});
