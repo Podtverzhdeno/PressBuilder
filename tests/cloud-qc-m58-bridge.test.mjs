@@ -114,6 +114,15 @@ test('M51-R03 service never leaks whole-project synthetic findings into P06 scen
  assert.equal(full.publication_allowed,false);
  const scoped=service.read('demo',{sceneId:'s02'});
  assert.ok(!('m58_audio_review' in scoped),'worker sees no cross-scene laboratory report');
+ let privilegedLoaderCalls=0;
+ const isolated=qcCockpitService({enabled:true,
+  assembly:{current:()=>release},reviews:{list:()=>({revision:0,items:[]})},
+  m58ReportLoader:()=>{privilegedLoaderCalls++;return report},
+  verifyM58Report:trustedTestVerifier});
+ isolated.read('demo',{sceneId:'s02'});
+ assert.equal(privilegedLoaderCalls,0,'P06-scoped reader must never request a full-project M58 report');
+ isolated.read('demo');
+ assert.equal(privilegedLoaderCalls,1);
  assert.equal(scoped.events.length,0);
  const disabled=qcCockpitService({
   enabled:true,assembly:{current:()=>release},reviews:{list:()=>({revision:0,items:[]})}});
