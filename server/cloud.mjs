@@ -164,13 +164,15 @@ function inside(dir, rel) {
   const file=path.resolve(dir,rel);
   return (file===dir || file.startsWith(dir+path.sep))?file:null;
 }
+const mediaMimeType=file=>({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
+ '.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.jpg':'image/jpeg',
+ '.jpeg':'image/jpeg','.ttf':'font/ttf','.woff2':'font/woff2','.ico':'image/x-icon','.mp4':'video/mp4',
+ '.mp3':'audio/mpeg','.wav':'audio/wav','.m4a':'audio/mp4','.ogg':'audio/ogg','.webm':'audio/webm'
+})[path.extname(file).toLowerCase()]||'application/octet-stream';
 function fileResponse(req,res,file) {
   const st=fs.statSync(file);
   if (!st.isFile()) throw new UserError('Not a file',404);
-  const type=({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
-    '.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.jpg':'image/jpeg',
-    '.jpeg':'image/jpeg','.ttf':'font/ttf','.woff2':'font/woff2','.ico':'image/x-icon','.mp4':'video/mp4',
-    '.mp3':'audio/mpeg','.wav':'audio/wav','.m4a':'audio/mp4','.ogg':'audio/ogg','.webm':'audio/webm'})[path.extname(file).toLowerCase()]||'application/octet-stream';
+  const type=mediaMimeType(file);
   let start=0,end=st.size-1,status=200;
   const match=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '');
   if(match){
@@ -183,6 +185,71 @@ function fileResponse(req,res,file) {
   if(status===206) headers['Content-Range']='bytes '+start+'-'+end+'/'+st.size;
   res.writeHead(status,headers);
   fs.createReadStream(file,{start,end}).pipe(res);
+}
+// R34: all authenticated stored-media GET paths share the same eight
+// retained-FD slots, preventing bypass of P05's slow-client limit using
+// legacy /out or /src/decks voice downloads. Static app assets are
+// intentionally separate: they are not stored user media.
+async function legacyMediaResponse(req,res,file){
+ if(req.method!=='GET'&&req.method!=='HEAD')
+  throw new UserError('Method not allowed',405);
+ // The budget is acquired BEFORE opening any media inode. HEAD does not
+ // retain a stream FD and never consumes a long-lived download slot.
+ const releaseStream=req.method==='GET'?await mediaStreamSlots.acquire():()=>{};
+ let handle=null,stream=null,ownedByStream=false;
+ try{
+  if(res.destroyed)return;
+  // Do not follow final-component symlinks or block on named pipes.
+  // A parent-directory symlink remains a separate storage trust boundary.
+  handle=await fs.promises.open(file,fs.constants.O_RDONLY|
+   fs.constants.O_NOFOLLOW|fs.constants.O_NONBLOCK);
+  const stat=await handle.stat(),atPath=await fs.promises.lstat(file);
+  if(res.destroyed)return;
+  if(!stat.isFile()||!atPath.isFile()||atPath.isSymbolicLink()||
+     stat.dev!==atPath.dev||stat.ino!==atPath.ino||stat.size!==atPath.size)
+   throw new UserError('Media file identity changed',409);
+  let start=0,end=stat.size-1,status=200;
+  const match=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range||'');
+  if(match){
+   start=Number(match[1]);
+   end=match[2]?Number(match[2]):end;
+   if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||
+      start>=stat.size||end>=stat.size||start>end){
+    res.writeHead(416,{'Content-Range':'bytes */'+stat.size,
+     'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});
+    res.end();return;
+   }
+   status=206;
+  }
+  const headers={'Content-Type':mediaMimeType(file),
+   'Content-Length':status===206?end-start+1:stat.size,
+   'Accept-Ranges':'bytes','X-Content-Type-Options':'nosniff',
+   'Cache-Control':'private, no-store'};
+  if(status===206)headers['Content-Range']='bytes '+start+'-'+end+'/'+stat.size;
+  if(req.method==='HEAD'||stat.size===0){
+   res.writeHead(status,headers);res.end();return;
+  }
+  stream=handle.createReadStream({start,end,autoClose:true});
+  ownedByStream=true;
+  stream.once('close',releaseStream);
+  stream.on('error',e=>{if(!res.destroyed)res.destroy(e)});
+  res.once('close',()=>stream.destroy());
+  // The connection may have closed between file validation and
+  // transferring ownership of the descriptor to the ReadStream.
+  if(res.destroyed){stream.destroy();return}
+  res.writeHead(status,headers);
+  stream.pipe(res);
+ }catch(e){
+  stream?.destroy();
+  if(['ENOENT','ENOTDIR','ELOOP'].includes(e?.code))
+   throw new UserError('Media not found',404);
+  throw e;
+ }finally{
+  if(!ownedByStream){
+   try{await handle?.close()}
+   finally{releaseStream()}
+  }
+ }
 }
 // P05-R30/R31: release bounded SHA slots when HTTP clients disappear.
 // This listener is removed after hashing; the stream owns its FD afterwards.
@@ -415,7 +482,7 @@ async function api(req,res,url) {
     // R33: full-SHA concurrency (R27) is NOT an upper bound on
     // long-lived HTTP streams. Admit before SHA, with zero waiters.
     // HEAD still revalidates P05 but cannot retain a streamed FD.
-    const releaseStream=method==='GET'?await p05Mp4Streams.acquire():()=>{};
+    const releaseStream=method==='GET'?await mediaStreamSlots.acquire():()=>{};
     try{
       const verified=await withLiveP05Response(res,
         signal=>assembly.downloadHandleAsync(id,releaseId,{signal}),
@@ -844,10 +911,10 @@ const qcCockpit=qcCockpitService({assembly,reviews,
 // Web is one Basic-auth principal today. MCP has authenticated actor IDs.
 // No forwarded-IP trust or user-controlled project-as-identity shortcut.
 const p05Quota=createP05RequestQuota();
-// A 429, zero-wait, per-process limit for retained SHA-verified MP4
-// response FDs. Unlike the R27 SHA budget, this lease is held until
-// the stream's 'close' event (or until an early failure closes the FD).
-const p05Mp4Streams=createResourceGovernor({capacity:8,maxWaiting:0});
+// R33/R34: a shared, zero-wait eight-stream budget for retained media
+// descriptors across P05 verified MP4, /out exports and deck voice.
+// The lease lasts until the stream 'close', not merely its HTTP headers.
+const mediaStreamSlots=createResourceGovernor({capacity:8,maxWaiting:0});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
   assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps,jobLedger,qcCockpit});
 const server=http.createServer(async(req,res)=>{
@@ -906,15 +973,15 @@ const server=http.createServer(async(req,res)=>{
       const validEvidence=/^[a-z0-9][a-z0-9_-]{0,40}_[a-z0-9][a-z0-9_-]{0,40}_v[0-9a-f]{16}_f[012]\.jpg$/.test(name);
       if(!validMp4&&!validEvidence)throw new UserError('Invalid filename');
       const file=inside(OUT,name);
-      if(!file || !fs.existsSync(file))throw new UserError('Video not found',404);
-      return fileResponse(req,res,file);
+      if(!file)throw new UserError('Video not found',404);
+      return await legacyMediaResponse(req,res,file);
     }
     if(p.startsWith('/src/decks/')){
       const match=/^\/src\/decks\/([a-z0-9_-]+)\/(voice\.[a-z0-9]+)$/.exec(p);
       if(!match)throw new UserError('Media not found',404);
       const file=inside(DECKS,match[1]+'/'+match[2]);
-      if(!file || !fs.existsSync(file))throw new UserError('Media not found',404);
-      return fileResponse(req,res,file);
+      if(!file)throw new UserError('Media not found',404);
+      return await legacyMediaResponse(req,res,file);
     }
     if(req.method!=='GET' && req.method!=='HEAD')throw new UserError('Method not allowed',405);
     const relative=escaped(p.replace(/^\/+/,'')||'index.html');
