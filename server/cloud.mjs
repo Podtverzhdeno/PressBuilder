@@ -810,7 +810,7 @@ const server=http.createServer(async(req,res)=>{
       if(req.method!=='POST')return json(res,405,{error:'Streamable HTTP supports POST' });
       const msg=await readJson(req);
       const quotaProject=p05McpQuotaProject(msg);
-      if(quotaProject)p05Quota.admit(actor.id,quotaProject);
+      if(quotaProject&&hasDeck(quotaProject))p05Quota.admit(actor.id,quotaProject);
       const reply=await mcp(msg,actor);
       if(reply===null){res.writeHead(202);res.end();return}
       return json(res,200,reply);
@@ -825,7 +825,7 @@ const server=http.createServer(async(req,res)=>{
         }
       }
       const quotaProject=p05HttpQuotaProject(p,req.method);
-      if(quotaProject)p05Quota.admit('web-director',quotaProject);
+      if(quotaProject&&hasDeck(quotaProject))p05Quota.admit('web-director',quotaProject);
       return await api(req,res,url);
     }
     if(p.startsWith('/out/')){
