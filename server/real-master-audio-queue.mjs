@@ -123,7 +123,10 @@ export function realMasterAudioQueue({
       release.manifest?.release_id!==release.release_id||
       release.manifest?.output?.qa?.verdict!=='PASS'||
       !SHA.test(release.manifest?.output?.sha256??''))throw Error();
-  }catch{fail('M58_AUDIO_NO_VERIFIED_CURRENT_RELEASE')}
+  }catch(e){
+   if(e?.status===429)throw e;
+   fail('M58_AUDIO_NO_VERIFIED_CURRENT_RELEASE');
+  }
   return release;
  }
  function load(id){
