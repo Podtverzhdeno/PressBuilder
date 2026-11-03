@@ -133,6 +133,36 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
      {!visible.length&&<p>{counts.all===0?
       'Записанных замечаний нет. Это не подтверждает художественное качество и безопасность публикации.':
       'Нет замечаний с выбранными фильтрами. Попробуйте «Все» или другую сцену.'}</p>}
+     {current.m58_audio_review&&<section aria-label="Экспериментальный аудиоанализ M58"
+       style={{marginTop:'16px'}}>
+      <h3>Звук · M58 (только контрольный тест)</h3>
+      {current.m58_audio_review.state==='NOT_CONNECTED'&&
+       <p>Аудиоотчёт M58 для этого выпуска не подключён. Это не означает, что звук проверен.</p>}
+      {current.m58_audio_review.state==='REJECTED'&&
+       <p role="alert" class="task-error">Аудиоотчёт M58 отклонён: его происхождение,
+        версия MP4 или исходные сцены не подтверждены. Замечания не показаны.</p>}
+      {current.m58_audio_review.state==='SYNTHETIC_REVIEW_ONLY'&&<>
+       <p><strong>Лабораторные данные, не проверка пользовательского видео.</strong>
+        Метрики рассчитаны на известном синтетическом звуке. Ни прослушивание,
+        ни разрешение на публикацию не подтверждены.</p>
+       <p>К проверке: {current.m58_audio_review.findings.length} временных окон.
+        Время — начало окна декодированного PCM, ориентир для предпросмотра MP4,
+        а не подтверждённый PTS видеокадра.</p>
+       <div style={{overflowX:'auto'}}>
+        <table style={{width:'100%'}}>
+         <thead><tr><th>Где</th><th>Сцена</th><th>Звук</th><th>Действие</th></tr></thead>
+         <tbody>{current.m58_audio_review.findings.map(f=><tr key={f.id}>
+          <td><button type="button" class="btn" onClick={()=>seek(f.global_seconds)}
+            title="Перейти к приблизительному времени PCM в видео">{time(f.global_seconds)}</button></td>
+          <td>{f.scene_id}</td><td>{f.message}</td><td>Прослушать и проверить вручную</td>
+         </tr>)}</tbody>
+        </table>
+       </div>
+       {!current.m58_audio_review.findings.length&&
+        <p>В синтетическом контрольном материале ошибок этого типа не найдено.
+         Это не доказывает качество пользовательского видео.</p>}
+      </>}
+     </section>}
      <p><strong>Только чтение.</strong> Это не общий релизный допуск:
       P05/P07 не содержат результаты отдельного M58 аудиоанализа, а
       замечания без достоверного времени не получают выдуманный таймкод.</p>
