@@ -111,20 +111,22 @@ export function realMasterAudioQueue({
   }catch{fail('M58_AUDIO_NO_VERIFIED_CURRENT_RELEASE')}
   return release;
  }
- async function verifiedCurrentAsync(id){
+ async function verifiedCurrentAsync(id,{signal=null}={}){
   // Production P05 currentAsync includes full SHA, pinned inode and
   // current-pointer CAS. Test mocks retain the sync verification contract.
+  if(signal?.aborted)fail('P05_SHA_REQUEST_ABORTED',499);
   if(typeof assembly.currentAsync!=='function')return verifiedCurrent(id);
   let release;
   try{
-   release=await assembly.currentAsync(id);
+   release=await assembly.currentAsync(id,{signal});
+   if(signal?.aborted)fail('P05_SHA_REQUEST_ABORTED',499);
    if(!release||!UUID.test(release.release_id??'')||
       release.manifest?.project!==id||
       release.manifest?.release_id!==release.release_id||
       release.manifest?.output?.qa?.verdict!=='PASS'||
       !SHA.test(release.manifest?.output?.sha256??''))throw Error();
   }catch(e){
-   if(e?.status===429)throw e;
+   if(e?.status===429||e?.status===499)throw e;
    fail('M58_AUDIO_NO_VERIFIED_CURRENT_RELEASE');
   }
   return release;
@@ -201,12 +203,14 @@ export function realMasterAudioQueue({
   const release=verifiedCurrent(id);
   return {job:j,receipt:trustedReceipt(id,j,release)};
  }
- async function readAsync(id){
+ async function readAsync(id,{signal=null}={}){
   assertEnabled();requireId(id);
+  if(signal?.aborted)fail('P05_SHA_REQUEST_ABORTED',499);
   const j=load(id);
   if(!j)return {job:{project_id:id,status:'not_started',publication_allowed:false},receipt:null};
   if(j.status!=='completed')return {job:{...clone(j),publication_allowed:false},receipt:null};
-  const release=await verifiedCurrentAsync(id);
+  const release=await verifiedCurrentAsync(id,{signal});
+  if(signal?.aborted)fail('P05_SHA_REQUEST_ABORTED',499);
   if(!same(j,release))return {job:{...clone(j),status:'stale',
    report_sha256:null,publication_allowed:false,error_code:'M58_AUDIO_RELEASE_STALE'},
    receipt:null};
