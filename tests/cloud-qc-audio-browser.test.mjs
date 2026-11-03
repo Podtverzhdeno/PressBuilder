@@ -212,15 +212,81 @@ test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio rev
   assert.equal(displayed.hasNoAutoPublish,true);
   assert.ok(displayed.seekButtons>=1,JSON.stringify(displayed));
   assert.equal(displayed.hasManualStart,false,'completed release is cached and not requeued');
+  // Capture static synthetic-media UI only: never include credentials, source
+  // customer footage or private P05 paths in visual CI artifacts.
+  const evidenceDir=process.env.PB_QC_EVIDENCE_DIR||null;
+  function screenshotFile(name,bytes){
+   if(!evidenceDir)return;
+   fs.mkdirSync(evidenceDir,{recursive:true});
+   fs.writeFileSync(path.join(evidenceDir,name),bytes,{mode:0o600});
+  }
   const capture=await client.send('Page.captureScreenshot',{format:'png',fromSurface:true});
   const png=Buffer.from(capture.data||'','base64');
-  assert.ok(png.length>14000,'browser screenshot is not blank');
+  assert.ok(png.length>14000,'desktop screenshot is not blank');
   assert.equal(png.subarray(1,4).toString('ascii'),'PNG');
   const width=png.readUInt32BE(16),height=png.readUInt32BE(20);
   assert.ok(width>=1100&&height>=700,JSON.stringify({width,height}));
-  console.log('M51-R05 actual Chromium QC screenshot verified',JSON.stringify({
-   width,height,bytes:png.length,manualStart:true,findings:displayed.seekButtons,
-   release_sha256:release.sha.slice(0,12),publication_allowed:false}));
+  screenshotFile('qc-audio-desktop-1280.png',png);
+
+  // Mobile viewport: the modal must fit horizontally, keep audio review
+  // controls reachable and render warnings without invented PTS/signoff.
+  await client.send('Emulation.setDeviceMetricsOverride',{
+   width:390,height:844,deviceScaleFactor:1,mobile:true,
+   screenWidth:390,screenHeight:844,
+  });
+  await until(()=>evalJs(client,"document.documentElement.clientWidth<=390"));
+  const mobile=await evalJs(client,`(()=>{
+   const dialog=document.querySelector('[role="dialog"][aria-label="M51 проверка качества монтажа"]');
+   const window=dialog?.querySelector('.task-window');
+   const section=document.querySelector('[aria-label="Проверка звука реального MP4"]');
+   const detail=dialog?.querySelector('.task-detail');
+   section?.scrollIntoView({block:'start',behavior:'instant'});
+   const r=window?.getBoundingClientRect(),s=section?.getBoundingClientRect();
+   return {viewport:document.documentElement.clientWidth,
+    bounds:r?{left:r.left,right:r.right,width:r.width,height:r.height}:null,
+    audioBounds:s?{left:s.left,right:s.right,width:s.width}:null,
+    audioVisible:!!s&&s.width>150&&s.left>=-2&&s.right<=392,
+    warningVisible:!!section?.textContent.includes('PCM приблизительное'),
+    reviewOnly:!!dialog?.textContent.includes('Публикация запрещена'),
+    detailScrollable:!!detail&&detail.scrollHeight>detail.clientHeight,
+    horizontalOverflow:!!window&&(window.scrollWidth>window.clientWidth+3),
+    visibleCloseButton:!!dialog?.querySelector('.task-header button'),
+   };
+  })()`);
+  assert.ok(mobile.viewport<=390&&mobile.viewport>=370,JSON.stringify(mobile));
+  assert.ok(mobile.bounds&&mobile.bounds.width>=320&&
+   mobile.bounds.left>=-2&&mobile.bounds.right<=392,JSON.stringify(mobile));
+  assert.ok(mobile.audioVisible&&mobile.warningVisible&&mobile.reviewOnly,
+   JSON.stringify(mobile));
+  assert.equal(mobile.horizontalOverflow,false,'mobile QC modal overflows horizontally');
+  assert.equal(mobile.detailScrollable,true,'long report must remain scrollable');
+  assert.equal(mobile.visibleCloseButton,true);
+  // Focusable control for keyboard use; this does not imply a full WCAG audit.
+  const focus=await evalJs(client,`(()=>{
+   const button=document.querySelector('[role="dialog"] .task-header button');
+   button?.focus();return !!button&&document.activeElement===button;
+  })()`);
+  assert.equal(focus,true,'close control is keyboard-focusable on mobile');
+  await pause(120);
+  const mobileCapture=await client.send('Page.captureScreenshot',
+   {format:'png',fromSurface:true});
+  const mobilePng=Buffer.from(mobileCapture.data||'','base64');
+  assert.equal(mobilePng.subarray(1,4).toString('ascii'),'PNG');
+  assert.equal(mobilePng.readUInt32BE(16),390);
+  assert.equal(mobilePng.readUInt32BE(20),844);
+  assert.ok(mobilePng.length>10000,'mobile screenshot is not blank');
+  screenshotFile('qc-audio-mobile-390.png',mobilePng);
+  const witness={schema_version:1,scope:'SYNTHETIC_P05_QC_BROWSER_SCREENSHOTS_ONLY',
+   viewport_desktop:{width,height},viewport_mobile:{width:390,height:844},
+   screenshot_bytes:{desktop:png.length,mobile:mobilePng.length},
+   real_ffmpeg_fixture:true,manual_button_clicked:true,
+   findings:displayed.seekButtons,approximate_pcm_time_only:true,
+   issuer_signature:false,publication_allowed:false,requires_human_visual_review:true};
+  if(evidenceDir){
+   fs.writeFileSync(path.join(evidenceDir,'qc-audio-visual-evidence.json'),
+    JSON.stringify(witness,null,2)+'\n',{mode:0o600});
+  }
+  console.log('M51-R06 Chromium QC visual evidence desktop/mobile',JSON.stringify(witness));
  }finally{
   client?.socket.close();
   if(browser){browser.kill('SIGKILL')}
