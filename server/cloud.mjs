@@ -186,7 +186,7 @@ function fileResponse(req,res,file) {
 }
 // P05-R30/R31: release bounded SHA slots when HTTP clients disappear.
 // This listener is removed after hashing; the stream owns its FD afterwards.
-async function withLiveP05Response(res,verify){
+async function withLiveP05Response(res,verify,{disposeOnAbort=null}={}){
  const controller=new AbortController();
  const onClose=()=>controller.abort(Object.assign(
   new Error('P05_SHA_REQUEST_ABORTED'),{status:499}));
@@ -196,14 +196,20 @@ async function withLiveP05Response(res,verify){
  if(res.destroyed)onClose();
  try{
   const result=await verify(controller.signal);
-  if(controller.signal.aborted)throw controller.signal.reason;
+  if(controller.signal.aborted){
+   // Verification may complete and return an inode-pinned FileHandle
+   // just before a remote disconnect. Never strand that handle when
+   // discarding an already-verified response.
+   try{await disposeOnAbort?.(result)}
+   finally{throw controller.signal.reason}
+  }
   return result;
  }finally{res.off('close',onClose)}
 }
 // P05-R26: serve the exact inode verified asynchronously by P05.
 // Never reopen final.mp4 from a mutable pathname after computing SHA.
-async function pinnedMp4Response(req,res,{handle}){
-  let ownedByStream=false;
+async function pinnedMp4Response(req,res,{handle},releaseStream=()=>{}){
+  let ownedByStream=false,stream=null;
   try{
     if(res.destroyed)return;
     const stat=await handle.stat();
@@ -229,14 +235,25 @@ async function pinnedMp4Response(req,res,{handle}){
       res.writeHead(status,headers);res.end();return;
     }
     // FileHandle.createReadStream owns the descriptor with autoClose=true.
-    const stream=handle.createReadStream({start,end,autoClose:true});
+    stream=handle.createReadStream({start,end,autoClose:true});
     ownedByStream=true;
+    // Keep the admission token until the verified pinned file
+    // descriptor has actually closed, including slow-client aborts.
+    stream.once('close',releaseStream);
     stream.on('error',e=>{if(!res.destroyed)res.destroy(e)});
     res.once('close',()=>stream.destroy());
     res.writeHead(status,headers);
     stream.pipe(res);
+  }catch(e){
+    // If the response fails during stream setup, close its FD rather
+    // than leaving a resource lease attached to an inert stream.
+    stream?.destroy();
+    throw e;
   }finally{
-    if(!ownedByStream)await handle.close();
+    if(!ownedByStream){
+      try{await handle.close()}
+      finally{releaseStream()}
+    }
   }
 }
 let exportSession=null;
@@ -395,8 +412,19 @@ async function api(req,res,url) {
   if(releaseMatch){
     if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
     const id=deckId(escaped(releaseMatch[1])),releaseId=escaped(releaseMatch[2]);
-    return pinnedMp4Response(req,res,await withLiveP05Response(res,
-      signal=>assembly.downloadHandleAsync(id,releaseId,{signal})));
+    // R33: full-SHA concurrency (R27) is NOT an upper bound on
+    // long-lived HTTP streams. Admit before SHA, with zero waiters.
+    // HEAD still revalidates P05 but cannot retain a streamed FD.
+    const releaseStream=method==='GET'?await p05Mp4Streams.acquire():()=>{};
+    try{
+      const verified=await withLiveP05Response(res,
+        signal=>assembly.downloadHandleAsync(id,releaseId,{signal}),
+        {disposeOnAbort:async item=>item?.handle?.close()});
+      return await pinnedMp4Response(req,res,verified,releaseStream);
+    }catch(e){
+      releaseStream();
+      throw e;
+    }
   }
   const cancelAssembly=/^\/api\/decks\/([^/]+)\/assemble\/cancel$/.exec(p);
   if(cancelAssembly){
@@ -816,6 +844,10 @@ const qcCockpit=qcCockpitService({assembly,reviews,
 // Web is one Basic-auth principal today. MCP has authenticated actor IDs.
 // No forwarded-IP trust or user-controlled project-as-identity shortcut.
 const p05Quota=createP05RequestQuota();
+// A 429, zero-wait, per-process limit for retained SHA-verified MP4
+// response FDs. Unlike the R27 SHA budget, this lease is held until
+// the stream's 'close' event (or until an early failure closes the FD).
+const p05Mp4Streams=createResourceGovernor({capacity:8,maxWaiting:0});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
   assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps,jobLedger,qcCockpit});
 const server=http.createServer(async(req,res)=>{
