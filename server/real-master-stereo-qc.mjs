@@ -16,6 +16,7 @@ export function screenRealStereoPcm(pcm,{expectedDurationSec=null}={}){
      Math.abs(durationSec-expectedDurationSec)>.35))
    bad('M58_REAL_AUDIO_DURATION_MISMATCH');
  const windows=[],issues=[];
+ let silentWindowCount=0;
  const windowCount=Math.floor(frameCount/WINDOW_FRAMES);
  for(let i=0;i<windowCount;i++){
   let ll=0,rr=0,lr=0,mm=0,ss=0;
@@ -30,6 +31,8 @@ export function screenRealStereoPcm(pcm,{expectedDurationSec=null}={}){
   const mid=Math.sqrt(mm/WINDOW_FRAMES),side=Math.sqrt(ss/WINDOW_FRAMES);
   const corr=left>0&&right>0?lr/WINDOW_FRAMES/(left*right):null;
   const midSide=side>1e-9?mid/side:null;
+  // A fully silent AAC track can still pass container-level audio-presence QA.
+  if(left<.0003&&right<.0003)silentWindowCount++;
   // Gross antiphase with adequate energy on both sides can mute mono playback.
   const antiphase=left>=.012&&right>=.012&&corr!==null&&
    corr<=-.94&&midSide!==null&&midSide<=.18;
@@ -50,9 +53,15 @@ export function screenRealStereoPcm(pcm,{expectedDurationSec=null}={}){
    window_end_sec:window.window_end_sec,code:reason,
    requires_human_review:true});
  }
+ const silentFraction=silentWindowCount/windowCount;
+ if(silentFraction>=.9)issues.push({
+  window_start_sec:0,window_end_sec:round(durationSec,3),
+  code:'POSSIBLE_SILENT_AUDIO_TRACK',requires_human_review:true,
+ });
  return {schema_version:1,scope:'REAL_MP4_DECODED_48K_STEREO_RISK_SCREEN',
   audio_duration_sec:round(durationSec,5),sample_rate_hz:RATE,
   channels:2,window_ms:300,scanned_windows:windowCount,
+  silent_windows:silentWindowCount,silent_window_fraction:round(silentFraction,4),
   unscanned_tail_ms:round((frameCount-windowCount*WINDOW_FRAMES)/RATE*1000,3),
   windows,issues,manual_audio_review_required:issues.length>0,
   audio_video_pts_alignment_verified:false,
