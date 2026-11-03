@@ -12,17 +12,36 @@ const SHA=/^[a-f0-9]{64}$/,UUID=/^[a-f0-9-]{36}$/;
 const stamp=()=>new Date().toISOString();
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const fail=(code,status=409)=>{throw Object.assign(new Error(code),{code,status})};
-function atomicJson(file,value){
- fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});
+/** Atomic one-time receipt creation must not be a check-then-rename race.
+ * hard-linking our private temporary file fails with EEXIST atomically and
+ * cannot replace a prior receipt (including a symlink at the destination).
+ */
+function atomicJson(file,value,{exclusive=false}={}){
  const tmp=file+'.'+randomUUID()+'.tmp';
- try{fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n',{mode:0o600});fs.renameSync(tmp,file)}
- finally{fs.rmSync(tmp,{force:true})}
+ try{
+  fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n',{mode:0o600,flag:'wx'});
+  if(exclusive)fs.linkSync(tmp,file);
+  else fs.renameSync(tmp,file);
+ }catch(e){
+  if(exclusive&&e?.code==='EEXIST')fail('M58_AUDIO_RECEIPT_ALREADY_EXISTS');
+  throw e;
+ }finally{fs.rmSync(tmp,{force:true})}
+}
+function safeDirectory(dir){
+ const stat=fs.lstatSync(dir);
+ if(!stat.isDirectory()||stat.isSymbolicLink())
+  fail('M58_AUDIO_STORAGE_UNSAFE',500);
 }
 const readJson=file=>{
- const stat=fs.lstatSync(file);
- if(!stat.isFile()||stat.isSymbolicLink()||stat.size>600000)
-  fail('M58_AUDIO_JOURNAL_UNTRUSTED');
- return JSON.parse(fs.readFileSync(file,'utf8'));
+ // Open the exact inode, not a pathname first lstat'ed and then re-opened.
+ // O_NOFOLLOW rejects symlinked job and receipt files on the Linux host.
+ const fd=fs.openSync(file,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+ try{
+  const stat=fs.fstatSync(fd);
+  if(!stat.isFile()||stat.size>600000)
+   fail('M58_AUDIO_JOURNAL_UNTRUSTED');
+  return JSON.parse(fs.readFileSync(fd,'utf8'));
+ }finally{fs.closeSync(fd)}
 };
 const clone=x=>structuredClone(x);
 const same=(j,r)=>j.release_id===r.release_id&&j.release_sha256===r.manifest.output.sha256;
@@ -68,7 +87,16 @@ export function realMasterAudioQueue({
  const requireId=id=>{if(typeof id!=='string'||!PROJECT.test(id))fail('M58_AUDIO_PROJECT_INVALID',400)};
  const journalFile=id=>path.join(journals,id+'.json');
  const receiptFile=(id,sha)=>path.join(receipts,id,sha+'.json');
- const persist=j=>atomicJson(journalFile(j.project_id),j);
+ const persist=j=>{
+  fs.mkdirSync(journals,{recursive:true,mode:0o700});
+  safeDirectory(out);safeDirectory(journals);
+  atomicJson(journalFile(j.project_id),j);
+ };
+ const safeReceiptDir=(id,{create=false}={})=>{
+  const dir=path.join(receipts,id);
+  if(create)fs.mkdirSync(dir,{recursive:true,mode:0o700});
+  safeDirectory(out);safeDirectory(receipts);safeDirectory(dir);
+ };
  function verifiedCurrent(id){
   let release;
   try{
@@ -86,6 +114,8 @@ export function realMasterAudioQueue({
  function load(id){
   if(latest.has(id))return latest.get(id);
   const f=journalFile(id);
+  if(!fs.existsSync(journals))return null;
+  safeDirectory(out);safeDirectory(journals);
   if(!fs.existsSync(f))return null;
   let j;
   try{j=readJson(f)}
@@ -103,6 +133,7 @@ export function realMasterAudioQueue({
  function trustedReceipt(id,j,release){
   const file=receiptFile(id,j.release_sha256);
   try{
+   safeReceiptDir(id);
    const value=readJson(file);
    const {receipt_sha256,...record}=value;
    const report=record.report;
@@ -153,8 +184,14 @@ export function realMasterAudioQueue({
     fail('M58_AUDIO_EXPECTED_RELEASE_STALE',409);
   }
   const prev=load(id);
+  // A project may have only one admitted job, regardless of which release
+  // is current. Otherwise a new release can overwrite the old active
+  // job's journal while its worker is still alive.
+  if(prev&&['queued','running'].includes(prev.status)){
+   if(!same(prev,release))fail('M58_AUDIO_ACTIVE_RELEASE_CONFLICT',409);
+   return {...clone(prev),publication_allowed:false};
+  }
   if(prev&&same(prev,release)){
-   if(['queued','running'].includes(prev.status))return {...clone(prev),publication_allowed:false};
    if(prev.status==='completed'){
     trustedReceipt(id,prev,release);
     return {...clone(prev),cache_hit:true,publication_allowed:false};
@@ -207,10 +244,10 @@ export function realMasterAudioQueue({
       release_id:j.release_id,release_sha256:j.release_sha256,report};
      const content={...record,receipt_sha256:digest(record)};
      const destination=receiptFile(j.project_id,j.release_sha256);
-     // A receipt at this release/SHA may be from a previous interrupted job;
-     // never overwrite it without independent reconciliation.
-     if(fs.existsSync(destination))fail('M58_AUDIO_RECEIPT_ALREADY_EXISTS');
-     atomicJson(destination,content);
+     // An existing receipt may belong to an interrupted predecessor.
+     // link(2) is a single atomic no-overwrite operation: no TOCTOU gap.
+     safeReceiptDir(j.project_id,{create:true});
+     atomicJson(destination,content,{exclusive:true});
      j.report_sha256=report.report_sha256;
      j.receipt_sha256=content.receipt_sha256;
      j.status='completed';j.finished_at=stamp();persist(j);
