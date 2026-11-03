@@ -73,6 +73,16 @@ test('P05-R35 static compiled assets cap at 16 paused FDs without borrowing medi
   const uri='/'+assetName;
   assert.equal((await fetch(base+uri)).status,401);
   assert.equal((await request(uri,{method:'POST'})).status,405);
+  // R35 must also migrate *internal* protected P12 preview PNG and
+  // P11 comparison JPG responses. Missing artifacts fail with a real
+  // 4xx policy error; an unresolved retired fileResponse symbol
+  // would instead be a 500 ReferenceError on both routes.
+  const missingPreview=await request('/api/decks/r35-missing/preview/s01/0.png');
+  assert.equal(missingPreview.status,404);
+  const missingDiff=await request('/api/decks/r35-missing/versions/s01/compare/'+
+   '1'.repeat(16)+'/'+'2'.repeat(16)+'/0.jpg');
+  assert.ok(missingDiff.status>=400&&missingDiff.status<500,
+   'protected comparison JPG must never reach a dangling 500 responder');
   const page=await request('/');
   assert.equal(page.status,200);
   assert.match(await page.text(),/PresBuilder|PressBuilder|<html/i);
