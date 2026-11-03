@@ -4,6 +4,7 @@
 import {createHash} from 'node:crypto';
 import {frameClock,snapFrame,TICKS_PER_SECOND} from './edit-graph.mjs';
 import {projectM58SyntheticAudio} from './m58-qc-bridge.mjs';
+import {projectRealMasterAudio} from './real-master-qc-projection.mjs';
 const SHA=/^[a-f0-9]{64}$/;
 const ID=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const bad=(code,status=409)=>{throw Object.assign(new Error(code),{code,status})};
@@ -108,7 +109,7 @@ export function buildQcCockpit({projectId,release,reviewsByScene={}}){
  return {...original,snapshot_sha256:digest(original)};
 }
 export function qcCockpitService({assembly,reviews,enabled=false,
- m58ReportLoader=null,verifyM58Report=null}){
+ m58ReportLoader=null,verifyM58Report=null,realAudioRead=null}){
  function read(id,{sceneId=null}={}){
   if(!enabled)bad('M51_DISABLED',501);
   if(typeof id!=='string'||!ID.test(id))bad('M51_INVALID_PROJECT',400);
@@ -125,8 +126,16 @@ export function qcCockpitService({assembly,reviews,enabled=false,
    try{report=m58ReportLoader(id,release)}catch{audio={...projectM58SyntheticAudio(),state:'REJECTED'}}
   }
   if(!audio)audio=projectM58SyntheticAudio({release,report,verifyReport:verifyM58Report});
+  // Do not call the project-wide real-audio receipt reader for P06 scene
+  // queries. A broken/tampered receipt is a visible rejection, never a PASS.
+  let realAudio=null;
+  if(sceneId===null&&typeof realAudioRead==='function'){
+   try{realAudio=projectRealMasterAudio({release,result:realAudioRead(id)})}
+   catch{realAudio=projectRealMasterAudio({release,result:{job:{status:'INVALID'},receipt:null}})}
+  }
   const {snapshot_sha256:unused_snapshot,...base}=source;
-  const fullData={...base,m58_audio_review:audio};
+  const fullData={...base,m58_audio_review:audio,
+   ...(realAudio?{real_audio_review:realAudio}:{})};
   const full={...fullData,snapshot_sha256:digest(fullData)};
   if(sceneId===null)return full;
   if(typeof sceneId!=='string'||!ID.test(sceneId)||!full.scenes.some(s=>s.scene_id===sceneId))
@@ -140,6 +149,7 @@ export function qcCockpitService({assembly,reviews,enabled=false,
   // The full M58 laboratory fixture spans all scenes; do not expose it to
   // P06 scene-restricted worker readers before per-scene receipt scoping exists.
   delete scoped.m58_audio_review;
+  delete scoped.real_audio_review;
   return scoped;
  }
  return {read};
