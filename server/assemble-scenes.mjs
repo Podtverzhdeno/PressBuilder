@@ -137,6 +137,70 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       throw bad('Assembly release integrity check failed',409);
     return {file,manifest};
   }
+  // R25: async, inode-pinned SHA validation for user-facing QC/audio HTTP.
+  // A bounded 256 KiB async read yields to the event loop between chunks;
+  // no cache of previously accepted SHA may bypass current-media verification.
+  async function verifiedReleaseAsync(id,releaseId){
+    if(typeof id!=='string'||!ID.test(id))throw bad('Invalid project ID',400);
+    if(typeof releaseId!=='string'||!/^[a-f0-9-]{36}$/.test(releaseId))
+      throw bad('Invalid release ID',400);
+    const release=path.join(releaseRoot(id),releaseId);
+    const file=path.join(release,'final.mp4');
+    let manifest;
+    try{manifest=JSON.parse(await fs.promises.readFile(path.join(release,'manifest.json'),'utf8'))}
+    catch{throw bad('Corrupted assembly release manifest',409)}
+    if(manifest?.schemaVersion!==1||manifest.project!==id||manifest.release_id!==releaseId||
+       manifest.output?.qa?.verdict!=='PASS'||
+       !Number.isSafeInteger(manifest.output?.bytes)||manifest.output.bytes<1024||
+       !/^[0-9a-f]{64}$/.test(manifest.output?.sha256||''))
+      throw bad('Invalid assembly release manifest',409);
+    let handle;
+    try{
+      handle=await fs.promises.open(file,fs.constants.O_RDONLY|
+        fs.constants.O_NOFOLLOW|fs.constants.O_NONBLOCK);
+      const before=await handle.stat();
+      if(!before.isFile()||before.size!==manifest.output.bytes)
+        throw bad('Assembly release integrity check failed',409);
+      const hash=createHash('sha256'),buffer=Buffer.allocUnsafe(256*1024);
+      let pos=0;
+      while(pos<before.size){
+        const {bytesRead}=await handle.read(buffer,0,
+          Math.min(buffer.length,before.size-pos),pos);
+        if(!bytesRead)throw bad('Assembly release integrity check failed',409);
+        hash.update(buffer.subarray(0,bytesRead));
+        pos+=bytesRead;
+      }
+      const after=await handle.stat(),atPath=await fs.promises.lstat(file);
+      if(!after.isFile()||!atPath.isFile()||atPath.isSymbolicLink()||
+         after.dev!==before.dev||after.ino!==before.ino||
+         atPath.dev!==before.dev||atPath.ino!==before.ino||
+         after.size!==before.size||atPath.size!==before.size||
+         hash.digest('hex')!==manifest.output.sha256)
+        throw bad('Assembly release integrity check failed',409);
+    }catch(e){
+      if(e?.status)throw e;
+      throw bad('Assembly release integrity check failed',409);
+    }finally{await handle?.close()}
+    return {file,manifest};
+  }
+  async function currentAsync(id){
+    const p=pointer(id);
+    try{
+      const first=JSON.parse(await fs.promises.readFile(p,'utf8'));
+      if(!/^[a-f0-9-]{36}$/.test(first.release_id))return null;
+      const {manifest}=await verifiedReleaseAsync(id,first.release_id);
+      // The current pointer may change while awaiting disk I/O; never return
+      // a verified but no longer current release as the latest source.
+      const last=JSON.parse(await fs.promises.readFile(p,'utf8'));
+      if(last.release_id!==first.release_id)return null;
+      return {release_id:first.release_id,manifest,download_url:baseUrl()+
+        '/api/decks/'+encodeURIComponent(id)+'/assembly/releases/'+first.release_id+'/final.mp4'};
+    }catch{return null}
+  }
+  async function downloadAsync(id,releaseId){
+    getDeck(id);
+    return (await verifiedReleaseAsync(id,releaseId)).file;
+  }
   function current(id){
     const p=pointer(id);
     if(!fs.existsSync(p))return null;
@@ -436,5 +500,5 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     })();
     return {...job};
   }
-  return {start,get,cancel,download,current};
+  return {start,get,cancel,download,current,currentAsync,downloadAsync};
 }
