@@ -136,6 +136,31 @@ test('P05-R28 authenticated HTTP quotas return 429 Retry-After but never throttl
   // exhaustion does not reset or consume MCP's quota.
   const status=await rpc('get_assembly_status',{id:'quota-alpha'});
   assert.equal(status.current_release,null);
+  // Exercise the real MCP boundary, not only the pure route classifier:
+  // authenticated tools/call must receive network-level 429 on exhaustion.
+  let mcpAllowed=0,mcpThrottled=0;
+  for(let i=0;i<80;i++){
+   const response=await fetch(base+'/mcp',{method:'POST',
+    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',
+     'X-Forwarded-For':'198.51.100.'+(i%200+1)},
+    body:JSON.stringify({jsonrpc:'2.0',id:i+2,method:'tools/call',
+     params:{name:'get_assembly_status',
+      arguments:{id:'quota-alpha',actor_id:'spoofed-agent-'+i}}}),
+    signal:AbortSignal.timeout(8000)});
+   if(response.status===429){
+    mcpThrottled++;
+    assert.match(response.headers.get('retry-after')||'',/^[1-9][0-9]*$/);
+    assert.equal((await response.json()).error,'P05_VERIFICATION_RATE_LIMITED');
+   }else{
+    assert.equal(response.status,200);
+    const body=await response.json();
+    assert.equal(body.result.isError,false);
+    mcpAllowed++;
+   }
+  }
+  assert.ok(mcpAllowed>=20);
+  assert.ok(mcpThrottled>=1,'MCP actor quota must not trust request body actor_id');
+  assert.equal((await fetch(base+'/health')).status,200);
  }finally{
   if(child){
    child.kill('SIGTERM');
