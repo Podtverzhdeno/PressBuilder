@@ -109,12 +109,35 @@ export function buildQcCockpit({projectId,release,reviewsByScene={}}){
  return {...original,snapshot_sha256:digest(original)};
 }
 export function qcCockpitService({assembly,reviews,enabled=false,
- m58ReportLoader=null,verifyM58Report=null,realAudioRead=null}){
- function read(id,{sceneId=null}={}){
+ m58ReportLoader=null,verifyM58Report=null,realAudioRead=null,
+ realAudioReadAsync=null}){
+ const requireId=id=>{
   if(!enabled)bad('M51_DISABLED',501);
   if(typeof id!=='string'||!ID.test(id))bad('M51_INVALID_PROJECT',400);
+ };
+ function read(id,{sceneId=null}={}){
+  requireId(id);
   const release=assembly.current(id);
   if(!release)bad('M51_NO_VERIFIED_RELEASE',409);
+  return project(id,release,{sceneId});
+ }
+ async function readAsync(id,{sceneId=null}={}){
+  requireId(id);
+  const release=typeof assembly.currentAsync==='function'?
+   await assembly.currentAsync(id):assembly.current(id);
+  if(!release)bad('M51_NO_VERIFIED_RELEASE',409);
+  // P06 cannot load director's full-project real-audio receipt.
+  let result=null;
+  if(sceneId===null&&typeof realAudioReadAsync==='function'){
+   try{result=await realAudioReadAsync(id)}
+   catch{result={job:{status:'INVALID'},receipt:null}}
+  }
+  return project(id,release,{sceneId,
+   usePreloadedAudio:typeof realAudioReadAsync==='function',
+   preloadedAudio:result});
+ }
+ function project(id,release,{sceneId=null,usePreloadedAudio=false,
+  preloadedAudio=null}={}){
   const reviewData={};
   for(const item of release.manifest.scenes)
    reviewData[item.id]=reviews.list(id,item.id);
@@ -129,8 +152,9 @@ export function qcCockpitService({assembly,reviews,enabled=false,
   // Do not call the project-wide real-audio receipt reader for P06 scene
   // queries. A broken/tampered receipt is a visible rejection, never a PASS.
   let realAudio=null;
-  if(sceneId===null&&typeof realAudioRead==='function'){
-   try{realAudio=projectRealMasterAudio({release,result:realAudioRead(id)})}
+  if(sceneId===null&&(usePreloadedAudio||typeof realAudioRead==='function')){
+   try{realAudio=projectRealMasterAudio({release,
+    result:usePreloadedAudio?preloadedAudio:realAudioRead(id)})}
    catch{realAudio=projectRealMasterAudio({release,result:{job:{status:'INVALID'},receipt:null}})}
   }
   const {snapshot_sha256:unused_snapshot,...base}=source;
@@ -152,5 +176,5 @@ export function qcCockpitService({assembly,reviews,enabled=false,
   delete scoped.real_audio_review;
   return scoped;
  }
- return {read};
+ return {read,readAsync};
 }

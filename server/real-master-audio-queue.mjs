@@ -111,6 +111,21 @@ export function realMasterAudioQueue({
   }catch{fail('M58_AUDIO_NO_VERIFIED_CURRENT_RELEASE')}
   return release;
  }
+ async function verifiedCurrentAsync(id){
+  // Production P05 currentAsync includes full SHA, pinned inode and
+  // current-pointer CAS. Test mocks retain the sync verification contract.
+  if(typeof assembly.currentAsync!=='function')return verifiedCurrent(id);
+  let release;
+  try{
+   release=await assembly.currentAsync(id);
+   if(!release||!UUID.test(release.release_id??'')||
+      release.manifest?.project!==id||
+      release.manifest?.release_id!==release.release_id||
+      release.manifest?.output?.qa?.verdict!=='PASS'||
+      !SHA.test(release.manifest?.output?.sha256??''))throw Error();
+  }catch{fail('M58_AUDIO_NO_VERIFIED_CURRENT_RELEASE')}
+  return release;
+ }
  function load(id){
   if(latest.has(id))return latest.get(id);
   const f=journalFile(id);
@@ -172,9 +187,29 @@ export function realMasterAudioQueue({
   const release=verifiedCurrent(id);
   return {job:j,receipt:trustedReceipt(id,j,release)};
  }
+ async function readAsync(id){
+  assertEnabled();requireId(id);
+  const j=load(id);
+  if(!j)return {job:{project_id:id,status:'not_started',publication_allowed:false},receipt:null};
+  if(j.status!=='completed')return {job:{...clone(j),publication_allowed:false},receipt:null};
+  const release=await verifiedCurrentAsync(id);
+  if(!same(j,release))return {job:{...clone(j),status:'stale',
+   report_sha256:null,publication_allowed:false,error_code:'M58_AUDIO_RELEASE_STALE'},
+   receipt:null};
+  return {job:{...clone(j),publication_allowed:false},
+   receipt:trustedReceipt(id,j,release)};
+ }
+ async function infoAsync(id){return (await readAsync(id)).job}
  function enqueue(id,{expectedReleaseId=null,expectedReleaseSha256=null}={}){
   assertEnabled();requireId(id);
-  const release=verifiedCurrent(id);
+  return enqueueVerified(id,verifiedCurrent(id),{expectedReleaseId,expectedReleaseSha256});
+ }
+ async function enqueueAsync(id,{expectedReleaseId=null,expectedReleaseSha256=null}={}){
+  assertEnabled();requireId(id);
+  const release=await verifiedCurrentAsync(id);
+  return enqueueVerified(id,release,{expectedReleaseId,expectedReleaseSha256});
+ }
+ function enqueueVerified(id,release,{expectedReleaseId=null,expectedReleaseSha256=null}={}){
   if(expectedReleaseId!==null||expectedReleaseSha256!==null){
    if(typeof expectedReleaseId!=='string'||!UUID.test(expectedReleaseId)||
       typeof expectedReleaseSha256!=='string'||!SHA.test(expectedReleaseSha256))
@@ -229,16 +264,16 @@ export function realMasterAudioQueue({
     const j=pending.shift();
     let releaseResource=()=>{};
     try{
-     let live=verifiedCurrent(j.project_id);
+     let live=await verifiedCurrentAsync(j.project_id);
      if(!same(j,live))fail('M58_AUDIO_RELEASE_STALE');
      releaseResource=await acquireResource({kind:'real-master-audio',id:j.project_id});
-     live=verifiedCurrent(j.project_id);
+     live=await verifiedCurrentAsync(j.project_id);
      if(!same(j,live))fail('M58_AUDIO_RELEASE_STALE');
      j.status='running';j.started_at=stamp();persist(j);
      const report=await runAudit({out,projectId:j.project_id,
       releaseId:j.release_id,releaseSha:j.release_sha256});
      validateReport(j,report);
-     live=verifiedCurrent(j.project_id);
+     live=await verifiedCurrentAsync(j.project_id);
      if(!same(j,live))fail('M58_AUDIO_RELEASE_STALE');
      const record={schema_version:1,job_id:j.job_id,project_id:j.project_id,
       release_id:j.release_id,release_sha256:j.release_sha256,report};
@@ -262,6 +297,6 @@ export function realMasterAudioQueue({
    }
   }finally{running=false}
  }
- return {enqueue,info,read,
+ return {enqueue,info,read,enqueueAsync,infoAsync,readAsync,
   snapshot:()=>({running,pending:pending.length,enabled,maxPending})};
 }

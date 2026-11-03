@@ -452,13 +452,13 @@ async function api(req,res,url) {
       throw new UserError('M58_AUDIO_QUEUE_DISABLED',501);
     const id=deckId(escaped(audioAuditMatch[1]));
     getDeck(id);
-    if(method==='GET')return json(res,200,realAudioQueue.read(id));
+    if(method==='GET')return json(res,200,await realAudioQueue.readAsync(id));
     if(method==='POST'){
       const value=await readJson(req);
       if(!value||typeof value!=='object'||Array.isArray(value)||
          Object.keys(value).sort().join(',')!=='release_id,release_sha256')
         throw new UserError('M58_AUDIO_START_REQUIRES_EXACT_RELEASE',400);
-      return json(res,202,realAudioQueue.enqueue(id,{
+      return json(res,202,await realAudioQueue.enqueueAsync(id,{
         expectedReleaseId:value.release_id,
         expectedReleaseSha256:value.release_sha256}));
     }
@@ -467,7 +467,7 @@ async function api(req,res,url) {
   const qcCockpitMatch=/^\/api\/decks\/([^/]+)\/qc-cockpit$/.exec(p);
   if(qcCockpitMatch){
     const id=deckId(escaped(qcCockpitMatch[1]));
-    if(method==='GET')return json(res,200,qcCockpit.read(id));
+    if(method==='GET')return json(res,200,await qcCockpit.readAsync(id));
     throw new UserError('Method not allowed',405);
   }
   const ledgerMatch=/^\/api\/decks\/([^/]+)\/job-ledger\/([^/]+)\/([^/]+)$/.exec(p);
@@ -740,7 +740,9 @@ const realAudioQueue=realMasterAudioQueue({out:OUT,assembly,
 const qcCockpit=qcCockpitService({assembly,reviews,
   enabled:process.env.PB_QC_COCKPIT==='1',
   realAudioRead:process.env.PB_REAL_AUDIO_AUDIT==='1'?
-    id=>realAudioQueue.read(id):null});
+    id=>realAudioQueue.read(id):null,
+  realAudioReadAsync:process.env.PB_REAL_AUDIO_AUDIT==='1'?
+    id=>realAudioQueue.readAsync(id):null});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
   assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps,jobLedger,qcCockpit});
 const server=http.createServer(async(req,res)=>{
