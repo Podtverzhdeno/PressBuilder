@@ -49,6 +49,31 @@ test('M58-R18 destructive right-channel inversion in s05 is distinguished from w
   assert.equal(weak.scenes[2].phase_inverted,false);
   assert.equal(weak.may_publish,false);
 });
+test('M58-R19 detects a late s05 phase error beyond the former .95s window',()=>{
+  const pcm=controlledPcm();
+  const start=STARTS[4]+1.8,finish=STARTS[4]+2.36;
+  for(let frame=Math.round(start*RATE);frame<Math.round(finish*RATE);frame++){
+    const pos=frame*4+2;
+    pcm.writeInt16LE(-pcm.readInt16LE(pos),pos);
+  }
+  const report=analyzeStereoFoldDownPcm(pcm);
+  assert.equal(report.window_ms,300);
+  assert.equal(report.windows_per_scene,7);
+  assert.equal(report.scenes.length,6);
+  assert.equal(report.issues.length,1);
+  assert.deepEqual(report.issues,[{
+    scene_id:'s05',code:'PHASE_INVERTED_MONO_CANCELLATION',
+  }]);
+  const target=report.scenes[4];
+  assert.ok(target.interchannel_correlation>.98,
+    'former .95s diagnostic stays normal; only scanning should catch the error');
+  assert.equal(target.review_reason,'PHASE_INVERTED_MONO_CANCELLATION');
+  assert.equal(target.first_failing_window_start_sec,STARTS[4]+1.99);
+  assert.ok(target.windows.some(x=>x.phase_inverted));
+  assert.equal(report.scenes[1].review_reason,null);
+  assert.equal(report.manual_audio_review_required,true);
+  assert.equal(report.may_publish,false);
+});
 test('M58-R18 invalid policy, one-channel PCM and incorrect timeline fail closed',()=>{
   const pcm=controlledPcm();
   assert.throws(()=>analyzeStereoFoldDownPcm(Buffer.alloc(3)),
@@ -91,6 +116,32 @@ test('M58-R18 three genuine P05 H264/AAC masters: inverted s05 stays decodable b
   assert.equal(inverted.original_source_sha256.filter((h,i)=>
     h!==normal.original_source_sha256[i]).length,1);
   assert.equal(inverted.original_source_sha256[1],normal.original_source_sha256[1]);
+  assert.equal(report.may_publish,false);
+  assert.equal(report.may_deploy,false);
+});
+
+test('M58-R19 real six-scene P05 AAC: off-center s05 antiphase is flagged',{
+  timeout:300000,skip:!ready,
+},async()=>{
+  const report=await checkP05KnownVoiceMusic({checkIntermittentPhase:true});
+  assert.equal(report.status,'TWO_REAL_P05_INTERMITTENT_STEREO_RELEASES_VERIFIED');
+  assert.equal(report.stereo_intermittent_negative_control,true);
+  assert.equal(report.unique_release_count,2);
+  assert.deepEqual(report.cases.map(x=>x.label),['normal','late-inverted-right-s05']);
+  assert.ok(report.cases.every(x=>x.output_qa_verdict==='PASS'));
+  const [normal,mutated]=report.cases;
+  assert.equal(normal.audio_qc.stereo_fold_down.issues.length,0);
+  assert.equal(mutated.audio_qc.stereo_fold_down.issues.length,1);
+  const q=mutated.audio_qc.stereo_fold_down.scenes[4];
+  assert.equal(q.review_reason,'PHASE_INVERTED_MONO_CANCELLATION');
+  assert.ok(q.interchannel_correlation>.9,
+    'original R18 single-window s05 result remains clean');
+  assert.ok(q.windows.some(x=>x.phase_inverted));
+  assert.ok(q.first_failing_window_start_sec>STARTS[4]+1.5);
+  assert.equal(mutated.audio_qc.manual_audio_review_required,true);
+  assert.equal(normal.original_source_sha256.filter((h,i)=>
+    h!==mutated.original_source_sha256[i]).length,1);
+  assert.equal(normal.original_source_sha256[1],mutated.original_source_sha256[1]);
   assert.equal(report.may_publish,false);
   assert.equal(report.may_deploy,false);
 });

@@ -28,7 +28,8 @@
     "check:p05:voice-music": "node tools/check-p05-known-voice-music.mjs",
     "check:p05:offline-speech": "node tools/check-p05-known-voice-music.mjs --offline-speech",
     "check:p05:speech-timing": "node tools/check-p05-known-voice-music.mjs --speech-timing",
-    "check:p05:stereo-phase": "node tools/check-p05-known-voice-music.mjs --stereo-phase"
+    "check:p05:stereo-phase": "node tools/check-p05-known-voice-music.mjs --stereo-phase",
+    "check:p05:stereo-late": "node tools/check-p05-known-voice-music.mjs --stereo-phase-late"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",

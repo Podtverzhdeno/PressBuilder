@@ -638,3 +638,29 @@ Detection does **not** verify stereo artistic intent, general source separation,
 intelligibility, licensing, human listening or production readiness. Results
 remain `may_publish:false` and `may_deploy:false`. No release gate or Railway
 flag is enabled by this work.
+
+## M58-R19: off-center stereo faults through 7-window per-scene scan
+
+R18 observed only the 300 ms interval starting at 0.95 seconds in each
+scene. R19 scans **seven timecoded 300 ms windows** per 3-second scene,
+starting at offsets 0.34, 0.67, 1.00, 1.33, 1.66, 1.99 and 2.32 seconds
+(relative to the scene start). This stays away from the known 300 ms
+crossfade tails. Per-window measurements, the first failing window and
+aggregate reason appear in each scene. One phase-cancelled window is enough
+to require manual audio review, even if the historical 0.95s sample passes.
+Weak-signal windows remain a separate finding. This preserves the original
+0.95s summary metrics for clients of R18.
+
+```bash
+node --test tests/cloud-release-stereo-fold-down.test.mjs
+npm run check:p05:stereo-late
+```
+
+The adversarial media case uses *two actual P05 AAC masters*. Only the s05
+source receives a right-channel sign inversion between 1.80 and 2.36 seconds
+inside that scene; all other six-scene input bytes remain unchanged. The
+former center sample stays normal, the exported MP4 should remain decodable,
+and the new per-window stereo scan must identify s05. No source speaker,
+licensing, human listening or arbitrary production audio is verified. Gaps
+between sampled windows and excluded transition regions remain possible;
+not a sample-exhaustive signal safety proof. Publish and deploy remain blocked.
