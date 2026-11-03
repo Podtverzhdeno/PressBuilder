@@ -79,12 +79,17 @@ test('P05-R28 authenticated HTTP quotas return 429 Retry-After but never throttl
  const username='owner',password='test-only-safe-password-0123456';
  const basic='Basic '+Buffer.from(username+':'+password).toString('base64');
  const token=randomBytes(24).toString('hex');
+ const workerToken=randomBytes(24).toString('hex');
+ // Intentional name collision attempt with the MCP director principal.
+ const agents=[{id:'mcp-director',role:'worker',token:workerToken,
+  projects:['quota-beta'],scenes:['s01']}];
  let child=null,logs='';
  try{
   child=spawn(process.execPath,['server/cloud.mjs'],{cwd:process.cwd(),
    stdio:['ignore','pipe','pipe'],env:{...process.env,PORT:String(port),
     PB_DATA_DIR:root,PB_WEB_USER:username,PB_WEB_PASSWORD:password,
-    MCP_API_KEY:token,PB_QC_COCKPIT:'1',PB_REAL_AUDIO_AUDIT:'1'}});
+    MCP_API_KEY:token,PB_QC_COCKPIT:'1',PB_REAL_AUDIO_AUDIT:'1',
+    PB_AGENT_KEYS_JSON:JSON.stringify(agents)}});
   child.stdout.on('data',x=>logs+=x.toString());
   child.stderr.on('data',x=>logs+=x.toString());
   let ready=false;
@@ -110,6 +115,30 @@ test('P05-R28 authenticated HTTP quotas return 429 Retry-After but never throttl
    await rpc('create_deck',{id,title:id,text:'First. Second.',
     style:'paper',slide_count:2,target:8});
   }
+  // A scoped worker with a reserved-looking ID may not debit the shared
+  // budget of a project outside its authenticated scope.
+  async function workerCall(id,requestId){
+   const response=await fetch(base+'/mcp',{method:'POST',
+    headers:{Authorization:'Bearer '+workerToken,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({jsonrpc:'2.0',id:requestId,
+     method:'tools/call',params:{name:'get_assembly_status',
+      arguments:{id,actor_id:'mcp:director'}}}),
+    signal:AbortSignal.timeout(7000)});
+   assert.equal(response.status,200,'unauthorized tools/call must not burn SHA quota');
+   return response.json();
+  }
+  for(let i=0;i<75;i++){
+   const denied=await workerCall('quota-alpha',1000+i);
+   assert.equal(denied.result.isError,true);
+   assert.match(denied.result.content[0].text,/outside agent scope/);
+  }
+  const workerAllowed=await workerCall('quota-beta',1200);
+  assert.equal(workerAllowed.result.isError,false);
+  assert.equal(JSON.parse(workerAllowed.result.content[0].text).current_release,null);
+  // Even after repeated denied worker calls, director's other project is
+  // readable: unauthorized calls did not allocate or drain its budget.
+  assert.equal((await rpc('get_assembly_status',{id:'quota-alpha'})).current_release,null);
   const get=(id,idx)=>fetch(base+'/api/decks/'+id+'/assemble',{
    headers:{Authorization:basic,'X-Forwarded-For':'192.0.2.'+(idx%200+1)},
    signal:AbortSignal.timeout(8000)});
