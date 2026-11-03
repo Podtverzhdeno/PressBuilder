@@ -8,6 +8,7 @@ import {spawn} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
 import {inspectMp4} from './video-qa.mjs';
 import {encodeIncrementalHardCuts} from './incremental-hardcut.mjs';
+import {createResourceGovernor} from './resource-governor.mjs';
 
 const ID=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const bad=(message,status=400)=>Object.assign(new Error(message),{status});
@@ -84,8 +85,13 @@ function ffmpegRun(args,{signal,timeout=600000,onProgress,duration=0,benchmark=f
 }
 export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,baseUrl,
   getPlan,getStyle,reviewUnresolved=()=>false,acquireResource=async()=>()=>{},
-  incrementalHardCuts=false,benchmarkFfmpeg=false}){
+  incrementalHardCuts=false,benchmarkFfmpeg=false,
+  shaBudget={capacity:2,maxWaiting:12}}){
   const jobs=new Map(),controllers=new Map();
+  // R27: never let unbounded authenticated read traffic saturate P05 storage.
+  // Each SHA verification still reads the full file; only active I/O is
+  // restricted. The shared CPU-intensive FFmpeg governor remains separate.
+  const shaGovernor=createResourceGovernor(shaBudget);
   // The journal is durable on the same volume as release artifacts. It does not
   // provide distributed consensus: production must enforce a single writer.
   const jobFile=id=>path.join(out,'assembly-jobs',id+'.json');
@@ -154,8 +160,9 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
        !Number.isSafeInteger(manifest.output?.bytes)||manifest.output.bytes<1024||
        !/^[0-9a-f]{64}$/.test(manifest.output?.sha256||''))
       throw bad('Invalid assembly release manifest',409);
-    let handle,retained=false;
+    let handle,retained=false,releaseShaSlot=null;
     try{
+      releaseShaSlot=await shaGovernor.acquire();
       handle=await fs.promises.open(file,fs.constants.O_RDONLY|
         fs.constants.O_NOFOLLOW|fs.constants.O_NONBLOCK);
       const before=await handle.stat();
@@ -186,7 +193,8 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       if(e?.status)throw e;
       throw bad('Assembly release integrity check failed',409);
     }finally{
-      if(!retained)await handle?.close();
+      try{if(!retained)await handle?.close()}
+      finally{releaseShaSlot?.()}
     }
   }
   async function currentAsync(id){
@@ -201,7 +209,12 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
       if(last.release_id!==first.release_id)return null;
       return {release_id:first.release_id,manifest,download_url:baseUrl()+
         '/api/decks/'+encodeURIComponent(id)+'/assembly/releases/'+first.release_id+'/final.mp4'};
-    }catch{return null}
+    }catch(e){
+      // Rate-limited requests must advertise real backpressure, not a
+      // misleading 200 response with current_release:null.
+      if(e?.status===429)throw e;
+      return null;
+    }
   }
   async function downloadAsync(id,releaseId){
     getDeck(id);
@@ -518,5 +531,6 @@ export function assemblyService({out,getDeck,getRender,getTask,getApproved=null,
     })();
     return {...job};
   }
-  return {start,get,getAsync,cancel,download,current,currentAsync,downloadAsync,downloadHandleAsync};
+  return {start,get,getAsync,cancel,download,current,currentAsync,downloadAsync,
+    downloadHandleAsync,verificationSnapshot:()=>shaGovernor.snapshot()};
 }
