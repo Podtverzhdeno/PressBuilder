@@ -14,7 +14,7 @@ function fixture(){
   id:'s0'+(i+1),sha256:sha(i),duration:3,
   approved_version_id:'v'+(i+1),
   transition_after:{type:i%2===0?'crossfade':'hard-cut',
-    duration:i%2===0?.3:0},
+    duration:i%2===0 ? .3 : 0},
  }));
  const release={release_id:RID,manifest:{schemaVersion:1,
   release_id:RID,project:'demo',target_fps:24,scenes,
@@ -80,7 +80,7 @@ test('M51-R03 rejects stale MP4, source SHA drift, untrusted QA flags and forged
   ({release})=>{release.manifest.output.sha256='1'.repeat(64)},
   ({release})=>{release.manifest.scenes[4].sha256='1'.repeat(64)},
   ({release})=>{release.manifest.scenes[0].duration=4},
-  ({release})=>{release.manifest.scenes[4].transition_after.duration=.3},
+  ({release})=>{release.manifest.scenes[4].transition_after.duration=.2},
   ({report})=>{report.may_publish=true},
   ({report})=>{report.scope='ARBITRARY_CUSTOMER_AUDIO'},
   ({report})=>{report.cases[1].audio_qc.stereo_fold_down.windows_per_scene=1},
