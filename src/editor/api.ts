@@ -17,6 +17,19 @@ export interface QcCockpitView {
    requires_human_review:boolean}>;
  stale_version_events_ignored:number;duration_estimated_tick:number;
  unlocated_qa_alerts:number;unresolved_review_events:number;
+ real_audio_review?:{
+  state:'NOT_CONNECTED'|'NOT_STARTED'|'QUEUED'|'RUNNING'|'FAILED'|'STALE'|
+    'REJECTED'|'COMPLETED_REVIEW_ONLY';
+  source:'M58_R20_REAL_MASTER_PCM';
+  release_sha256:string|null;receipt_sha256:string|null;
+  findings:Array<{id:string;issue_code:string;message:string;
+   global_seconds:number;window_end_seconds:number;
+   time_basis:'DECODED_PCM_SECONDS_APPROXIMATE_VIDEO_SEEK';
+   requires_human_review:true}>;
+  time_basis:'DECODED_PCM_SECONDS_APPROXIMATE_VIDEO_SEEK';
+  cryptographically_signed:false;verified_video_pts:false;
+  human_listening_verified:false;publication_allowed:false;
+ };
  m58_audio_review?:{
   state:'NOT_CONNECTED'|'REJECTED'|'SYNTHETIC_REVIEW_ONLY';
   source:'M58_R19_STEREO_PCM_SYNTHETIC';

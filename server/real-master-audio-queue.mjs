@@ -141,9 +141,18 @@ export function realMasterAudioQueue({
   const release=verifiedCurrent(id);
   return {job:j,receipt:trustedReceipt(id,j,release)};
  }
- function enqueue(id){
+ function enqueue(id,{expectedReleaseId=null,expectedReleaseSha256=null}={}){
   assertEnabled();requireId(id);
-  const release=verifiedCurrent(id),prev=load(id);
+  const release=verifiedCurrent(id);
+  if(expectedReleaseId!==null||expectedReleaseSha256!==null){
+   if(typeof expectedReleaseId!=='string'||!UUID.test(expectedReleaseId)||
+      typeof expectedReleaseSha256!=='string'||!SHA.test(expectedReleaseSha256))
+    fail('M58_AUDIO_EXPECTED_RELEASE_INVALID',400);
+   if(release.release_id!==expectedReleaseId||
+      release.manifest.output.sha256!==expectedReleaseSha256)
+    fail('M58_AUDIO_EXPECTED_RELEASE_STALE',409);
+  }
+  const prev=load(id);
   if(prev&&same(prev,release)){
    if(['queued','running'].includes(prev.status))return {...clone(prev),publication_allowed:false};
    if(prev.status==='completed'){

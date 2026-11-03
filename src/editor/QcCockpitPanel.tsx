@@ -4,6 +4,15 @@ import {api,type QcCockpitView} from './api.ts';
 import {qcDispositionLabel,qcEventTitle,qcFilterEvents,qcSeverityLabel,
   qcTriageCounts,type QcFilter} from './qc-feedback.ts';
 
+const realAudioStatus=(state:string)=>({
+ NOT_CONNECTED:'не подключена',
+ QUEUED:'в очереди; результат ещё не готов',
+ RUNNING:'выполняется; результат ещё не готов',
+ FAILED:'ошибка анализа; требуется ручная проверка',
+ STALE:'отчёт относится к прежнему выпуску',
+ REJECTED:'отчёт отклонён проверкой версии или целостности',
+} as Record<string,string>)[state]??'нет подтверждённого отчёта';
+
 export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=>void}){
  const [data,setData]=useState<QcCockpitView|null>(null);
  const [error,setError]=useState('');
@@ -133,6 +142,41 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
      {!visible.length&&<p>{counts.all===0?
       'Записанных замечаний нет. Это не подтверждает художественное качество и безопасность публикации.':
       'Нет замечаний с выбранными фильтрами. Попробуйте «Все» или другую сцену.'}</p>}
+     {current.real_audio_review&&<section aria-label="Проверка звука реального MP4"
+       style={{marginTop:'16px'}}>
+      <h3>Звук · реальный MP4 (проверка для ревью)</h3>
+      {current.real_audio_review.state==='NOT_STARTED'&&
+       <p>Анализ текущего выпуска ещё не запускался. Наличие AAC само по себе
+        не подтверждает слышимость и качество звука.</p>}
+      {['NOT_CONNECTED','QUEUED','RUNNING','FAILED','STALE','REJECTED']
+       .includes(current.real_audio_review.state)&&
+       <p role="status">Статус аудиопроверки:
+        {' '}{realAudioStatus(current.real_audio_review.state)}.</p>}
+      {current.real_audio_review.state==='COMPLETED_REVIEW_ONLY'&&<>
+       <p><strong>Технический отчёт, не художественная приёмка.</strong>
+        Проверен декодированный звук именно этого MP4, но
+        автоматическое одобрение, прослушивание человеком и права на
+        исходные материалы не подтверждены.</p>
+       <p>SHA аудиоотчёта: <code>{current.real_audio_review.receipt_sha256?.slice(0,20)}…</code>.
+        {' '}Замечаний для прослушивания: {current.real_audio_review.findings.length}.
+        Время по PCM приблизительное и не является точным PTS видеокадра.</p>
+       <div style={{overflowX:'auto'}}><table style={{width:'100%'}}>
+        <thead><tr><th>Начало окна</th><th>Конец окна</th>
+         <th>Что прослушать</th><th>Статус</th></tr></thead>
+        <tbody>{current.real_audio_review.findings.map(f=><tr key={f.id}>
+         <td><button type="button" class="btn"
+          onClick={()=>seek(f.global_seconds)}
+          title="Перейти к приблизительному началу окна PCM">{time(f.global_seconds)}</button></td>
+         <td>{time(f.window_end_seconds)}</td>
+         <td>{f.message}<div><code>{f.issue_code}</code></div></td>
+         <td>Требует ручного прослушивания</td>
+        </tr>)}</tbody>
+       </table></div>
+       {!current.real_audio_review.findings.length&&
+        <p>Грубых ошибок этих типов не обнаружено. Это не означает,
+         что звук проверен полностью или выпуск можно публиковать.</p>}
+      </>}
+     </section>}
      {current.m58_audio_review&&<section aria-label="Экспериментальный аудиоанализ M58"
        style={{marginTop:'16px'}}>
       <h3>Звук · M58 (только контрольный тест)</h3>
@@ -164,8 +208,8 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
       </>}
      </section>}
      <p><strong>Только чтение.</strong> Это не общий релизный допуск:
-      P05/P07 не содержат результаты отдельного M58 аудиоанализа, а
-      замечания без достоверного времени не получают выдуманный таймкод.</p>
+      P05/P07 не являются аудиоприёмкой. Замечания синтетического теста
+      отделены от анализа реального MP4; время PCM остаётся приблизительным.</p>
     </>}
    </section>
    <footer class="task-footer" style={{position:'static',margin:0}}>

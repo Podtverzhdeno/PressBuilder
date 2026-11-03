@@ -281,6 +281,42 @@
         }
       }
     },
+    "real_audio_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state","source","release_sha256","receipt_sha256","findings",
+        "time_basis","cryptographically_signed","verified_video_pts",
+        "human_listening_verified","publication_allowed"],
+      "properties": {
+        "state": {"enum": ["NOT_CONNECTED","NOT_STARTED","QUEUED","RUNNING",
+          "FAILED","STALE","REJECTED","COMPLETED_REVIEW_ONLY"]},
+        "source": {"const": "M58_R20_REAL_MASTER_PCM"},
+        "release_sha256": {"type": ["string","null"],"pattern": "^[a-f0-9]{64}$"},
+        "receipt_sha256": {"type": ["string","null"],"pattern": "^[a-f0-9]{64}$"},
+        "time_basis": {"const": "DECODED_PCM_SECONDS_APPROXIMATE_VIDEO_SEEK"},
+        "cryptographically_signed": {"const": false},
+        "verified_video_pts": {"const": false},
+        "human_listening_verified": {"const": false},
+        "publication_allowed": {"const": false},
+        "findings": {
+          "type": "array","maxItems": 200,
+          "items": {"type": "object","additionalProperties": false,
+            "required": ["id","issue_code","message","global_seconds",
+              "window_end_seconds","time_basis","requires_human_review"],
+            "properties": {
+              "id": {"type": "string"},
+              "issue_code": {"enum": ["POSSIBLE_MONO_FOLD_DOWN_CANCELLATION",
+                "POSSIBLE_ONE_CHANNEL_DROPOUT","POSSIBLE_SILENT_AUDIO_TRACK"]},
+              "message": {"type": "string"},
+              "global_seconds": {"type": "number","minimum": 0},
+              "window_end_seconds": {"type": "number","minimum": 0},
+              "time_basis": {"const": "DECODED_PCM_SECONDS_APPROXIMATE_VIDEO_SEEK"},
+              "requires_human_review": {"const": true}
+            }
+          }
+        }
+      }
+    },
     "render_allowed": {
       "const": false
     },
