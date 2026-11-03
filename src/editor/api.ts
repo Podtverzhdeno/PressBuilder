@@ -44,6 +44,17 @@ export interface QcCockpitView {
  render_allowed:false;publication_allowed:false;snapshot_sha256:string;
 }
 
+export interface RealAudioAuditJob {
+ schema_version:1;
+ project_id:string;
+ job_id:string;
+ release_id:string;
+ release_sha256:string;
+ status:'queued'|'running'|'completed'|'failed';
+ publication_allowed:false;
+ cache_hit?:boolean;
+}
+
 export interface EditOperationsView {
  revision:number;cursor:number;operation_count:number;source_sha256:string;
  history_source_sha256:string|null;state:'EMPTY'|'REVIEW_ONLY'|'STALE_SOURCE';
@@ -253,6 +264,10 @@ const body = (data: unknown): RequestInit => ({
 
 export const api = {
   listDecks: () => call<DeckMeta[]>('/api/decks'),
+  startRealAudioAudit: (id:string,release_id:string,release_sha256:string) =>
+    call<RealAudioAuditJob>(`/api/decks/${encodeURIComponent(id)}/audio-audit`,{
+      method:'POST',...body({release_id,release_sha256})
+    }),
   getQcCockpit: (id:string) =>
     call<QcCockpitView>('/api/decks/'+encodeURIComponent(id)+'/qc-cockpit'),
   getEditOperations: (id:string) =>
