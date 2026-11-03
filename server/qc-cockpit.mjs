@@ -130,7 +130,12 @@ export function qcCockpitService({assembly,reviews,enabled=false,
   let result=null;
   if(sceneId===null&&typeof realAudioReadAsync==='function'){
    try{result=await realAudioReadAsync(id)}
-   catch{result={job:{status:'INVALID'},receipt:null}}
+   catch(e){
+    // A saturated SHA governor is not a corrupt audio receipt. Surface
+    // temporary HTTP 429 with Retry-After; never misreport it as INVALID.
+    if(e?.status===429)throw e;
+    result={job:{status:'INVALID'},receipt:null};
+   }
   }
   return project(id,release,{sceneId,
    usePreloadedAudio:typeof realAudioReadAsync==='function',

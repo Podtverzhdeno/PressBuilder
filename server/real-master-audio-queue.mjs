@@ -129,6 +129,17 @@ export function realMasterAudioQueue({
   }
   return release;
  }
+ // A saturated P05 SHA governor is transient. Retry the verification
+ // with bounded backoff without ever running FFmpeg more than once.
+ async function workerVerifiedCurrent(id){
+  for(let attempt=0;;attempt++){
+   try{return await verifiedCurrentAsync(id)}
+   catch(e){
+    if(e?.status!==429||attempt>=6)throw e;
+    await new Promise(resolve=>setTimeout(resolve,Math.min(750,75*2**attempt)));
+   }
+  }
+ }
  function load(id){
   if(latest.has(id))return latest.get(id);
   const f=journalFile(id);
@@ -267,16 +278,16 @@ export function realMasterAudioQueue({
     const j=pending.shift();
     let releaseResource=()=>{};
     try{
-     let live=await verifiedCurrentAsync(j.project_id);
+     let live=await workerVerifiedCurrent(j.project_id);
      if(!same(j,live))fail('M58_AUDIO_RELEASE_STALE');
      releaseResource=await acquireResource({kind:'real-master-audio',id:j.project_id});
-     live=await verifiedCurrentAsync(j.project_id);
+     live=await workerVerifiedCurrent(j.project_id);
      if(!same(j,live))fail('M58_AUDIO_RELEASE_STALE');
      j.status='running';j.started_at=stamp();persist(j);
      const report=await runAudit({out,projectId:j.project_id,
       releaseId:j.release_id,releaseSha:j.release_sha256});
      validateReport(j,report);
-     live=await verifiedCurrentAsync(j.project_id);
+     live=await workerVerifiedCurrent(j.project_id);
      if(!same(j,live))fail('M58_AUDIO_RELEASE_STALE');
      const record={schema_version:1,job_id:j.job_id,project_id:j.project_id,
       release_id:j.release_id,release_sha256:j.release_sha256,report};
@@ -291,8 +302,9 @@ export function realMasterAudioQueue({
      j.status='completed';j.finished_at=stamp();persist(j);
     }catch(e){
      j.status='failed';j.finished_at=stamp();
-     j.error_code=/^M58_[A-Z0-9_]{4,100}$/.test(e?.code||e?.message||'')?
-      String(e.code||e.message):'M58_AUDIO_WORKER_FAILED';
+     j.error_code=e?.status===429?'M58_AUDIO_SHA_BACKPRESSURE_EXHAUSTED':
+      /^M58_[A-Z0-9_]{4,100}$/.test(e?.code||e?.message||'')?
+       String(e.code||e.message):'M58_AUDIO_WORKER_FAILED';
      try{persist(j)}catch{/* no claim of durable success */}
     }finally{
      try{releaseResource?.()}catch{/* reviewer must inspect governor failures */}
