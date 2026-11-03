@@ -13,7 +13,8 @@ export interface QcCockpitView {
  scenes:Array<{scene_id:string;source_sha256:string;start_tick:number;end_tick:number}>;
  events:Array<{id:string;source:string;scene_id:string|null;issue_code:string;
   message:string;severity:string;disposition:string;global_seconds:number|null;
-  global_pts_tick:number|null;evidence_available:boolean}>;
+  global_pts_tick:number|null;evidence_available:boolean;
+   requires_human_review:boolean}>;
  stale_version_events_ignored:number;duration_estimated_tick:number;
  unlocated_qa_alerts:number;unresolved_review_events:number;
  render_allowed:false;publication_allowed:false;snapshot_sha256:string;

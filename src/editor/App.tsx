@@ -77,7 +77,8 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (exporting.peek() || !deck.peek()) return;
+      // QC is a read-only modal: Ctrl+Z/redo must not mutate the deck behind it.
+      if (exporting.peek() || !deck.peek() || modal === 'qc-cockpit') return;
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
       if (mod && (key === 'z' || key === 'я')) {
