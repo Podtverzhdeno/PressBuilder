@@ -241,6 +241,46 @@
         "type": "string"
       }
     },
+    "m58_audio_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "source", "evidence_basis", "release_sha256",
+        "findings", "analysis_verified_for_customer_media", "human_listening_verified",
+        "publication_allowed"],
+      "properties": {
+        "state": {"enum": ["NOT_CONNECTED", "REJECTED", "SYNTHETIC_REVIEW_ONLY"]},
+        "source": {"const": "M58_R19_STEREO_PCM_SYNTHETIC"},
+        "evidence_basis": {"type": "string"},
+        "release_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "fixture_only": {"const": true},
+        "analysis_verified_for_customer_media": {"const": false},
+        "human_listening_verified": {"const": false},
+        "publication_allowed": {"const": false},
+        "findings": {
+          "type": "array", "maxItems": 42,
+          "items": {"type": "object", "additionalProperties": false,
+            "required": ["id","scene_id","scene_source_sha256","source_version_id",
+              "release_sha256","issue_code","message","severity","disposition",
+              "global_seconds","window_ms","time_basis","human_review_required"],
+            "properties": {
+              "id": {"type": "string"},
+              "scene_id": {"type": "string"},
+              "scene_source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+              "source_version_id": {"type": ["string", "null"]},
+              "release_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+              "issue_code": {"enum": ["PHASE_INVERTED_MONO_CANCELLATION","CHANNEL_SIGNAL_TOO_WEAK"]},
+              "message": {"type": "string"},
+              "severity": {"const": "high"},
+              "disposition": {"const": "REVIEW_REQUIRED"},
+              "global_seconds": {"type": "number", "minimum": 0},
+              "window_ms": {"const": 300},
+              "time_basis": {"const": "DECODED_PCM_WINDOW_APPROXIMATE_MP4_SEEK"},
+              "human_review_required": {"const": true}
+            }
+          }
+        }
+      }
+    },
     "render_allowed": {
       "const": false
     },
