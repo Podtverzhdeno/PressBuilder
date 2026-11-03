@@ -832,11 +832,16 @@ const server=http.createServer(async(req,res)=>{
       // makeMcp enforces actor.projects, but quota admission must check
       // scope BEFORE charging: otherwise denied agents could exhaust a
       // different project's shared budget with unauthorized calls.
-      if(quotaProject&&
+      const scopedRead=Boolean(quotaProject&&
          (actor.role==='director'||actor.projects?.includes(quotaProject))&&
-         hasDeck(quotaProject))p05Quota.admit(
+         hasDeck(quotaProject));
+      if(scopedRead)p05Quota.admit(
         actor.role==='director'?'mcp:director':'mcp:agent:'+actor.id,quotaProject);
-      const reply=await mcp(msg,actor);
+      // Bind cancellation only to authenticated, in-scope SHA-heavy MCP
+      // reads. All other tools preserve their existing durable semantics.
+      const reply=scopedRead?await withLiveP05Response(res,
+        signal=>mcp(msg,actor,{signal})):await mcp(msg,actor);
+      if(res.destroyed)return;
       if(reply===null){res.writeHead(202);res.end();return}
       return json(res,200,reply);
     }
