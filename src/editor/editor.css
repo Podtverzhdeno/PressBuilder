@@ -1961,6 +1961,20 @@ kbd {
 .task-add { display:flex; gap:10px; margin-top:15px; }
 .task-add input { flex:1; }
 .task-error { color:#ffa2a2; white-space:pre-wrap; overflow-wrap:anywhere; }
+/* Long machine-readable M58 codes must not take over narrow QC table cells.
+ * Full code is retained in title and aria-label on the element.
+ */
+.qc-audio-issue-code {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dim);
+  font-size: 11px;
+}
 .task-footer {
   position:sticky; bottom:-25px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;
   margin:23px -25px -25px; padding:13px 25px;
