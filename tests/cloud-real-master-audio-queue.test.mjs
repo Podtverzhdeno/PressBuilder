@@ -6,6 +6,7 @@ import path from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {realMasterAudioQueue} from '../server/real-master-audio-queue.mjs';
+import {createResourceGovernor} from '../server/resource-governor.mjs';
 
 const SHA=x=>x.repeat(64);
 const shaFile=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -138,6 +139,30 @@ test('M58-R21 interrupted queued/running journal is FAILED, never auto-replayed'
   assert.equal(stored.status,'failed');
   denied(()=>q.enqueue('../bad'),'M58_AUDIO_PROJECT_INVALID');
  }finally{fs.rmSync(out,{force:true,recursive:true})}
+});
+test('M58-R21 resource governor wait rechecks current MP4 before running worker',{
+ timeout:12000,
+},async()=>{
+ const out=root('pb-r21-governor-'),assembly=memoryAssembly();
+ const governor=createResourceGovernor({capacity:1,maxWaiting:3});
+ const hold=await governor.acquire({kind:'render'});
+ let called=false;
+ try{
+  const q=makeQueue(out,assembly,{acquireResource:args=>governor.acquire(args),
+   runAudit:async data=>{called=true;return mockReport(data)}});
+  q.enqueue('alpha');
+  await until(()=>governor.snapshot().waiting===1);
+  assert.equal(q.snapshot().running,true);
+  assert.equal(q.info('alpha').status,'queued');
+  assembly.change('alpha');
+  hold();
+  await until(()=>q.info('alpha').status==='failed');
+  assert.equal(q.info('alpha').error_code,'M58_AUDIO_RELEASE_STALE');
+  assert.equal(called,false,'FFmpeg must not run on a release changed while waiting');
+  assert.equal(governor.snapshot().active,0);
+ }finally{
+  hold();fs.rmSync(out,{force:true,recursive:true});
+ }
 });
 test('M58-R21 worker result cannot be accepted after release changes during audit',{
  timeout:12000,
