@@ -53,6 +53,27 @@ export function inspectCurrentMasterStereo({
       typeof s.duration!=='number'||!Number.isFinite(s.duration)||
       s.duration<=0||s.duration>MAX_SECONDS))
    bad('M58_REAL_MASTER_NOT_VERIFIED');
+ // The per-scene source snapshots must actually describe this MP4's declared
+ // montage duration; a claimed source list without timeline consistency is
+ // not release-bound provenance.
+ const sceneIds=new Set();
+ let expectedTimelineSec=0;
+ for(const [i,scene] of manifest.scenes.entries()){
+  if(sceneIds.has(scene.id))bad('M58_REAL_MASTER_TIMELINE_INVALID');
+  sceneIds.add(scene.id);
+  const transition=scene.transition_after??{type:'hard-cut',duration:0};
+  if(!['hard-cut','crossfade','match-cut'].includes(transition.type)||
+     typeof transition.duration!=='number'||
+     !Number.isFinite(transition.duration)||transition.duration<0||
+     transition.duration>.75||
+     (transition.type!=='crossfade'&&transition.duration!==0)||
+     (i===manifest.scenes.length-1&&transition.duration!==0))
+   bad('M58_REAL_MASTER_TIMELINE_INVALID');
+  expectedTimelineSec+=scene.duration-
+    (transition.type==='crossfade'?transition.duration:0);
+ }
+ if(Math.abs(expectedTimelineSec-duration)>.35)
+  bad('M58_REAL_MASTER_TIMELINE_INVALID');
  let file;
  try{file=assembly.download(projectId,release.release_id)}
  catch{bad('M58_REAL_MASTER_NOT_VERIFIED')}
