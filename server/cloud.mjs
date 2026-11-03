@@ -169,33 +169,21 @@ const mediaMimeType=file=>({'.html':'text/html; charset=utf-8','.js':'text/javas
  '.jpeg':'image/jpeg','.ttf':'font/ttf','.woff2':'font/woff2','.ico':'image/x-icon','.mp4':'video/mp4',
  '.mp3':'audio/mpeg','.wav':'audio/wav','.m4a':'audio/mp4','.ogg':'audio/ogg','.webm':'audio/webm'
 })[path.extname(file).toLowerCase()]||'application/octet-stream';
-function fileResponse(req,res,file) {
-  const st=fs.statSync(file);
-  if (!st.isFile()) throw new UserError('Not a file',404);
-  const type=mediaMimeType(file);
-  let start=0,end=st.size-1,status=200;
-  const match=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '');
-  if(match){
-    start=Number(match[1]); end=match[2]?Number(match[2]):end;
-    if(start>=st.size || end>=st.size || start>end){res.writeHead(416,{'Content-Range':'bytes */'+st.size});res.end();return;}
-    status=206;
-  }
-  const headers={'Content-Type':type,'Content-Length':end-start+1,'Accept-Ranges':'bytes','X-Content-Type-Options':'nosniff',
-    'Cache-Control':'private, no-store'};
-  if(status===206) headers['Content-Range']='bytes '+start+'-'+end+'/'+st.size;
-  res.writeHead(status,headers);
-  fs.createReadStream(file,{start,end}).pipe(res);
+// R35: avoid following leaf symlinks when choosing app assets. A missing,
+// non-file or symlinked asset falls back to the trusted compiled index.
+function compiledAsset(file){
+ try{return fs.lstatSync(file).isFile()}
+ catch{return false}
 }
-// R34: all authenticated stored-media GET paths share the same eight
-// retained-FD slots, preventing bypass of P05's slow-client limit using
-// legacy /out or /src/decks voice downloads. Static app assets are
-// intentionally separate: they are not stored user media.
-async function legacyMediaResponse(req,res,file){
+// R34/R35: stream the same opened inode after fstat/lstat identity checks,
+// enforce an explicitly selected FD budget and close on client disconnect.
+// Media uses eight slots; compiled editor assets use an independent 16.
+async function streamedFileResponse(req,res,file,{governor=mediaStreamSlots}={}){
  if(req.method!=='GET'&&req.method!=='HEAD')
   throw new UserError('Method not allowed',405);
  // The budget is acquired BEFORE opening any media inode. HEAD does not
  // retain a stream FD and never consumes a long-lived download slot.
- const releaseStream=req.method==='GET'?await mediaStreamSlots.acquire():()=>{};
+ const releaseStream=req.method==='GET'?await governor.acquire():()=>{};
  let handle=null,stream=null,ownedByStream=false;
  try{
   if(res.destroyed)return;
@@ -515,7 +503,8 @@ async function api(req,res,url) {
   if(previewFileMatch){
     if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
     const id=deckId(escaped(previewFileMatch[1])),scene=deckId(escaped(previewFileMatch[2]));
-    return fileResponse(req,res,previews.frame(id,scene,Number(previewFileMatch[3])));
+    return await streamedFileResponse(req,res,
+      previews.frame(id,scene,Number(previewFileMatch[3])));
   }
   const previewMatch=/^\/api\/decks\/([^/]+)\/preview\/([^/]+)(\/cancel)?$/.exec(p);
   if(previewMatch){
@@ -530,7 +519,8 @@ async function api(req,res,url) {
     if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
     const id=deckId(escaped(diffMatch[1])),scene=deckId(escaped(diffMatch[2])),
       before=diffMatch[3],after=diffMatch[4];
-    if(diffMatch[5]!==undefined)return fileResponse(req,res,await comparisons.frame(id,scene,before,after,Number(diffMatch[5])));
+    if(diffMatch[5]!==undefined)return await streamedFileResponse(req,res,
+      await comparisons.frame(id,scene,before,after,Number(diffMatch[5])));
     return json(res,200,await comparisons.compare(id,scene,before,after));
   }
   const sourceStateMatch=/^\/api\/decks\/([^/]+)\/versions\/([^/]+)\/source-state$/.exec(p);
@@ -911,10 +901,11 @@ const qcCockpit=qcCockpitService({assembly,reviews,
 // Web is one Basic-auth principal today. MCP has authenticated actor IDs.
 // No forwarded-IP trust or user-controlled project-as-identity shortcut.
 const p05Quota=createP05RequestQuota();
-// R33/R34: a shared, zero-wait eight-stream budget for retained media
-// descriptors across P05 verified MP4, /out exports and deck voice.
-// The lease lasts until the stream 'close', not merely its HTTP headers.
+// R33/R34: shared 8-slot per-process slow-media FD limit.
+// R35: independent 16-slot compiled-editor-asset limit; static traffic
+// cannot occupy any verified P05/voice/export media FD permits.
 const mediaStreamSlots=createResourceGovernor({capacity:8,maxWaiting:0});
+const staticStreamSlots=createResourceGovernor({capacity:16,maxWaiting:0});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
   assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps,jobLedger,qcCockpit});
 const server=http.createServer(async(req,res)=>{
@@ -974,20 +965,20 @@ const server=http.createServer(async(req,res)=>{
       if(!validMp4&&!validEvidence)throw new UserError('Invalid filename');
       const file=inside(OUT,name);
       if(!file)throw new UserError('Video not found',404);
-      return await legacyMediaResponse(req,res,file);
+      return await streamedFileResponse(req,res,file);
     }
     if(p.startsWith('/src/decks/')){
       const match=/^\/src\/decks\/([a-z0-9_-]+)\/(voice\.[a-z0-9]+)$/.exec(p);
       if(!match)throw new UserError('Media not found',404);
       const file=inside(DECKS,match[1]+'/'+match[2]);
       if(!file)throw new UserError('Media not found',404);
-      return await legacyMediaResponse(req,res,file);
+      return await streamedFileResponse(req,res,file);
     }
     if(req.method!=='GET' && req.method!=='HEAD')throw new UserError('Method not allowed',405);
     const relative=escaped(p.replace(/^\/+/,'')||'index.html');
     let file=inside(STATIC,relative);
-    if(!file || !fs.existsSync(file) || !fs.statSync(file).isFile())file=path.join(STATIC,'index.html');
-    return fileResponse(req,res,file);
+    if(!file || !compiledAsset(file))file=path.join(STATIC,'index.html');
+    return await streamedFileResponse(req,res,file,{governor:staticStreamSlots});
   }catch(e){
     if(res.destroyed)return;
     if(!res.headersSent)error(res,e);else res.destroy();
