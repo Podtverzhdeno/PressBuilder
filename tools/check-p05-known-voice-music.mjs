@@ -31,10 +31,11 @@ const sha=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 const nap=ms=>new Promise(ok=>setTimeout(ok,ms));
 export function generateKnownVoiceMusicPcm({sceneIndex,missingVoice=false,
   unducked=false,spokenPcm=null,spokenOffsetSec=.2,
-  phaseInvertedRight=false}={}){
+  phaseInvertedRight=false,phaseInvertedLateRight=false}={}){
   if(!Number.isSafeInteger(sceneIndex)||sceneIndex<0||sceneIndex>5||
      typeof missingVoice!=='boolean'||typeof unducked!=='boolean'||
      typeof phaseInvertedRight!=='boolean'||
+     typeof phaseInvertedLateRight!=='boolean'||
      (![.2,.45].includes(spokenOffsetSec))||
      (spokenPcm!==null&&(!Buffer.isBuffer(spokenPcm)||
        spokenPcm.length%4!==0||spokenPcm.length>5*RATE*4)))
@@ -61,7 +62,9 @@ export function generateKnownVoiceMusicPcm({sceneIndex,missingVoice=false,
     }
     const value=Math.round((music+spoken)*32767);
     b.writeInt16LE(value,frame*4);
-    b.writeInt16LE(phaseInvertedRight?-value:value,frame*4+2);
+    const invert=phaseInvertedRight||
+      (phaseInvertedLateRight&&time>=1.8&&time<2.36);
+    b.writeInt16LE(invert?-value:value,frame*4+2);
   }
   return b;
 }
@@ -125,11 +128,15 @@ async function completed(service){
   fail('M58_STEM_P05_TIMEOUT');
 }
 export async function checkP05KnownVoiceMusic({voiceSource='tone',
-  checkSpeechTiming=false,checkStereoInversion=false}={}){
+  checkSpeechTiming=false,checkStereoInversion=false,
+  checkIntermittentPhase=false}={}){
   if(typeof checkSpeechTiming!=='boolean'||
      typeof checkStereoInversion!=='boolean'||
+     typeof checkIntermittentPhase!=='boolean'||
      (checkSpeechTiming&&voiceSource!=='offline-speech')||
-     (checkStereoInversion&&(voiceSource!=='tone'||checkSpeechTiming)))
+     (checkStereoInversion&&(voiceSource!=='tone'||checkSpeechTiming))||
+     (checkIntermittentPhase&&(voiceSource!=='tone'||checkSpeechTiming||
+       checkStereoInversion)))
     fail('M58_STEM_TIMING_PROFILE_INVALID');
   if(!['tone','offline-speech'].includes(voiceSource))
     fail('M58_STEM_VOICE_SOURCE_INVALID');
@@ -173,6 +180,7 @@ export async function checkP05KnownVoiceMusic({voiceSource='tone',
     const cases=[];
     const labels=checkSpeechTiming?['normal','missing-voice-s05','shifted-voice-s05']:
       checkStereoInversion?['normal','missing-voice-s05','inverted-right-s05']:
+      checkIntermittentPhase?['normal','late-inverted-right-s05']:
       ['normal','missing-voice-s05'];
     for(const label of labels){
       if(label==='missing-voice-s05'){
@@ -189,6 +197,11 @@ export async function checkP05KnownVoiceMusic({voiceSource='tone',
         const old=hashes[4];
         hashes[4]=encodeFile(out,4,{phaseInvertedRight:true});
         if(hashes[4]===old)fail('M58_STEM_PHASE_SOURCE_UNCHANGED');
+      }
+      if(label==='late-inverted-right-s05'){
+        const old=hashes[4];
+        hashes[4]=encodeFile(out,4,{phaseInvertedLateRight:true});
+        if(hashes[4]===old)fail('M58_STEM_LATE_PHASE_SOURCE_UNCHANGED');
       }
       assembler.start(PROJECT,IDS,{force:true});
       const job=await completed(assembler);
@@ -235,6 +248,18 @@ export async function checkP05KnownVoiceMusic({voiceSource='tone',
            inversion.issues.length!==0)
           fail('M58_STEM_NORMAL_STEREO_FALSE_REVIEW');
       }
+      if(checkIntermittentPhase){
+        const inversion=measured.stereo_fold_down;
+        const s05=inversion.scenes.find(x=>x.scene_id==='s05');
+        if(label==='late-inverted-right-s05'){
+          if(s05.review_reason!=='PHASE_INVERTED_MONO_CANCELLATION'||
+             s05.interchannel_correlation<.9||
+             s05.first_failing_window_start_sec===null)
+            fail('M58_STEM_LATE_PHASE_UNDETECTED');
+        }else if(inversion.issues.length>0){
+          fail('M58_STEM_LATE_PHASE_FALSE_REVIEW');
+        }
+      }
       cases.push({
         label,release_id:job.result.release_id,
         master_sha256:job.manifest.output.sha256,
@@ -250,6 +275,7 @@ export async function checkP05KnownVoiceMusic({voiceSource='tone',
         'CONTROLLED_REAL_P05_AAC_MUSIC_VOICE_SURROGATE_E2E',
       status:checkSpeechTiming?'THREE_REAL_P05_SYNTHETIC_RELEASES_VERIFIED':
         checkStereoInversion?'THREE_REAL_P05_STEREO_PHASE_RELEASES_VERIFIED':
+        checkIntermittentPhase?'TWO_REAL_P05_INTERMITTENT_STEREO_RELEASES_VERIFIED':
         'TWO_REAL_P05_SYNTHETIC_RELEASES_VERIFIED',
       six_source_mp4s:true,unique_release_count:cases.length,
       source_changed_only_scene:'s05',
@@ -259,6 +285,7 @@ export async function checkP05KnownVoiceMusic({voiceSource='tone',
       normal_review:false,missing_voice_review:true,
       speech_timing_evidence:checkSpeechTiming,
       stereo_phase_negative_control:checkStereoInversion,
+      stereo_intermittent_negative_control:checkIntermittentPhase,
       manual_timing_review_trial_count:checkSpeechTiming?
         cases.filter(x=>x.audio_qc.spoken_cue_timing.manual_speech_timing_review_required).length:null,
       cases,may_publish:false,may_deploy:false,
@@ -272,19 +299,21 @@ export async function checkP05KnownVoiceMusic({voiceSource='tone',
 }
 async function main(args){
   if(args.length===1&&args[0]==='--help'){
-    process.stdout.write('Usage: node tools/check-p05-known-voice-music.mjs [--offline-speech|--speech-timing|--stereo-phase]\n');
+    process.stdout.write('Usage: node tools/check-p05-known-voice-music.mjs [--offline-speech|--speech-timing|--stereo-phase|--stereo-phase-late]\n');
     return 0;
   }
   if(args.length>1||(args.length===1&&
-      !['--offline-speech','--speech-timing','--stereo-phase'].includes(args[0]))){
+      !['--offline-speech','--speech-timing','--stereo-phase','--stereo-phase-late'].includes(args[0]))){
     process.stderr.write('M58_STEM_CLI_USAGE_INVALID\n');
     return 1;
   }
   try{
     process.stdout.write(JSON.stringify(await checkP05KnownVoiceMusic({
-        voiceSource:args.length&&args[0]!=='--stereo-phase'?'offline-speech':'tone',
+        voiceSource:args.length&&!['--stereo-phase','--stereo-phase-late'].includes(args[0])?
+          'offline-speech':'tone',
         checkSpeechTiming:args[0]==='--speech-timing',
         checkStereoInversion:args[0]==='--stereo-phase',
+        checkIntermittentPhase:args[0]==='--stereo-phase-late',
       }),null,2)+'\n');
     return 0;
   }catch(e){
