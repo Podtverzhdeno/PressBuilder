@@ -119,6 +119,18 @@ test('M58-R20 reject stale current pointer, mutated master, forged QA and durati
   tooLong.manifest.output.qa.metadata.duration=70;
   fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(file,tooLong),
    projectId:'real-audio-test'}),'M58_REAL_MASTER_NOT_VERIFIED');
+  const badTimeline=structuredClone(r);
+  badTimeline.manifest.scenes[0].duration=2.5;
+  fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(file,badTimeline),
+   projectId:'real-audio-test'}),'M58_REAL_MASTER_TIMELINE_INVALID');
+  const duplicateScene=structuredClone(r);
+  duplicateScene.manifest.scenes[1].id='s01';
+  fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(file,duplicateScene),
+   projectId:'real-audio-test'}),'M58_REAL_MASTER_TIMELINE_INVALID');
+  const badTransition=structuredClone(r);
+  badTransition.manifest.scenes[1].transition_after={type:'crossfade',duration:.3};
+  fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(file,badTransition),
+   projectId:'real-audio-test'}),'M58_REAL_MASTER_TIMELINE_INVALID');
   const badQa=structuredClone(r);
   badQa.manifest.output.qa.verdict='FAIL';
   fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(file,badQa),
