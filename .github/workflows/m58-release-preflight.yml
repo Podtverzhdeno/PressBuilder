@@ -36,6 +36,8 @@ on:
       - 'tests/cloud-release-offline-speech.test.mjs'
       - 'server/release-speech-cue-timing.mjs'
       - 'tests/cloud-release-speech-cue-timing.test.mjs'
+      - 'server/release-stereo-fold-down-qc.mjs'
+      - 'tests/cloud-release-stereo-fold-down.test.mjs'
       - 'tests/cloud-release-p05-benchmark.test.mjs'
       - 'tools/measure-m58-performance.mjs'
       - 'tests/cloud-release-performance-samples.test.mjs'
@@ -84,6 +86,8 @@ jobs:
         run: node --test tests/cloud-release-offline-speech.test.mjs
       - name: R17 genuine original speech cue timestamp, missing voice and 250ms drift
         run: node --test tests/cloud-release-speech-cue-timing.test.mjs
+      - name: M58-R18 real AAC stereo phase inversion and mono fold-down QA
+        run: node --test tests/cloud-release-stereo-fold-down.test.mjs
       - name: Six-scene AAC controlled music bed and synthetic voice ducking QA
         run: node --test tests/cloud-release-known-voice-music.test.mjs
       - name: P05 animated 3-second hard-cut versus crossfade profiles

@@ -613,3 +613,28 @@ All results keep `may_publish:false`, `may_deploy:false`.
 5. M58-C06–C08: independent review, staging canary, explicit human release signoff, exact-image rollback to previous approved SHA.
 
 Do not turn the M58 task checkbox to accepted based solely on a green CI run.
+
+## M58-R18: real AAC stereo phase and mono fold-down (review-only)
+
+`server/release-stereo-fold-down-qc.mjs` measures 300 ms of actual decoded
+48 kHz stereo PCM in the interior of each of the six source scenes, away from
+crossfades. It compares left/right RMS, interchannel correlation and mid/side
+energy. The diagnostic `PHASE_INVERTED_MONO_CANCELLATION` means both channels
+have enough energy but the mono sum almost cancels, which a basic MP4 stream
+probe cannot identify. `CHANNEL_SIGNAL_TOO_WEAK` is separately reviewable,
+not accepted as a phase check. Unexpected length, malformed PCM and invalid
+thresholds fail closed.
+
+```bash
+node --test tests/cloud-release-stereo-fold-down.test.mjs
+npm run check:p05:stereo-phase
+```
+
+The end-to-end negative control uses the real P05 assembly and FFmpeg/AAC to
+build three immutable six-scene masters: normal, missing s05 voice, and s05
+right-channel polarity inversion. Only the s05 source changes in each variant;
+technical MP4 QA can still pass even when decoded audio collapses in mono.
+Detection does **not** verify stereo artistic intent, general source separation,
+intelligibility, licensing, human listening or production readiness. Results
+remain `may_publish:false` and `may_deploy:false`. No release gate or Railway
+flag is enabled by this work.
