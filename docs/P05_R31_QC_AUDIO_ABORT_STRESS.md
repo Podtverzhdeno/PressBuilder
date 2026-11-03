@@ -56,7 +56,11 @@ authenticated callers.
    429 + Retry-After. No implicit GET enqueue or double worker.
    Samples independent `/health` calls and reports
    `P05_R31_QC_AUDIO_BURST_METRICS` as JSON with success/429,
-   route breakdown, p95 and health latency.
+   route breakdown, p95 and health latency. During an overloaded
+   wave, even **all** POSTs may legitimately return 429; after
+   pressure subsides, a separate POST is required to return the
+   **same job ID** with `cache_hit:true` and never launch another
+   worker.
    Aborts 18 more read clients, verifies recovery and immutable
    receipt/journal SHA without restarting, then physically tampers
    with final.mp4 and requires 409 on all three routes.
