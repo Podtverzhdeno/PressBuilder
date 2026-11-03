@@ -809,7 +809,7 @@ const qcCockpit=qcCockpitService({assembly,reviews,
   realAudioRead:process.env.PB_REAL_AUDIO_AUDIT==='1'?
     id=>realAudioQueue.read(id):null,
   realAudioReadAsync:process.env.PB_REAL_AUDIO_AUDIT==='1'?
-    id=>realAudioQueue.readAsync(id):null});
+    (id,options)=>realAudioQueue.readAsync(id,options):null});
 // Web is one Basic-auth principal today. MCP has authenticated actor IDs.
 // No forwarded-IP trust or user-controlled project-as-identity shortcut.
 const p05Quota=createP05RequestQuota();
