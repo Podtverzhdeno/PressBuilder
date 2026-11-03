@@ -29,7 +29,10 @@ publication authority, production throughput claim or independent signoff.
   existing behavior. Existing authenticated actor IDs (not spoofable
   `actor_id` arguments or forwarded-IP headers) remain the only quota
   actor keys. Denied worker reads cannot charge a different project's
-  SHA/rate budget.
+  SHA/rate budget. An additional pre-admission scene membership check
+  ensures non-directors omitting or inventing a P06 scene do not debit
+  even their **own** project's shared SHA budget; makeMcp still
+  enforces the authoritative P06 assignment/scope rules.
 - The MCP adapter rethrows status **429** only for the two
   SHA-heavy read tools, so the HTTP boundary returns an explicit
   `429` with `Retry-After`. Internal cancellation **499** is likewise
@@ -51,7 +54,10 @@ P05 file is installed only in an authorized test project.
 - A worker token scoped to the first project must be denied when
   asking for the second, including a forged `actor_id` field.
   A worker without a scene must not access director QC.
-  Unauthenticated and batched requests cannot bypass auth/quota.
+  **75 repeated** invalid-scene QC calls must not consume the worker
+  or the project's quota; the worker's next legitimate assembly
+  status read must still succeed. Unauthenticated and batched
+  requests cannot bypass auth/quota.
 - **42 simultaneous MCP requests** mix director QC,
   director assembly status and worker assembly status.
   Outcomes must be either full SHA-verified HTTP 200 JSON-RPC
