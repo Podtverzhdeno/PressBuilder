@@ -11,20 +11,31 @@ const MAX_PCM_BYTES=MAX_SECONDS*48000*4;
 const SHA=/^[a-f0-9]{64}$/,PROJECT=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const RELEASE=/^[a-f0-9-]{36}$/;
 const bad=code=>{throw Object.assign(new Error(code),{code,status:422})};
-function hashFile(file){
- const fd=fs.openSync(file,'r');
+// The Linux Docker runtime passes one already-open, non-symlinked P05
+// inode into BOTH ffprobe and ffmpeg. Never re-open a user-controlled path
+// between SHA verification and the actual AAC decode.
+const CHILD_MP4_FD=3, CHILD_MP4_PATH='/proc/self/fd/3';
+function hashPinnedFile(fd){
  const digest=createHash('sha256'),chunk=Buffer.allocUnsafe(1024*1024);
+ let count=0;
+ for(;;){
+  // Explicit offsets prevent the checksum from changing the inherited
+  // descriptor's seek position (which FFmpeg may duplicate/open).
+  const read=fs.readSync(fd,chunk,0,chunk.length,count);
+  if(!read)break;
+  count+=read;
+  if(count>MAX_MP4_BYTES)bad('M58_REAL_MASTER_TOO_LARGE');
+  digest.update(chunk.subarray(0,read));
+ }
+ return digest.digest('hex');
+}
+function sameInodeAtPath(file,fd){
  try{
-  let count=0;
-  for(;;){
-   const read=fs.readSync(fd,chunk,0,chunk.length,null);
-   if(!read)break;
-   count+=read;
-   if(count>MAX_MP4_BYTES)bad('M58_REAL_MASTER_TOO_LARGE');
-   digest.update(chunk.subarray(0,read));
-  }
-  return digest.digest('hex');
- }finally{fs.closeSync(fd)}
+  const current=fs.lstatSync(file),opened=fs.fstatSync(fd);
+  return current.isFile()&&!current.isSymbolicLink()&&
+   current.dev===opened.dev&&current.ino===opened.ino&&
+   current.size===opened.size;
+ }catch{return false}
 }
 export function inspectCurrentMasterStereo({
  assembly,projectId,ffmpegBin=process.env.FFMPEG||'ffmpeg',
@@ -80,19 +91,27 @@ export function inspectCurrentMasterStereo({
  try{file=assembly.download(projectId,release.release_id)}
  catch{bad('M58_REAL_MASTER_NOT_VERIFIED')}
  if(typeof file!=='string'||!file)bad('M58_REAL_MASTER_NOT_VERIFIED');
- let stat;
- try{stat=fs.statSync(file)}
- catch{bad('M58_REAL_MASTER_NOT_VERIFIED')}
+ // /proc/self/fd/N is a Linux-only, seekable child handle. Fail closed on
+ // unsupported platforms: falling back to file-path reopening would
+ // re-introduce the input substitution race being addressed.
+ if(process.platform!=='linux')bad('M58_REAL_MASTER_PINNED_FD_UNSUPPORTED');
+ let fd;
+ try{
+  fd=fs.openSync(file,fs.constants.O_RDONLY|
+   fs.constants.O_NOFOLLOW|fs.constants.O_NONBLOCK);
+ }catch{bad('M58_REAL_MASTER_FILE_UNSAFE')}
+ try{
+ let stat=fs.fstatSync(fd);
  if(!stat.isFile()||stat.size!==manifest.output.bytes||
-    hashFile(file)!==manifest.output.sha256)
+    !sameInodeAtPath(file,fd)||hashPinnedFile(fd)!==manifest.output.sha256)
    bad('M58_REAL_MASTER_HASH_MISMATCH');
  // Do not silently upmix mono or downmix surround into "two-channel"
  // evidence: that would erase the original channel topology.
  const probe=spawnSync(ffprobeBin,[
   '-v','error','-show_entries','format=duration:stream=codec_type,codec_name,channels,sample_rate',
-  '-of','json',file,
+  '-of','json',CHILD_MP4_PATH,
  ],{shell:false,windowsHide:true,encoding:'utf8',timeout:15000,
-   maxBuffer:262144,stdio:['ignore','pipe','pipe']});
+   maxBuffer:262144,stdio:['ignore','pipe','pipe',fd]});
  if(probe.error||probe.signal||probe.status!==0)
   bad('M58_REAL_AUDIO_PROBE_FAILED');
  let metadata;
@@ -116,23 +135,24 @@ export function inspectCurrentMasterStereo({
   bad('M58_REAL_MASTER_AUDIO_LAYOUT_UNSUPPORTED');
  const decode=spawnSync(ffmpegBin,[
   '-hide_banner','-nostats','-nostdin','-loglevel','error',
-  '-xerror','-err_detect','explode','-i',file,
+  '-xerror','-err_detect','explode','-i',CHILD_MP4_PATH,
   '-map','0:a:0','-vn','-ac','2','-ar','48000',
   '-c:a','pcm_s16le','-t',String(MAX_SECONDS),'-f','s16le','-',
  ],{shell:false,windowsHide:true,encoding:null,timeout:90000,
-   maxBuffer:MAX_PCM_BYTES+262144,stdio:['ignore','pipe','pipe']});
+   maxBuffer:MAX_PCM_BYTES+262144,stdio:['ignore','pipe','pipe',fd]});
  if(decode.error||decode.signal||decode.status!==0||
     !Buffer.isBuffer(decode.stdout)||
     decode.stdout.length<.3*48000*4||
     decode.stdout.length>MAX_PCM_BYTES)
    bad('M58_REAL_AUDIO_DECODE_FAILED');
  const qc=screenRealStereoPcm(decode.stdout,{expectedDurationSec:duration});
- // A file replacement, truncation or concurrent change of current pointer
- // invalidates the receipt even if FFmpeg successfully decoded earlier bytes.
- try{stat=fs.statSync(file)}
- catch{bad('M58_REAL_MASTER_CHANGED_DURING_ANALYSIS')}
+ // In addition to checking the pinned inode's unchanged SHA, require
+ // the public P05 pathname to still resolve to that SAME inode. A renamed
+ // release MP4 or in-place edit while decoding fails closed.
+ stat=fs.fstatSync(fd);
  if(!stat.isFile()||stat.size!==manifest.output.bytes||
-    hashFile(file)!==manifest.output.sha256)
+    !sameInodeAtPath(file,fd)||
+    hashPinnedFile(fd)!==manifest.output.sha256)
    bad('M58_REAL_MASTER_CHANGED_DURING_ANALYSIS');
  const current=assembly.current(projectId);
  if(current?.release_id!==release.release_id||
@@ -157,4 +177,5 @@ export function inspectCurrentMasterStereo({
  };
  return {...record,report_sha256:createHash('sha256')
   .update(JSON.stringify(record)).digest('hex')};
+ }finally{fs.closeSync(fd)}
 }
