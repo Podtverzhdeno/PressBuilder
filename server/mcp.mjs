@@ -146,7 +146,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
     leases.logWrite(id,slide,actor,result?.revision??null,action);
     return result;
   };
-  async function call(name, args,actor) {
+  async function call(name, args,actor,{signal=null}={}) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) throw new UserError('Arguments must be an object');
     if (!actor || !['director','worker','reviewer','viewer'].includes(actor.role)) throw new UserError('Unauthenticated MCP identity',401);
     if (args.id && actor.role!=='director' && !actor.projects?.includes(args.id))
@@ -223,7 +223,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
           if(!args.slide_id)throw new UserError('Scene ID required for scoped QC cockpit',403);
           scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
         }
-        return qcCockpit.readAsync(args.id,{sceneId:actor.role==='director'?null:args.slide_id});
+        return qcCockpit.readAsync(args.id,{sceneId:actor.role==='director'?null:args.slide_id,signal});
       }
       case 'get_fenced_job': scoped(args.id,args.slide_id,actor);assigned(args.id,args.slide_id,actor);
         return jobLedger.read(args.id,args.slide_id,args.job_id);
@@ -313,7 +313,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'set_assembly_plan': directorOnly(actor);return assemblyPlans.put(args.id,args.plan,args.expected_revision);
       case 'assemble_video': directorOnly(actor);return assembly.start(args.id,args.scene_ids,{force:args.force??false});
       case 'cancel_assembly': directorOnly(actor);return assembly.cancel(args.id);
-      case 'get_assembly_status': return assembly.getAsync(args.id);
+      case 'get_assembly_status': return assembly.getAsync(args.id,{signal});
       case 'render_video': directorOnly(actor);return startRender(args.id);
       case 'preview_scene': return write(args.id,args.slide_id,actor,args.fence_token,'preview_scene',()=>{
         if(!previews)throw new UserError('Draft preview not configured',501);
@@ -369,7 +369,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       default: throw new UserError('Unknown tool: '+name,404);
     }
   }
-  return async function handle(message,actor) {
+  return async function handle(message,actor,{signal=null}={}) {
     if (Array.isArray(message)) return { jsonrpc:'2.0',id:null,error:{code:-32600,message:'Batch requests not supported'} };
     if (!message || message.jsonrpc!=='2.0' || typeof message.method!=='string') return {jsonrpc:'2.0',id:message?.id??null,error:{code:-32600,message:'Invalid JSON-RPC'}};
     if (message.id===undefined) return null;
@@ -381,9 +381,13 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       const name=message.params?.name;
       if (typeof name!=='string' || !TOOLS.some((t)=>t.name===name)) return result({content:[{type:'text',text:'Unknown MCP tool'}],isError:true});
       try {
-        const v=await call(name,message.params?.arguments||{},actor);
+        const v=await call(name,message.params?.arguments||{},actor,{signal});
         return result({content:[{type:'text',text:JSON.stringify(v)}],isError:false});
       } catch (e) {
+        // Expensive SHA-read backpressure is a transport-level admission
+        // rejection, not an ordinary 200 JSON-RPC tool error.
+        if((name==='get_qc_cockpit'||name==='get_assembly_status')&&
+           (e?.status===429||e?.status===499))throw e;
         return result({content:[{type:'text',text:e instanceof Error?e.message:'Operation failed'}],isError:true});
       }
     }
