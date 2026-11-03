@@ -51,6 +51,25 @@ test('P05-R29 rejected actor cannot reserve project keys; rejected project canno
  assert.deepEqual(quota.snapshot(),{actors:2,projects:2});
 });
 
+test('P05-R29 repeated 429 keeps exhausted existing identity active, blocking eviction reset',()=>{
+ let now=0;
+ const quota=createP05RequestQuota({actorCapacity:1,
+  actorRefillPerSecond:0.0001,projectCapacity:8,
+  projectRefillPerSecond:1,maxActors:1,maxProjects:4,
+  idleMs:1000,now:()=>now});
+ quota.admit('web:director','alpha');
+ for(const t of [900,1800,2700,3600]){
+  now=t;
+  assert.throws(()=>quota.admit('web:director','alpha'),
+   e=>e?.status===429&&e.message==='P05_VERIFICATION_RATE_LIMITED');
+ }
+ now=4200;
+ assert.throws(()=>quota.admit('new:actor','beta'),
+  e=>e?.status===429&&e.message==='P05_QUOTA_IDENTITY_CAPACITY',
+  'an exhausted but still actively querying identity cannot be evicted/reset');
+ assert.deepEqual(quota.snapshot(),{actors:1,projects:1});
+});
+
 test('M51-R29 QC rethrows transient 429 from second audio SHA verification, never returns false INVALID',{
  timeout:6000,
 },async()=>{
