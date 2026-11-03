@@ -57,4 +57,9 @@ test('M51-R02 UI never auto-publishes or turns M58 synthetic report into a real 
  assert.match(panel,/не содержат результаты отдельного M58 аудиоанализа/);
  assert.match(panel,/Публикация запрещена/);
  assert.doesNotMatch(panel,/setDisposition|setPublicationAllowed|approveRelease/);
+ assert.match(panel,/event.key!=='Escape'/);
+ assert.match(panel,/document.fullscreenElement/);
+ const app=fs.readFileSync(new URL('../src/editor/App.tsx',import.meta.url),'utf8');
+ assert.match(app,/modal === 'qc-cockpit'\) return;/,
+  'global undo/redo/save shortcuts must not run behind QC modal');
 });
