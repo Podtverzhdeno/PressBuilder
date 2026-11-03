@@ -1869,6 +1869,7 @@ kbd {
 
 /* Agent collaboration: one self-contained task board per project. */
 .task-overlay {
+  grid-template-columns: minmax(0, 1fr);
   position: fixed;
   z-index: 160;
   inset: 0;
@@ -1881,6 +1882,7 @@ kbd {
 .task-window {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   background: var(--panel, #142034);
   border: 1px solid var(--line, #344155);
   border-radius: 16px;
@@ -1968,6 +1970,9 @@ kbd {
 @media (max-width: 850px) {
   .task-overlay { padding: 5px; }
   .task-window { height: min(99vh, 1000px); max-height:99vh; min-height:0; }
+  .task-header { flex-wrap: wrap; gap:10px; padding:12px 14px; }
+  .task-header > div { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+  .task-detail code { overflow-wrap:anywhere; }
   .task-layout { grid-template-columns:1fr; grid-template-rows:160px minmax(0,1fr); }
   .task-list { flex-direction:row; border-right:0; border-bottom:1px solid var(--line); }
   .task-scene { min-width:175px; }
