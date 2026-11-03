@@ -227,6 +227,20 @@ test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio rev
   const width=png.readUInt32BE(16),height=png.readUInt32BE(20);
   assert.ok(width>=1100&&height>=700,JSON.stringify({width,height}));
   screenshotFile('qc-audio-desktop-1280.png',png);
+  await evalJs(client,`(()=>{
+   document.querySelector('[aria-label="Проверка звука реального MP4"]')
+    ?.scrollIntoView({block:'start',behavior:'instant'});
+   return true;
+  })()`);
+  await pause(120);
+  const audioCapture=await client.send('Page.captureScreenshot',
+   {format:'png',fromSurface:true});
+  const audioPng=Buffer.from(audioCapture.data||'','base64');
+  assert.ok(audioPng.length>12000,'desktop audio findings screenshot blank');
+  assert.equal(audioPng.subarray(1,4).toString('ascii'),'PNG');
+  assert.equal(audioPng.readUInt32BE(16),width);
+  assert.equal(audioPng.readUInt32BE(20),height);
+  screenshotFile('qc-audio-desktop-findings-1280.png',audioPng);
 
   // Mobile viewport: the modal must fit horizontally, keep audio review
   // controls reachable and render warnings without invented PTS/signoff.
@@ -259,6 +273,16 @@ test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio rev
     detailScrollable:!!detail&&detail.scrollHeight>detail.clientHeight,
     horizontalOverflow:!!modalWindow&&(modalWindow.scrollWidth>modalWindow.clientWidth+3),
     visibleCloseButton:!!dialog?.querySelector('.task-header button'),
+    diagnosticCodeAccessible:(()=>{
+     const code=section?.querySelector('.qc-audio-issue-code');
+     return !!code&&!!code.title&&code.title===code.textContent.trim()&&
+      code.getAttribute('aria-label')===('Код аудиодефекта: '+code.title);
+    })(),
+    diagnosticCodeEllipsis:(()=>{
+     const code=section?.querySelector('.qc-audio-issue-code');
+     return !!code&&getComputedStyle(code).textOverflow==='ellipsis'&&
+      getComputedStyle(code).whiteSpace==='nowrap';
+    })(),
    };
   })()`);
   assert.ok(mobile.viewport<=390&&mobile.viewport>=370,JSON.stringify(mobile));
@@ -269,6 +293,9 @@ test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio rev
   assert.equal(mobile.horizontalOverflow,false,'mobile QC modal overflows horizontally');
   assert.equal(mobile.detailScrollable,true,'long report must remain scrollable');
   assert.equal(mobile.visibleCloseButton,true);
+  assert.equal(mobile.diagnosticCodeAccessible,true,
+   'full diagnostic code must remain available for assistive technology');
+  assert.equal(mobile.diagnosticCodeEllipsis,true,'narrow code must use ellipsis');
   // Focusable control for keyboard use; this does not imply a full WCAG audit.
   const focus=await evalJs(client,`(()=>{
    const button=document.querySelector('[role="dialog"] .task-header button');
@@ -286,7 +313,11 @@ test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio rev
   screenshotFile('qc-audio-mobile-390.png',mobilePng);
   const witness={schema_version:1,scope:'SYNTHETIC_P05_QC_BROWSER_SCREENSHOTS_ONLY',
    viewport_desktop:{width,height},viewport_mobile:{width:390,height:844},
-   screenshot_bytes:{desktop:png.length,mobile:mobilePng.length},
+   screenshot_bytes:{desktop:png.length,
+    desktop_findings:audioPng.length,mobile:mobilePng.length},
+   screenshot_sha256:{desktop:createHash('sha256').update(png).digest('hex'),
+    desktop_findings:createHash('sha256').update(audioPng).digest('hex'),
+    mobile:createHash('sha256').update(mobilePng).digest('hex')},
    real_ffmpeg_fixture:true,manual_button_clicked:true,
    findings:displayed.seekButtons,approximate_pcm_time_only:true,
    issuer_signature:false,publication_allowed:false,requires_human_visual_review:true};
