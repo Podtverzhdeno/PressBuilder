@@ -313,7 +313,7 @@ export function makeMcp({ startRender, getRender, cancelRender, retryRender, bas
       case 'set_assembly_plan': directorOnly(actor);return assemblyPlans.put(args.id,args.plan,args.expected_revision);
       case 'assemble_video': directorOnly(actor);return assembly.start(args.id,args.scene_ids,{force:args.force??false});
       case 'cancel_assembly': directorOnly(actor);return assembly.cancel(args.id);
-      case 'get_assembly_status': return assembly.get(args.id);
+      case 'get_assembly_status': return assembly.getAsync(args.id);
       case 'render_video': directorOnly(actor);return startRender(args.id);
       case 'preview_scene': return write(args.id,args.slide_id,actor,args.fence_token,'preview_scene',()=>{
         if(!previews)throw new UserError('Draft preview not configured',501);
