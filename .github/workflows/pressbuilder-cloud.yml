@@ -45,6 +45,7 @@ jobs:
         run: |
           sudo chmod -R a+rX qc-visual-evidence
           test -s qc-visual-evidence/qc-audio-desktop-1280.png
+          test -s qc-visual-evidence/qc-audio-desktop-findings-1280.png
           test -s qc-visual-evidence/qc-audio-mobile-390.png
           test -s qc-visual-evidence/qc-audio-visual-evidence.json
       - name: Start isolated test service
