@@ -230,11 +230,15 @@ test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio rev
 
   // Mobile viewport: the modal must fit horizontally, keep audio review
   // controls reachable and render warnings without invented PTS/signoff.
+  // Enforce a *390 CSS-pixel layout viewport*, not CDP mobile pinch-scale.
+  // In headless Chromium mobile:true can expose 390 visual px with a
+  // 1560px layout viewport (4x scaled), a false responsive-layout failure.
+  // This tests actual 390px CSS breakpoints without claiming mobile UA.
   await client.send('Emulation.setDeviceMetricsOverride',{
-   width:390,height:844,deviceScaleFactor:1,mobile:true,
+   width:390,height:844,deviceScaleFactor:1,mobile:false,
    screenWidth:390,screenHeight:844,
   });
-  await until(()=>evalJs(client,"document.documentElement.clientWidth<=390"));
+  await until(()=>evalJs(client,"window.innerWidth===390 && document.documentElement.clientWidth===390"));
   const mobile=await evalJs(client,`(()=>{
    const dialog=document.querySelector('[role="dialog"][aria-label="M51 проверка качества монтажа"]');
    const modalWindow=dialog?.querySelector('.task-window');
