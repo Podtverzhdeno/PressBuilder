@@ -41,6 +41,12 @@ jobs:
             -v "$PWD/qc-visual-evidence:/qc-evidence" \
             pressbuilder-cloud:ci \
             --test tests/cloud-qc-audio-browser.test.mjs
+      - name: Require both review screenshots and readable fixture metadata
+        run: |
+          sudo chmod -R a+rX qc-visual-evidence
+          test -s qc-visual-evidence/qc-audio-desktop-1280.png
+          test -s qc-visual-evidence/qc-audio-mobile-390.png
+          test -s qc-visual-evidence/qc-audio-visual-evidence.json
       - name: Start isolated test service
         run: |
           docker run -d --name pb-cloud -p 3987:3000 \
@@ -62,7 +68,7 @@ jobs:
         with:
           name: qc-audio-visual-evidence
           path: qc-visual-evidence/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
           compression-level: 6
       - name: Diagnostics
