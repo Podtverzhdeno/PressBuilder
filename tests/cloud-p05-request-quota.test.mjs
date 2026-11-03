@@ -114,6 +114,14 @@ test('P05-R28 authenticated HTTP quotas return 429 Retry-After but never throttl
    headers:{Authorization:basic,'X-Forwarded-For':'192.0.2.'+(idx%200+1)},
    signal:AbortSignal.timeout(8000)});
   assert.equal((await fetch(base+'/api/decks/quota-alpha/assemble')).status,401);
+  // Guessing nonexistent IDs must not allocate 256/512 quota records or
+  // consume an authenticated principal's budget: no SHA work can follow.
+  for(let i=0;i<48;i++){
+   const response=await fetch(base+'/api/decks/nonexistent-'+i+'/assemble',{
+    headers:{Authorization:basic,'X-Forwarded-For':'203.0.113.'+(i+1)},
+    signal:AbortSignal.timeout(7000)});
+   assert.equal(response.status,404,'unknown projects use ordinary 404, not quota tokens');
+  }
   let allowed=0,throttled=0;
   for(let i=0;i<96;i++){
    const target=i%2===0?'quota-alpha':'%71uota-beta';
