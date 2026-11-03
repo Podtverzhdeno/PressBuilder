@@ -46,3 +46,11 @@ The added tests validate deterministic triage and presentation semantics plus
 static UI safeguards; they are **not a browser-based accessibility or UX test**.
 Existing P05 and P07 trust gates remain unchanged. This is not formal M51
 acceptance, source rights proof, human QA, or a permission to publish.
+
+### M51-R02 keyboard safeguards
+
+When the read-only QC modal is open, global editor shortcuts such as Ctrl+Z,
+Ctrl+Y and Ctrl+S must not mutate the underlying deck. Escape closes the modal
+unless a video is in fullscreen mode, where Escape remains reserved for exiting
+fullscreen. This is guarded by source-level regression tests; a real-browser
+keyboard and screen-reader focus audit is still outstanding.
