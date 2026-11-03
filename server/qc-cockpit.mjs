@@ -3,6 +3,7 @@
  */
 import {createHash} from 'node:crypto';
 import {frameClock,snapFrame,TICKS_PER_SECOND} from './edit-graph.mjs';
+import {projectM58SyntheticAudio} from './m58-qc-bridge.mjs';
 const SHA=/^[a-f0-9]{64}$/;
 const ID=/^[a-z0-9][a-z0-9_-]{0,40}$/;
 const bad=(code,status=409)=>{throw Object.assign(new Error(code),{code,status})};
@@ -106,7 +107,8 @@ export function buildQcCockpit({projectId,release,reviewsByScene={}}){
   render_allowed:false,publication_allowed:false};
  return {...original,snapshot_sha256:digest(original)};
 }
-export function qcCockpitService({assembly,reviews,enabled=false}){
+export function qcCockpitService({assembly,reviews,enabled=false,
+ m58ReportLoader=null,verifyM58Report=null}){
  function read(id,{sceneId=null}={}){
   if(!enabled)bad('M51_DISABLED',501);
   if(typeof id!=='string'||!ID.test(id))bad('M51_INVALID_PROJECT',400);
@@ -115,7 +117,16 @@ export function qcCockpitService({assembly,reviews,enabled=false}){
   const reviewData={};
   for(const item of release.manifest.scenes)
    reviewData[item.id]=reviews.list(id,item.id);
-  const full=buildQcCockpit({projectId:id,release,reviewsByScene:reviewData});
+  const source=buildQcCockpit({projectId:id,release,reviewsByScene:reviewData});
+  let report=null;
+  let audio;
+  if(typeof m58ReportLoader==='function'&&typeof verifyM58Report==='function'){
+   try{report=m58ReportLoader(id,release)}catch{audio={...projectM58SyntheticAudio(),state:'REJECTED'}}
+  }
+  if(!audio)audio=projectM58SyntheticAudio({release,report,verifyReport:verifyM58Report});
+  const {snapshot_sha256:unused_snapshot,...base}=source;
+  const fullData={...base,m58_audio_review:audio};
+  const full={...fullData,snapshot_sha256:digest(fullData)};
   if(sceneId===null)return full;
   if(typeof sceneId!=='string'||!ID.test(sceneId)||!full.scenes.some(s=>s.scene_id===sceneId))
    bad('M51_SCENE_NOT_FOUND',404);
@@ -125,6 +136,9 @@ export function qcCockpitService({assembly,reviews,enabled=false}){
   delete scoped.unlocated_qa_alerts;
   delete scoped.unresolved_review_events;
   delete scoped.snapshot_sha256;
+  // The full M58 laboratory fixture spans all scenes; do not expose it to
+  // P06 scene-restricted worker readers before per-scene receipt scoping exists.
+  delete scoped.m58_audio_review;
   return scoped;
  }
  return {read};
