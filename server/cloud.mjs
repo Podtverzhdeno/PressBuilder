@@ -184,12 +184,27 @@ function fileResponse(req,res,file) {
   res.writeHead(status,headers);
   fs.createReadStream(file,{start,end}).pipe(res);
 }
+// P05-R30: release bounded SHA slots when HTTP clients disappear.
+// This listener is removed after hashing; the stream owns its FD afterwards.
+async function withLiveP05Response(res,verify){
+ const controller=new AbortController();
+ const onClose=()=>controller.abort(Object.assign(
+  new Error('P05_SHA_REQUEST_ABORTED'),{status:499}));
+ res.once('close',onClose);
+ try{
+  const result=await verify(controller.signal);
+  if(controller.signal.aborted)throw controller.signal.reason;
+  return result;
+ }finally{res.off('close',onClose)}
+}
 // P05-R26: serve the exact inode verified asynchronously by P05.
 // Never reopen final.mp4 from a mutable pathname after computing SHA.
 async function pinnedMp4Response(req,res,{handle}){
   let ownedByStream=false;
   try{
+    if(res.destroyed)return;
     const stat=await handle.stat();
+    if(res.destroyed)return;
     if(!stat.isFile())throw new UserError('Not a regular MP4',404);
     let start=0,end=stat.size-1,status=200;
     const range=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range||'');
@@ -377,7 +392,8 @@ async function api(req,res,url) {
   if(releaseMatch){
     if(method!=='GET'&&method!=='HEAD')throw new UserError('Method not allowed',405);
     const id=deckId(escaped(releaseMatch[1])),releaseId=escaped(releaseMatch[2]);
-    return pinnedMp4Response(req,res,await assembly.downloadHandleAsync(id,releaseId));
+    return pinnedMp4Response(req,res,await withLiveP05Response(res,
+      signal=>assembly.downloadHandleAsync(id,releaseId,{signal})));
   }
   const cancelAssembly=/^\/api\/decks\/([^/]+)\/assemble\/cancel$/.exec(p);
   if(cancelAssembly){
@@ -387,7 +403,8 @@ async function api(req,res,url) {
   const assembleMatch=/^\/api\/decks\/([^/]+)\/assemble$/.exec(p);
   if(assembleMatch){
     const id=deckId(escaped(assembleMatch[1]));
-    if(method==='GET')return json(res,200,await assembly.getAsync(id));
+    if(method==='GET')return json(res,200,await withLiveP05Response(res,
+      signal=>assembly.getAsync(id,{signal})));
     if(method==='POST'){
       const body=await readJson(req);
       return json(res,202,assembly.start(id,body?.scene_ids,{force:body?.force??false}));
@@ -855,6 +872,9 @@ const server=http.createServer(async(req,res)=>{
     let file=inside(STATIC,relative);
     if(!file || !fs.existsSync(file) || !fs.statSync(file).isFile())file=path.join(STATIC,'index.html');
     return fileResponse(req,res,file);
-  }catch(e){if(!res.headersSent)error(res,e);else res.destroy();}
+  }catch(e){
+    if(res.destroyed)return;
+    if(!res.headersSent)error(res,e);else res.destroy();
+  }
 });
 server.listen(PORT,HOST,()=>{console.log('PressBuilder cloud listening on '+PORT);renderJobs.start();});
