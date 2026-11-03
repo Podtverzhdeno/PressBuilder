@@ -184,7 +184,7 @@ function fileResponse(req,res,file) {
   res.writeHead(status,headers);
   fs.createReadStream(file,{start,end}).pipe(res);
 }
-// P05-R30: release bounded SHA slots when HTTP clients disappear.
+// P05-R30/R31: release bounded SHA slots when HTTP clients disappear.
 // This listener is removed after hashing; the stream owns its FD afterwards.
 async function withLiveP05Response(res,verify){
  const controller=new AbortController();
@@ -517,7 +517,8 @@ async function api(req,res,url) {
       throw new UserError('M58_AUDIO_QUEUE_DISABLED',501);
     const id=deckId(escaped(audioAuditMatch[1]));
     getDeck(id);
-    if(method==='GET')return json(res,200,await realAudioQueue.readAsync(id));
+    if(method==='GET')return json(res,200,await withLiveP05Response(res,
+      signal=>realAudioQueue.readAsync(id,{signal})));
     if(method==='POST'){
       const value=await readJson(req);
       if(!value||typeof value!=='object'||Array.isArray(value)||
@@ -532,7 +533,8 @@ async function api(req,res,url) {
   const qcCockpitMatch=/^\/api\/decks\/([^/]+)\/qc-cockpit$/.exec(p);
   if(qcCockpitMatch){
     const id=deckId(escaped(qcCockpitMatch[1]));
-    if(method==='GET')return json(res,200,await qcCockpit.readAsync(id));
+    if(method==='GET')return json(res,200,await withLiveP05Response(res,
+      signal=>qcCockpit.readAsync(id,{signal})));
     throw new UserError('Method not allowed',405);
   }
   const ledgerMatch=/^\/api\/decks\/([^/]+)\/job-ledger\/([^/]+)\/([^/]+)$/.exec(p);
