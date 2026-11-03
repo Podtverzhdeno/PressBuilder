@@ -18,6 +18,8 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
  const [error,setError]=useState('');
  const [seekError,setSeekError]=useState('');
  const [busy,setBusy]=useState(false);
+ const [audioStarting,setAudioStarting]=useState(false);
+ const [audioStartError,setAudioStartError]=useState('');
  const [filter,setFilter]=useState<QcFilter>('attention');
  const [sceneFilter,setSceneFilter]=useState('');
  const video=useRef<HTMLVideoElement>(null);
@@ -35,6 +37,7 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
  async function load(){
   const request=++requestVersion.current;
   setBusy(true);setData(null);setError('');setSeekError('');
+  setAudioStarting(false);setAudioStartError('');
   try{
    const result=await api.getQcCockpit(projectId);
    if(request===requestVersion.current){
@@ -51,12 +54,15 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
  }
  useEffect(()=>{
   setFilter('attention');setSceneFilter('');
+  setAudioStarting(false);setAudioStartError('');
   void load();
   return ()=>{requestVersion.current++};
  },[projectId]);
  // Never show a prior project's snapshot during prop changes or a late fetch.
  const current=data?.project_id===projectId?data:null;
  const counts=current?qcTriageCounts(current.events):null;
+ const canRequestAudio=!!current?.real_audio_review&&
+  ['NOT_STARTED','FAILED','STALE'].includes(current.real_audio_review.state);
  const selectedScene=current?.scenes.some(s=>s.scene_id===sceneFilter)?sceneFilter:null;
  const visible=current?qcFilterEvents(current.events,filter,selectedScene):[];
  const time=(seconds:number|null)=>seconds===null?'Время неизвестно':
@@ -76,6 +82,26 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
   player.currentTime=seconds;
   player.focus();
  };
+ async function requestRealAudioAudit(){
+  const release=current;
+  if(!release||!canRequestAudio||busy||audioStarting)return;
+  const request=requestVersion.current;
+  setAudioStarting(true);setAudioStartError('');
+  try{
+   const job=await api.startRealAudioAudit(projectId,release.release_id,release.release_sha256);
+   if(request!==requestVersion.current)return;
+   if(job.project_id!==projectId||job.release_id!==release.release_id||
+      job.release_sha256!==release.release_sha256||job.publication_allowed!==false)
+    throw Error('Сервер вернул задание не для выбранного выпуска. Обновите QC.');
+   setAudioStarting(false);
+   await load();
+  }catch(e){
+   if(request===requestVersion.current)
+    setAudioStartError(e instanceof Error?e.message:String(e));
+  }finally{
+   if(request===requestVersion.current)setAudioStarting(false);
+  }
+ }
  const clip=current?'/api/decks/'+encodeURIComponent(projectId)+
   '/assembly/releases/'+encodeURIComponent(current.release_id)+'/final.mp4':null;
  return <div class="task-overlay" role="dialog" aria-modal="true"
@@ -145,6 +171,17 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
      {current.real_audio_review&&<section aria-label="Проверка звука реального MP4"
        style={{marginTop:'16px'}}>
       <h3>Звук · реальный MP4 (проверка для ревью)</h3>
+      {canRequestAudio&&<div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+        <button type="button" class="btn" disabled={busy||audioStarting}
+         onClick={()=>void requestRealAudioAudit()}
+         title="Отдельно запустить технический анализ именно этого P05 MP4">
+         {audioStarting?'Ставлю в очередь…':'Проверить звук текущего MP4'}
+        </button>
+        <span>Ручной запуск: не подтверждает качество и не разрешает публикацию.</span>
+       </div>}
+      {audioStartError&&<p role="alert" class="task-error">
+        Аудиоанализ не запущен: {audioStartError}. Обновите выпуск и повторите при необходимости.
+       </p>}
       {current.real_audio_review.state==='NOT_STARTED'&&
        <p>Анализ текущего выпуска ещё не запускался. Наличие AAC само по себе
         не подтверждает слышимость и качество звука.</p>}
