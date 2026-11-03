@@ -59,7 +59,10 @@ separate test decks and repeatedly sends authenticated assembly-status
 requests alternating projects, while spoofing
 `X-Forwarded-For` on every request. The test requires actual 429
 with `Retry-After` and proves that health, unrelated metadata, and a
-separately authenticated MCP director still work.
+separately authenticated MCP director still work. It then exhausts
+the MCP director's own project budget via real `tools/call` requests
+with forged `actor_id` values and proves MCP also returns **HTTP 429
++ Retry-After**, without trusting the forged actor IDs.
 
 All existing real MP4/AAC, FFprobe/FFmpeg, browser and P05
 streaming tests must pass on the **exact-head Docker run** with zero
