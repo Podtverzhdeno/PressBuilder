@@ -94,6 +94,22 @@ test('P05-R32 MCP scoped read cancellation, 429 transport and auth boundaries un
   assert.equal(noScene.status,200);
   assert.equal(noScene.data.result?.isError,true,
    'worker cannot obtain director QC without a scene');
+  // A worker authorized for the project but not for a director-wide QC
+  // view must not deplete its own identity or the shared project budget
+  // by repeatedly omitting the required P06 scene.
+  for(let i=0;i<75;i++){
+   const bad=await result(worker,'get_qc_cockpit',{id:project,
+    actor_id:'forged-director-'+i});
+   assert.equal(bad.status,200,
+    'invalid scene scope must fail at MCP authorization, before quota');
+   assert.equal(bad.data.result?.isError,true);
+  }
+  const afterDenied=await result(worker,'get_assembly_status',{id:project});
+  assert.equal(afterDenied.status,200,
+   'invalid QC scope must not throttle legitimate worker assembly reads');
+  assert.equal(afterDenied.data.result?.isError,false);
+  assert.equal(JSON.parse(afterDenied.data.result.content[0].text)
+   .current_release.release_id,f.rid);
   const denied=await fetch(base+'/mcp',{method:'POST',
    headers:{'Content-Type':'application/json'},
    body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',
