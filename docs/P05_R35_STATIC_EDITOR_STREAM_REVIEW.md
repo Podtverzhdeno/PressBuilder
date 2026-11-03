@@ -30,6 +30,16 @@ media or an integrity verdict.
   verify regular-file type, `fstat/lstat` inode, device, size and then
   stream from the **same handle**. The descriptor closes and releases
   its permit on stream `close`, including early disconnects.
+- **Protected image routes remain media:** the P12
+  `/api/decks/:id/preview/:scene/:index.png` and P11
+  `/api/decks/:id/versions/:scene/compare/.../:index.jpg` must also
+  call `streamedFileResponse` with the shared eight-slot
+  **media** governor. A first Docker render-smoke run exposed two
+  residual calls to the removed `fileResponse` symbol (HTTP 500 for
+  draft PNG). Both references have been migrated, and the HTTP
+  regression now checks both routes return normal 4xx responses for
+  missing artifacts rather than `ReferenceError` 500; the real
+  Chromium render-smoke proves valid PNG/JPG frames at full CI.
 - Use an **independent 16-active / zero-wait** static stream governor.
   Saturated static GETs return HTTP 429 with `Retry-After`; static
   clients cannot use or exhaust the eight reserved user-media stream
