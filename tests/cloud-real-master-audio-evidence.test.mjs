@@ -13,11 +13,11 @@ const ready=['ffmpeg','ffprobe'].every(exe=>
  spawnSync(exe,['-version'],{stdio:'ignore',timeout:4000}).status===0);
 const digest=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const RID='00000000-0000-0000-0000-000000000222';
-function pcm({invert=false,dropRight=false}={}){
+function pcm({invert=false,dropRight=false,silent=false}={}){
  const b=Buffer.alloc(Math.round(RATE*SECONDS)*FRAME_BYTES);
  for(let f=0;f<b.length/FRAME_BYTES;f++){
   const t=f/RATE;
-  const wave=Math.round(.15*32767*Math.sin(2*Math.PI*220*t));
+  const wave=silent?0:Math.round(.15*32767*Math.sin(2*Math.PI*220*t));
   const affected=t>=.6&&t<1.8;
   b.writeInt16LE(wave,f*FRAME_BYTES);
   b.writeInt16LE(affected&&dropRight?0:affected&&invert?-wave:wave,f*FRAME_BYTES+2);
@@ -27,7 +27,8 @@ function pcm({invert=false,dropRight=false}={}){
 function media(dir,mode='clean'){
  const file=path.join(dir,mode+'.mp4');
  const source=path.join(dir,mode+'.pcm');
- fs.writeFileSync(source,pcm({invert:mode==='phase',dropRight:mode==='drop'}));
+ fs.writeFileSync(source,pcm({invert:mode==='phase',
+  dropRight:mode==='drop',silent:mode==='silent'}));
  const args=['-hide_banner','-nostdin','-loglevel','error','-y',
   '-f','s16le','-ar','48000','-ac','2','-i',source,
   '-f','lavfi','-i','testsrc2=size=160x90:rate=24:duration=2.4',
@@ -66,7 +67,13 @@ test('M58-R20 arbitrary stereo PCM clean, antiphase and asymmetric dropout are a
  assert.ok(dropout.issues.some(i=>i.code==='POSSIBLE_ONE_CHANNEL_DROPOUT'));
  assert.equal(dropout.may_deploy,false);
  assert.equal(dropout.source_rights_verified,false);
+ const silence=screenRealStereoPcm(pcm({silent:true}),{expectedDurationSec:SECONDS});
+ assert.equal(silence.silent_windows,silence.scanned_windows);
+ assert.equal(silence.silent_window_fraction,1);
+ assert.deepEqual(silence.issues.map(i=>i.code),['POSSIBLE_SILENT_AUDIO_TRACK']);
+ assert.equal(silence.manual_audio_review_required,true);
 });
+
 test('M58-R20 bounded and malformed PCM fails closed',()=>{
  fails(()=>screenRealStereoPcm(Buffer.alloc(3)),'M58_REAL_AUDIO_PCM_INVALID');
  fails(()=>screenRealStereoPcm(Buffer.alloc(4)),'M58_REAL_AUDIO_PCM_INVALID');
@@ -133,6 +140,12 @@ test('M58-R20 reject stale current pointer, mutated master, forged QA and durati
   badTransition.manifest.scenes[1].transition_after={type:'crossfade',duration:.3};
   fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(file,badTransition),
    projectId:'real-audio-test'}),'M58_REAL_MASTER_TIMELINE_INVALID');
+  const silent=media(root,'silent');
+  const silentReport=inspectCurrentMasterStereo({assembly:assemblyFor(silent),
+   projectId:'real-audio-test'});
+  assert.ok(silentReport.decoded_master_audio.issues.some(i=>
+   i.code==='POSSIBLE_SILENT_AUDIO_TRACK'));
+  assert.equal(silentReport.may_publish,false);
   const mono=media(root,'mono');
   fails(()=>inspectCurrentMasterStereo({assembly:assemblyFor(mono),
    projectId:'real-audio-test'}),'M58_REAL_MASTER_AUDIO_LAYOUT_UNSUPPORTED');
