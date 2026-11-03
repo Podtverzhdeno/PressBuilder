@@ -30,6 +30,10 @@ budget, entirely after authentication and REST origin checks:
   rotating project IDs or evade the project budget by rotating agents.
 - The two-token debit is **atomic**; requests rejected by either
   budget do not partially consume the other.
+- Requests for **nonexistent projects** are rejected through the
+  original route without allocating actor/project quota entries. This
+  prevents authenticated guesses of fake project IDs from filling
+  the 512-project key map without causing any real SHA work.
 - A bounded in-memory registry holds at most **256 actors and 512
   projects**. Only entries idle for at least 180 seconds may be
   evicted when the map is full; pressure fails closed with 429.
