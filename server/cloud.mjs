@@ -191,6 +191,9 @@ async function withLiveP05Response(res,verify){
  const onClose=()=>controller.abort(Object.assign(
   new Error('P05_SHA_REQUEST_ABORTED'),{status:499}));
  res.once('close',onClose);
+ // A peer can close while MCP JSON is parsed, before this callback
+ // attaches its close listener. Never hash for an already-dead client.
+ if(res.destroyed)onClose();
  try{
   const result=await verify(controller.signal);
   if(controller.signal.aborted)throw controller.signal.reason;
@@ -832,9 +835,16 @@ const server=http.createServer(async(req,res)=>{
       // makeMcp enforces actor.projects, but quota admission must check
       // scope BEFORE charging: otherwise denied agents could exhaust a
       // different project's shared budget with unauthorized calls.
+      // Project membership alone is insufficient for a P06-scoped QC
+      // call. Invalid or unassigned scenes may still fail in makeMcp,
+      // but must not debit the project's shared SHA admission budget.
+      const scopedScene=msg.params?.name!=='get_qc_cockpit'||
+        actor.role==='director'||
+        (typeof msg.params?.arguments?.slide_id==='string'&&
+         actor.scenes?.includes(msg.params.arguments.slide_id));
       const scopedRead=Boolean(quotaProject&&
          (actor.role==='director'||actor.projects?.includes(quotaProject))&&
-         hasDeck(quotaProject));
+         scopedScene&&hasDeck(quotaProject));
       if(scopedRead)p05Quota.admit(
         actor.role==='director'?'mcp:director':'mcp:agent:'+actor.id,quotaProject);
       // Bind cancellation only to authenticated, in-scope SHA-heavy MCP
