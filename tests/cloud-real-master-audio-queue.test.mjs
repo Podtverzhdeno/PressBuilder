@@ -225,7 +225,8 @@ test('M58-R21 real off-thread FFmpeg worker performs unsigned review on SHA-pinn
   const q=makeQueue(out,assembly);
   const first=q.enqueue(id);
   assert.equal(first.publication_allowed,false);
-  const settled=await until(()=>['completed','failed'].includes(q.info(id).status),45000);
+  const settled=await until(()=>{const current=q.info(id);
+   return ['completed','failed'].includes(current.status)?current:null},45000);
   assert.equal(settled.status,'completed',JSON.stringify(settled));
   const {receipt,job}=q.read(id);
   assert.equal(job.status,'completed');
