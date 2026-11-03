@@ -237,11 +237,11 @@ test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio rev
   await until(()=>evalJs(client,"document.documentElement.clientWidth<=390"));
   const mobile=await evalJs(client,`(()=>{
    const dialog=document.querySelector('[role="dialog"][aria-label="M51 проверка качества монтажа"]');
-   const window=dialog?.querySelector('.task-window');
+   const modalWindow=dialog?.querySelector('.task-window');
    const section=document.querySelector('[aria-label="Проверка звука реального MP4"]');
    const detail=dialog?.querySelector('.task-detail');
    section?.scrollIntoView({block:'start',behavior:'instant'});
-   const r=window?.getBoundingClientRect(),s=section?.getBoundingClientRect();
+   const r=modalWindow?.getBoundingClientRect(),s=section?.getBoundingClientRect();
    const overlay=dialog?.getBoundingClientRect();
    return {viewport:document.documentElement.clientWidth,
     innerWidth:window.innerWidth,visualWidth:window.visualViewport?.width,
@@ -253,7 +253,7 @@ test('M51-R05 real Chromium opens QC modal, manually starts SHA-pinned audio rev
     warningVisible:!!section?.textContent.includes('PCM приблизительное'),
     reviewOnly:!!dialog?.textContent.includes('Публикация запрещена'),
     detailScrollable:!!detail&&detail.scrollHeight>detail.clientHeight,
-    horizontalOverflow:!!window&&(window.scrollWidth>window.clientWidth+3),
+    horizontalOverflow:!!modalWindow&&(modalWindow.scrollWidth>modalWindow.clientWidth+3),
     visibleCloseButton:!!dialog?.querySelector('.task-header button'),
    };
   })()`);
