@@ -25,6 +25,7 @@ import {editGraphService} from './edit-graph.mjs';
 import {editOperationService} from './edit-operations.mjs';
 import {fencedJobLedger} from './fenced-job-ledger.mjs';
 import {qcCockpitService} from './qc-cockpit.mjs';
+import {realMasterAudioQueue} from './real-master-audio-queue.mjs';
 import { sceneSyncStore } from './scene-sync.mjs';
 import { createOAuth } from './oauth.mjs';
 import { renderWithChrome } from './render.mjs';
@@ -442,6 +443,27 @@ async function api(req,res,url) {
     }
     throw new UserError('Method not allowed',405);
   }
+  // M58-R22: human-triggered asynchronous audio screen, never a GET side-effect.
+  // This REST family is protected by Basic auth and same-origin write checks
+  // in the central request handler, and is disabled unless explicitly enabled.
+  const audioAuditMatch=/^\/api\/decks\/([^/]+)\/audio-audit$/.exec(p);
+  if(audioAuditMatch){
+    if(process.env.PB_REAL_AUDIO_AUDIT!=='1')
+      throw new UserError('M58_AUDIO_QUEUE_DISABLED',501);
+    const id=deckId(escaped(audioAuditMatch[1]));
+    getDeck(id);
+    if(method==='GET')return json(res,200,realAudioQueue.read(id));
+    if(method==='POST'){
+      const value=await readJson(req);
+      if(!value||typeof value!=='object'||Array.isArray(value)||
+         Object.keys(value).sort().join(',')!=='release_id,release_sha256')
+        throw new UserError('M58_AUDIO_START_REQUIRES_EXACT_RELEASE',400);
+      return json(res,202,realAudioQueue.enqueue(id,{
+        expectedReleaseId:value.release_id,
+        expectedReleaseSha256:value.release_sha256}));
+    }
+    throw new UserError('Method not allowed',405);
+  }
   const qcCockpitMatch=/^\/api\/decks\/([^/]+)\/qc-cockpit$/.exec(p);
   if(qcCockpitMatch){
     const id=deckId(escaped(qcCockpitMatch[1]));
@@ -712,7 +734,13 @@ const assembly=assemblyService({out:OUT,getDeck,getRender,
   // Fail closed by default; enable after validating real deployment clips.
   incrementalHardCuts:process.env.PB_INCREMENTAL_HARDCUT==='1',
   benchmarkFfmpeg:process.env.PB_FFMPEG_BENCHMARK==='1'});
-const qcCockpit=qcCockpitService({assembly,reviews,enabled:process.env.PB_QC_COCKPIT==='1'});
+const realAudioQueue=realMasterAudioQueue({out:OUT,assembly,
+  enabled:process.env.PB_REAL_AUDIO_AUDIT==='1',
+  acquireResource:options=>resources.acquire(options)});
+const qcCockpit=qcCockpitService({assembly,reviews,
+  enabled:process.env.PB_QC_COCKPIT==='1',
+  realAudioRead:process.env.PB_REAL_AUDIO_AUDIT==='1'?
+    id=>realAudioQueue.read(id):null});
 const mcp=makeMcp({startRender,getRender,cancelRender,retryRender,baseUrl,
   assembly,assemblyPlans,versions,reviews,sceneSync,directorPlan,dispatch,comparisons,previews,rhythmPreview,rhythmDrafts,creativeStory,continuity,typedBriefs,mediaCatalog,editGraph,editOps,jobLedger,qcCockpit});
 const server=http.createServer(async(req,res)=>{
