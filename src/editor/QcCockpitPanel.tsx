@@ -4,6 +4,15 @@ import {api,type QcCockpitView} from './api.ts';
 import {qcDispositionLabel,qcEventTitle,qcFilterEvents,qcSeverityLabel,
   qcTriageCounts,type QcFilter} from './qc-feedback.ts';
 
+const realAudioStatus=(state:string)=>({
+ NOT_CONNECTED:'не подключена',
+ QUEUED:'в очереди; результат ещё не готов',
+ RUNNING:'выполняется; результат ещё не готов',
+ FAILED:'ошибка анализа; требуется ручная проверка',
+ STALE:'отчёт относится к прежнему выпуску',
+ REJECTED:'отчёт отклонён проверкой версии или целостности',
+} as Record<string,string>)[state]??'нет подтверждённого отчёта';
+
 export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=>void}){
  const [data,setData]=useState<QcCockpitView|null>(null);
  const [error,setError]=useState('');
@@ -141,14 +150,8 @@ export function QcCockpitPanel({projectId,onClose}:{projectId:string;onClose:()=
         не подтверждает слышимость и качество звука.</p>}
       {['NOT_CONNECTED','QUEUED','RUNNING','FAILED','STALE','REJECTED']
        .includes(current.real_audio_review.state)&&
-       <p role="status">Статус аудиопроверки: {{
-        NOT_CONNECTED:'не подключена',
-        QUEUED:'в очереди; результат ещё не готов',
-        RUNNING:'выполняется; результат ещё не готов',
-        FAILED:'ошибка анализа; требуется ручная проверка',
-        STALE:'отчёт относится к прежнему выпуску',
-        REJECTED:'отчёт отклонён проверкой версии или целостности'
-       }[current.real_audio_review.state]??'нет подтверждённого отчёта'}.</p>}
+       <p role="status">Статус аудиопроверки:
+        {' '}{realAudioStatus(current.real_audio_review.state)}.</p>}
       {current.real_audio_review.state==='COMPLETED_REVIEW_ONLY'&&<>
        <p><strong>Технический отчёт, не художественная приёмка.</strong>
         Проверен декодированный звук именно этого MP4, но
